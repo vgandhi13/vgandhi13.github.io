@@ -26,8 +26,8 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-I am interested in AI and its interpretability, alignment and Systems. To this extent, I am currentLy working on Test time Reinforcement Learning with Uncertainty for Large Language Models, and Interpreting Physical Reasoning in Deep Reinforcement Learning Agents.
+I am interested in AI, particularly interpretability, alignment, and systems. My current work focuses on test-time reinforcement learning with uncertainty for large language models and interpreting physical reasoning in deep reinforcement learning agents.
 
-This summer I interned in the Vision Language Models team at Sarvam AI as a Machine Learning Engineer and contributed to their efforts of sovereign language model. Last summer, I interned at DXFactor as a Data Engineer where I worked on creating a data warehous and ETL pipelines.
+This past summer, I interned as a Machine Learning Engineer with the Vision-Language Models team at Sarvam AI, where I contributed to their efforts in building India's sovereign language model. The previous summer, I interned as a Data Engineer at DXFactor, developing a data warehouse and ETL pipelines.
 
-You can reach out to me at [vgandhi@umass.edu](vgandhi@umass.edu)
+You can reach me at[vgandhi@umass.edu](vgandhi@umass.edu)
