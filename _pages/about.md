@@ -30,4 +30,4 @@ I am interested in AI, particularly interpretability, alignment, and systems. My
 
 This past summer, I interned as a Machine Learning Engineer with the Vision-Language Models team at [Sarvam AI](https://www.sarvam.ai/), where I contributed to their efforts in building India's sovereign language model. The previous summer, I interned as a Data Engineer at [DXFactor](https://dxfactor.com/), developing a data warehouse and ETL pipelines.
 
-You can reach me at[vgandhi@umass.edu](vgandhi@umass.edu)
+You can reach me at [vgandhi@umass.edu](vgandhi@umass.edu)
