@@ -5,4 +5,4 @@ inline: true
 related_posts: false
 ---
 
-Instructor of [4 sections](https://vgandhi13.github.io/teaching/) of undergrad CS First Year Seminars this Fall at UMass!
+Instructor for [4 sections](https://vgandhi13.github.io/teaching/) of undergrad CS First Year Seminars this Fall at UMass!
