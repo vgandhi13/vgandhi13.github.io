@@ -391,15 +391,15 @@ ninja.data = [{
           description: "",
           section: "Books",handler: () => {
               window.location.href = "/books/the_godfather/";
-            },},{id: "news-began-master-of-science-in-computer-science-at-umass",
-          title: 'Began Master of Science in Computer Science at UMass.',
-          description: "",
-          section: "News",},{id: "news-awarded-bay-state-fellowship-by-manning-cics",
+            },},{id: "news-awarded-bay-state-fellowship-by-manning-cics",
           title: 'Awarded Bay State Fellowship by Manning CICS',
           description: "",
           section: "News",handler: () => {
               window.location.href = "/news/announcement_2/";
-            },},{id: "news-instructor-of-4-sections-of-undergrad-cs-first-year-seminars-this-fall-at-umass",
+            },},{id: "news-began-master-of-science-in-computer-science-at-umass",
+          title: 'Began Master of Science in Computer Science at UMass.',
+          description: "",
+          section: "News",},{id: "news-instructor-of-4-sections-of-undergrad-cs-first-year-seminars-this-fall-at-umass",
           title: 'Instructor of 4 sections of undergrad CS First Year Seminars this Fall at...',
           description: "",
           section: "News",},{id: "projects-project-1",
