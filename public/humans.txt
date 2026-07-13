@@ -1,0 +1,16 @@
+/* TEAM */
+Owner: Varun Gandhi
+Contact: vgandhi [at] umass.edu
+Location: Amherst, MA
+
+/* CREDITS */
+This website would not look the way it looks if not for Claude Code —
+it was built almost entirely in conversation with it.
+
+Design inspired by the websites of:
+  Andrej Karpathy — https://karpathy.ai
+  Lilian Weng — https://lilianweng.github.io
+
+/* SITE */
+Stack: Astro, KaTeX, Fuse.js
+No trackers, no analytics, no cookies.

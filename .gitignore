@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+
+# personal working files — never publish (repo is public)
+# (leading / anchors to repo root; plain "Notes/" would also ignore
+# src/content/notes/ because git matching is case-insensitive on macOS)
+/Notes/
+/Context/
+/prompt.txt
+/TODO.txt
+/*.jpg
+/Screenshot*.png

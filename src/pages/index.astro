@@ -1,0 +1,545 @@
+---
+import Base from '../layouts/Base.astro';
+
+// TODO: replace the LeetCode placeholder URL with your real profile.
+const socials = [
+  {
+    label: 'GitHub',
+    url: 'https://github.com/vgandhi13',
+    icon: '<path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>',
+  },
+  {
+    label: 'LinkedIn',
+    url: 'https://www.linkedin.com/in/varunriteshgandhi/',
+    icon: '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4V8h4v2a6 6 0 0 1 2-2z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>',
+  },
+  {
+    label: 'Google Scholar',
+    url: 'https://scholar.google.com/citations?user=RCLwIEMAAAAJ&hl=en',
+    icon: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+  },
+  {
+    label: 'LeetCode',
+    url: 'https://leetcode.com/u/YOUR_LEETCODE',
+    icon: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+  },
+  {
+    label: 'Email',
+    url: 'mailto:vgandhi@umass.edu',
+    icon: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>',
+  },
+];
+
+const news = [
+  {
+    date: 'Jun 2026',
+    text: 'Our paper "Hierarchical Experimentalist Agents" (HExA) was accepted to the Third Reinforcement Learning Beyond Rewards Workshop at the Reinforcement Learning Conference (RLC).',
+  },
+  { date: 'Summer 2026', text: 'Interning at Motional as a Software Engineer Intern.' },
+  {
+    date: 'Sep 2025',
+    text: 'Instructor for four sections of undergraduate CS First Year Seminars at UMass this fall.',
+  },
+  {
+    date: 'Summer 2025',
+    text: 'Interned as a Machine Learning Engineer with the Vision-Language Models team at Sarvam AI.',
+  },
+  { date: 'Jan 2025', text: 'Began my MS in Computer Science at UMass Amherst.' },
+  { date: 'Oct 2024', text: 'Awarded the Bay State Fellowship by Manning CICS.' },
+];
+---
+
+<Base
+  title="Varun Gandhi"
+  description="Varun Gandhi — MS CS student at UMass Amherst working on AI research, engineering, and LLM post-training."
+  hideSiteName
+>
+  <section class="hero">
+    <img src="/profile.jpg" alt="Varun Gandhi" class="profile-pic" width="150" height="150" />
+    <div class="hero-text">
+      <h1>Varun Gandhi</h1>
+      <p>
+        I'm an MS Computer Science student at UMass Amherst, interested in AI research and
+        engineering, with a focus on LLM post-training. I have experience across both research
+        and industry. Outside of research, I write <a href="/notes/">notes</a> on things I'm
+        learning, inspired by the idea of learning in public.
+      </p>
+      <ul class="socials">
+        {socials.map((s) => (
+          <li>
+            <a href={s.url} target="_blank" rel="noopener" aria-label={s.label} title={s.label}>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                set:html={s.icon}
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <nav class="jump-nav" aria-label="Sections">
+    <a href="#news">News</a>
+    <a href="#research">Research</a>
+    <a href="#teaching">Teaching</a>
+  </nav>
+
+  <section aria-label="Timeline">
+    <ul class="timeline">
+      <li>
+        <span class="tl-date">2026</span>
+        <img class="tl-logo" src="/logos/motional.com.png" alt="Motional" width="52" height="52" loading="lazy" />
+        <div class="tl-body">
+          This summer, I'm interning as a Software Engineer at
+          <a href="https://motional.com" target="_blank" rel="noopener">Motional</a>.
+        </div>
+      </li>
+      <li>
+        <span class="tl-date">2026</span>
+        <img class="tl-logo" src="/logos/adobe.com.png" alt="Adobe" width="52" height="52" loading="lazy" />
+        <div class="tl-body">
+          I was an AI Research Extern at
+          <a href="https://www.adobe.com" target="_blank" rel="noopener">Adobe</a> (Jan–May 2026)
+          through the UMass CS 698DS Industry Mentorship Practicum in AI, working on LLM
+          post-training, agents, and retrieval-augmented generation for document Q&A — mentored
+          by Zichao (Jack) Wang at Adobe and Jaewook (Jake) Lee at UMass. Paper under review.
+        </div>
+      </li>
+      <li>
+        <span class="tl-date">2025</span>
+        <img class="tl-logo" src="/logos/umass.edu.png" alt="UMass Amherst" width="52" height="52" loading="lazy" />
+        <div class="tl-body">
+          I'm pursuing my MS in Computer Science at UMass Amherst. In Fall 2025, I was the
+          instructor for four sections of undergraduate CS
+          <a href="#teaching">First Year Seminars</a>.
+        </div>
+      </li>
+      <li>
+        <span class="tl-date">2025</span>
+        <img class="tl-logo" src="/logos/sarvam.ai.png" alt="Sarvam AI" width="52" height="52" loading="lazy" />
+        <div class="tl-body">
+          I interned as a Machine Learning Engineer with the Vision-Language Models team at
+          <a href="https://www.sarvam.ai" target="_blank" rel="noopener">Sarvam AI</a>, where I
+          contributed to their efforts in building India's sovereign language model.
+        </div>
+      </li>
+      <li>
+        <span class="tl-date">2024</span>
+        <img class="tl-logo" src="/logos/umass.edu.png" alt="Manning CICS, UMass Amherst" width="52" height="52" loading="lazy" />
+        <div class="tl-body">
+          Awarded the Bay State Fellowship by Manning CICS — a merit-based award granted to
+          around ten students each year, with a teaching assistantship and full tuition waiver.
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <section id="news">
+    <h2>News</h2>
+    <div class="news-box">
+      <ul class="news">
+        {news.map((item) => (
+          <li>
+            <span class="news-date">{item.date}</span>
+            <span>{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section id="research">
+    <h2>Research</h2>
+    <div class="paper">
+      <a
+        class="paper-fig"
+        href="https://arxiv.org/abs/2606.29315"
+        target="_blank"
+        rel="noopener"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <img
+          src="/images/papers/hexa.png"
+          alt="HExA framework overview figure"
+          loading="lazy"
+        />
+      </a>
+      <div class="paper-info">
+        <h3>
+          <a href="https://arxiv.org/abs/2606.29315" target="_blank" rel="noopener">
+            Hierarchical Experimentalist Agents
+          </a>
+        </h3>
+        <p class="paper-authors">
+          Abhranil Chandra, Sankaran Vaidyanathan, Utsav Dhanuka, <strong>Varun Gandhi</strong>,
+          Scott Niekum
+        </p>
+        <p class="paper-venue">arXiv preprint, 2026</p>
+        <p class="paper-summary">
+          HExA is a training-free framework that lets LLM agents improve through active
+          experimentation — learning reusable skills and integrating evidence to solve novel
+          tasks without external supervision — evaluated on Interphyre, a benchmark built on the
+          PHYRE 2D physics environment.
+        </p>
+        <div class="paper-links">
+          <a href="https://arxiv.org/abs/2606.29315" target="_blank" rel="noopener">arXiv</a>
+          <a href="https://arxiv.org/pdf/2606.29315" target="_blank" rel="noopener">PDF</a>
+        </div>
+      </div>
+    </div>
+    <div class="paper">
+      <a
+        class="paper-fig"
+        href="https://arxiv.org/abs/2506.06971"
+        target="_blank"
+        rel="noopener"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <img
+          src="/images/papers/chain-of-code-collapse.png"
+          alt="Chain-of-Code Collapse adversarial prompting overview figure"
+          loading="lazy"
+        />
+      </a>
+      <div class="paper-info">
+        <h3>
+          <a href="https://arxiv.org/abs/2506.06971" target="_blank" rel="noopener">
+            Chain-of-Code Collapse: Reasoning Failures in LLMs via Adversarial Prompting in Code
+            Generation
+          </a>
+        </h3>
+        <p class="paper-authors">
+          Jaechul Roh, <strong>Varun Gandhi</strong>, Shivani Anilkumar, Arin Garg
+        </p>
+        <p class="paper-venue">arXiv preprint, 2025</p>
+        <p class="paper-summary">
+          We show that LLMs are fragile under semantically faithful but adversarially structured
+          prompt variations in code generation — performance swings on surface-level formatting
+          changes rather than genuine reasoning ability.
+        </p>
+        <div class="paper-links">
+          <a href="https://arxiv.org/abs/2506.06971" target="_blank" rel="noopener">arXiv</a>
+          <a href="https://arxiv.org/pdf/2506.06971" target="_blank" rel="noopener">PDF</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="teaching">
+    <h2>Teaching</h2>
+    <div class="entry">
+      <h3>
+        <a
+          href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home"
+          target="_blank"
+          rel="noopener"
+        >
+          FYS 191MCS24: First Year Seminar on Ethics in AI
+        </a>
+      </h3>
+      <p class="entry-meta">Instructor · UMass Amherst, Fall 2025</p>
+    </div>
+    <div class="entry">
+      <h3>
+        <a
+          href="https://sites.google.com/umass.edu/systems-fys-fall25/home"
+          target="_blank"
+          rel="noopener"
+        >
+          FYS 191MCS22: First Year Seminar on Modern Computing Systems
+        </a>
+      </h3>
+      <p class="entry-meta">Instructor · UMass Amherst, Fall 2025</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 2.5rem;
+    flex-wrap: wrap;
+  }
+
+  .profile-pic {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .hero-text {
+    max-width: 36rem;
+    min-width: 16rem;
+    flex: 1;
+  }
+
+  .hero-text h1 {
+    margin-top: 0;
+  }
+
+  .socials {
+    list-style: none;
+    padding: 0;
+    margin: 0.9rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .socials a {
+    color: var(--text-muted);
+    display: inline-flex;
+    padding: 0.1rem;
+  }
+
+  .socials a:hover {
+    color: var(--link);
+  }
+
+  .jump-nav {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 2rem 0 0.5rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+  }
+
+  section[id] {
+    scroll-margin-top: 1rem;
+  }
+
+  .news-box {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 0.25rem 1rem;
+  }
+
+  .news {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 11rem;
+    overflow-y: auto;
+    font-size: 0.95rem;
+  }
+
+  .news li {
+    display: flex;
+    gap: 1rem;
+    padding: 0.45rem 0;
+  }
+
+  .news li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .news-date {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    width: 7rem;
+  }
+
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: relative;
+  }
+
+  /* the vertical line, between the dates and the logos */
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 4.25rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .timeline li {
+    display: grid;
+    grid-template-columns: 3.5rem 52px 1fr;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    position: relative;
+  }
+
+  /* the dot on the line */
+  .timeline li::before {
+    content: '';
+    position: absolute;
+    left: calc(4.25rem - 3px);
+    top: 1.45rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .tl-date {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: right;
+    padding-top: 0.15rem;
+    white-space: nowrap;
+  }
+
+  .tl-logo {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 4px;
+  }
+
+  .tl-body {
+    padding-top: 0.1rem;
+  }
+
+  @media (max-width: 32rem) {
+    .timeline::before,
+    .timeline li::before {
+      display: none;
+    }
+
+    .timeline li {
+      grid-template-columns: 52px 1fr;
+      gap: 1rem;
+    }
+
+    .tl-date {
+      grid-column: 1 / -1;
+      text-align: left;
+      padding-top: 0;
+      margin-bottom: -0.5rem;
+    }
+  }
+
+  .paper {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 2rem;
+  }
+
+  /* fixed-size frame so tiles stay uniform across figure aspect ratios */
+  .paper-fig {
+    display: block;
+    height: 150px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    padding: 6px;
+  }
+
+  .paper-fig img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .paper-info h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+  }
+
+  .paper-info h3 a {
+    color: var(--heading);
+  }
+
+  .paper-info h3 a:hover {
+    color: var(--link);
+  }
+
+  .paper-authors,
+  .paper-venue {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0 0 0.25rem;
+  }
+
+  .paper-summary {
+    margin: 0.5rem 0 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .paper-links {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .paper-links a {
+    border: 1px solid var(--link);
+    border-radius: 6px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .paper-links a:hover {
+    background: var(--surface);
+    text-decoration: none;
+  }
+
+  @media (max-width: 40rem) {
+    .paper {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+
+    .paper-fig {
+      max-width: 20rem;
+    }
+  }
+
+  .entry {
+    margin-bottom: 1.5rem;
+  }
+
+  .entry h3 {
+    margin-bottom: 0.25rem;
+  }
+
+  .entry h3 a {
+    color: var(--heading);
+  }
+
+  .entry h3 a:hover {
+    color: var(--link);
+  }
+
+  .entry-meta {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0 0 0.35rem;
+  }
+
+  .entry p {
+    margin: 0.35rem 0;
+  }
+</style>

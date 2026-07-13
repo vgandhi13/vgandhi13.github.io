@@ -1,0 +1,298 @@
+---
+// Full-text search over notes and blog posts. Fetches /search-index.json
+// lazily on first focus; matching is fuzzy (Fuse.js) and stop words are
+// ignored on both the index and query side. `scope` sets the placeholder
+// and ranks that collection's results first; matches from the other
+// collection still appear (badged) below.
+interface Props {
+  scope: 'note' | 'blog';
+}
+
+const { scope } = Astro.props;
+---
+
+<div class="search" data-search data-scope={scope}>
+  <input
+    type="search"
+    placeholder={scope === 'blog' ? 'Search blog…' : 'Search notes…'}
+    aria-label="Search notes and blog posts"
+    autocomplete="off"
+  />
+  <ul class="search-results" hidden></ul>
+  <p class="search-status" hidden></p>
+</div>
+
+<script>
+  import Fuse from 'fuse.js';
+  import { contentTokens } from '../lib/stopwords.js';
+
+  type Doc = {
+    type: string;
+    url: string;
+    title: string;
+    description: string;
+    date: string;
+    text: string;
+    plain: string;
+  };
+
+  const root = document.querySelector('[data-search]') as HTMLElement;
+  const scope = root.dataset.scope;
+  const input = root.querySelector('input')!;
+  const resultsEl = root.querySelector('.search-results') as HTMLUListElement;
+  const statusEl = root.querySelector('.search-status') as HTMLParagraphElement;
+  // the page's normal listing, hidden while a search is active
+  const browse = document.getElementById('browse-list');
+
+  let fuse: Fuse<Doc> | null = null;
+  let loading: Promise<void> | null = null;
+
+  function loadIndex() {
+    loading ??= fetch('/search-index.json')
+      .then((r) => r.json())
+      .then((docs: Doc[]) => {
+        fuse = new Fuse(docs, {
+          keys: [
+            { name: 'title', weight: 2 },
+            { name: 'text', weight: 1 },
+          ],
+          threshold: 0.35,
+          ignoreLocation: true,
+          minMatchCharLength: 2,
+        });
+      });
+    return loading;
+  }
+
+  /** Longest prefix (≥3 chars) of `t` occurring in `lower` — catches mid-word queries
+   *  and inflections ("sweepin" still finds "sweep"). */
+  function prefixMatch(lower: string, t: string) {
+    for (let p = t; p.length >= Math.min(3, t.length); p = p.slice(0, -1)) {
+      const i = lower.indexOf(p);
+      if (i !== -1) return { index: i, length: p.length };
+    }
+    return null;
+  }
+
+  /** Each token replaced by its longest prefix found in `lower`, so highlighting
+   *  marks what actually appears in the displayed text. */
+  function stemsFor(lower: string, tokens: string[]): string[] {
+    return tokens.map((t) => {
+      const m = prefixMatch(lower, t);
+      return m ? lower.slice(m.index, m.index + m.length) : t;
+    });
+  }
+
+  /** First occurrence of any query token (or its longest prefix) in the original text. */
+  function findMatch(doc: Doc, tokens: string[]) {
+    const lower = doc.plain.toLowerCase();
+    for (const t of tokens) {
+      const m = prefixMatch(lower, t);
+      if (m) return { index: m.index, word: doc.plain.slice(m.index, m.index + m.length) };
+    }
+    return null;
+  }
+
+  /** The sentence (capped in length) around a match position. */
+  function matchLine(plain: string, index: number): string {
+    let start = plain.lastIndexOf('. ', index);
+    start = start === -1 ? 0 : start + 2;
+    let end = plain.indexOf('. ', index);
+    end = end === -1 ? plain.length : end + 1;
+    // keep the preview readable even for very long sentences
+    if (index - start > 90) start = index - 80;
+    if (end - index > 160) end = index + 150;
+    return (
+      (start > 0 ? '…' : '') + plain.slice(start, end).trim() + (end < plain.length ? '…' : '')
+    );
+  }
+
+  /** Snippet text with every query token wrapped in <mark>, built DOM-safely. */
+  function highlighted(line: string, tokens: string[]): DocumentFragment {
+    const frag = document.createDocumentFragment();
+    const pattern = new RegExp(
+      `(${tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+      'gi'
+    );
+    for (const part of line.split(pattern)) {
+      if (part === '') continue;
+      if (pattern.test(part) && tokens.includes(part.toLowerCase())) {
+        const mark = document.createElement('mark');
+        mark.textContent = part;
+        frag.append(mark);
+      } else {
+        frag.append(part);
+      }
+      pattern.lastIndex = 0;
+    }
+    return frag;
+  }
+
+  function render(query: string) {
+    const tokens = contentTokens(query);
+    if (tokens.length === 0) {
+      resultsEl.hidden = true;
+      statusEl.hidden = query.trim().length === 0;
+      statusEl.textContent = query.trim() ? 'Try a more specific term.' : '';
+      browse?.removeAttribute('hidden');
+      return;
+    }
+
+    browse?.setAttribute('hidden', '');
+    let raw = fuse!.search(tokens.join(' '));
+    // recall fallback: a fully-typed inflection ("sweeping") can score worse in Fuse
+    // than its own prefix ("sweepin") and drop to zero hits — retry with the ends
+    // of the tokens shaved off
+    for (let cut = 1; raw.length === 0 && cut <= 3; cut++) {
+      const trimmed = tokens.map((t) => (t.length - cut >= 3 ? t.slice(0, t.length - cut) : t));
+      raw = fuse!.search(trimmed.join(' '));
+    }
+    const hits = raw
+      .sort((a, b) => Number(b.item.type === scope) - Number(a.item.type === scope))
+      .slice(0, 10);
+
+    resultsEl.innerHTML = '';
+    if (hits.length === 0) {
+      resultsEl.hidden = true;
+      statusEl.hidden = false;
+      statusEl.textContent = `No results for “${query.trim()}”.`;
+      return;
+    }
+
+    statusEl.hidden = true;
+    resultsEl.hidden = false;
+    for (const { item } of hits) {
+      const match = findMatch(item, tokens);
+
+      const a = document.createElement('a');
+      a.className = 'search-hit';
+      // deep-link straight to the matched sentence via a text fragment
+      a.href = match ? `${item.url}#:~:text=${encodeURIComponent(match.word)}` : item.url;
+
+      const badge = document.createElement('span');
+      badge.className = 'search-badge';
+      badge.textContent = item.type;
+
+      const title = document.createElement('span');
+      title.className = 'search-title';
+      // highlight query words in the title whenever they appear there
+      title.append(highlighted(item.title, stemsFor(item.title.toLowerCase(), tokens)));
+
+      const head = document.createElement('div');
+      head.className = 'search-hit-head';
+      head.append(badge, title);
+
+      const snip = document.createElement('p');
+      snip.className = 'search-snippet';
+      if (match) {
+        // body matched: show the matching sentence (deep-linked above)
+        const line = matchLine(item.plain, match.index);
+        snip.append(highlighted(line, stemsFor(line.toLowerCase(), tokens)));
+      } else if (item.description) {
+        // title-only match: the description is the best summary we have
+        snip.textContent = item.description;
+      } else {
+        snip.textContent = item.plain.slice(0, 140) + (item.plain.length > 140 ? '…' : '');
+      }
+
+      a.append(head, snip);
+      const li = document.createElement('li');
+      li.append(a);
+      resultsEl.append(li);
+    }
+  }
+
+  input.addEventListener('focus', loadIndex, { once: true });
+  input.addEventListener('input', async () => {
+    await loadIndex();
+    render(input.value);
+  });
+</script>
+
+<style is:global>
+  .search {
+    margin: 1.25rem 0;
+  }
+
+  .search input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+  }
+
+  .search input:focus {
+    border-color: var(--link);
+  }
+
+  .search-results {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+  }
+
+  .search-results li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-hit,
+  .search-hit:hover {
+    display: block;
+    padding: 0.6rem 0.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .search-hit:hover {
+    background: var(--surface);
+  }
+
+  .search-hit-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  .search-title {
+    color: var(--link);
+    font-weight: 550;
+  }
+
+  .search-snippet mark {
+    background: var(--mark-bg);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 0.1em;
+  }
+
+  .search-badge {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .search-snippet {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .search-status {
+    margin: 1rem 0 0;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+</style>

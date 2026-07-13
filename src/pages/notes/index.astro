@@ -1,0 +1,63 @@
+---
+import Base from '../../layouts/Base.astro';
+import Search from '../../components/Search.astro';
+import { getCollection } from 'astro:content';
+
+const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<Base title="Notes · Varun Gandhi" description="Learning notes on AI, LLMs, and post-training.">
+  <h1>Notes</h1>
+  <p class="intro">
+    I've found I retain things far better when I write them up myself.
+    I've been documenting my learning notes here since 2026 — to share ideas I find
+    interesting and to keep a personal reference I can return to when my understanding gets
+    rusty. Inspired by
+    <a href="https://lilianweng.github.io/" target="_blank" rel="noopener">Lil'Log</a> and the
+    idea of learning in public.
+  </p>
+  <Search scope="note" />
+  <ul class="note-list" id="browse-list">
+    {notes.map((note) => (
+      <li>
+        <a href={`/notes/${note.id}/`}>{note.data.title}</a>
+        <span class="date">
+          {note.data.date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'UTC',
+          })}
+        </span>
+      </li>
+    ))}
+  </ul>
+</Base>
+
+<style>
+  .intro {
+    color: var(--text-muted);
+  }
+
+  .note-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 1.5rem;
+  }
+
+  .note-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .date {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+</style>
