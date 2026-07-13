@@ -16,6 +16,14 @@ No tests. Verification = clean build + grep the built HTML in `dist/` for expect
 After making changes, if `npm run dev` isn't already running, start it in the background by
 default so the user can manually look at the result in a browser.
 
+**Deploy**: live at https://vgandhi13.github.io — pushing to `main` on
+github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
+(withastro/action → GitHub Pages). The repo is **public**: `Notes/`, `Context/`,
+`prompt.txt`, `TODO.txt`, and root-level images are gitignored — never commit them
+(see .gitignore for the case-insensitivity gotcha that makes the patterns root-anchored).
+The pre-2026 al-folio site it replaced is backed up at
+`~/Documents/vgandhi13.github.io-OLD-BACKUP`.
+
 ## Layout of the repo
 
 - `src/pages/index.astro` — the entire homepage: hero (profile pic, bio, social icon links),
@@ -99,11 +107,10 @@ default so the user can manually look at the result in a browser.
 
 ## Current state / open TODOs
 
-- **GitHub and LeetCode URLs are placeholders** in `src/pages/index.astro`
-  (`YOUR_GITHUB`, `YOUR_LEETCODE`) — ask the user for real usernames.
-- `site` in `astro.config.mjs` is `https://example.com` — set before deploy.
-- **Not deployed yet**; no git repo initialized either. Deploy target undecided
-  (GitHub Pages / Vercel / Netlify all fine for static Astro).
+- **LeetCode URL is a placeholder** in `src/pages/index.astro` (`YOUR_LEETCODE`) —
+  ask the user for the real username. (GitHub is set: vgandhi13.)
+- **Analytics undecided**: user wants per-page views + referrers; GoatCounter was
+  recommended (free, no-cookie, one script tag in Base.astro). Wire it in when they decide.
 - Blog is intentionally empty (`draft: true` template at `src/content/blog/example-post.md`).
 - Motional logo is low-res (48px favicon upscale) — replace `public/logos/motional.com.png`
   if the user provides a better one.
