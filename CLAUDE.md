@@ -18,11 +18,7 @@ default so the user can manually look at the result in a browser.
 
 **Deploy**: live at https://vgandhi13.github.io — pushing to `main` on
 github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
-(withastro/action → GitHub Pages). The repo is **public**: `Notes/`, `Context/`,
-`prompt.txt`, `TODO.txt`, and root-level images are gitignored — never commit them
-(see .gitignore for the case-insensitivity gotcha that makes the patterns root-anchored).
-The pre-2026 al-folio site it replaced is backed up at
-`~/Documents/vgandhi13.github.io-OLD-BACKUP`.
+(withastro/action → GitHub Pages).
 
 ## Layout of the repo
 
