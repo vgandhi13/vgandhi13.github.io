@@ -32,6 +32,10 @@ const socials = [
 
 const news = [
   {
+    date: 'Jul 2026',
+    text: 'New preprint: "GRASP: GRanularity-Aware Search Policy for Agentic RAG", from my internship work with Adobe Research.',
+  },
+  {
     date: 'Jun 2026',
     text: 'Our paper "Hierarchical Experimentalist Agents" (HExA) was accepted to the Third Reinforcement Learning Beyond Rewards Workshop at the Reinforcement Learning Conference (RLC).',
   },
@@ -110,7 +114,8 @@ const news = [
           <a href="https://www.adobe.com" target="_blank" rel="noopener">Adobe</a> (Jan–May 2026)
           through the UMass CS 698DS Industry Mentorship Practicum in AI, working on LLM
           post-training, agents, and retrieval-augmented generation for document Q&A — mentored
-          by Zichao (Jack) Wang at Adobe and Jaewook (Jake) Lee at UMass. Paper under review.
+          by Zichao (Jack) Wang at Adobe and Jaewook (Jake) Lee at UMass. This work became
+          <a href="https://arxiv.org/abs/2607.10463" target="_blank" rel="noopener">GRASP</a>.
         </div>
       </li>
       <li>
@@ -158,6 +163,45 @@ const news = [
 
   <section id="research">
     <h2>Research</h2>
+    <div class="paper">
+      <a
+        class="paper-fig"
+        href="https://arxiv.org/abs/2607.10463"
+        target="_blank"
+        rel="noopener"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <img
+          src="/images/papers/grasp.png"
+          alt="GRASP overview: a policy LLM with keyword, semantic, and paragraph-read retrieval tools generates rollouts that a reward model scores, with the policy updated via GRPO"
+          loading="lazy"
+        />
+      </a>
+      <div class="paper-info">
+        <h3>
+          <a href="https://arxiv.org/abs/2607.10463" target="_blank" rel="noopener">
+            GRASP: GRanularity-Aware Search Policy for Agentic RAG
+          </a>
+        </h3>
+        <p class="paper-authors">
+          <strong>Varun Gandhi</strong>, Jaewook Lee, Shantanu Todmal, Franck Dernoncourt,
+          Ryan Rossi, Zichao Wang, Andrew Lan
+        </p>
+        <p class="paper-venue">arXiv preprint, 2026</p>
+        <p class="paper-summary">
+          GRASP uses reinforcement learning to train an agentic RAG policy that decides when to
+          retrieve, which tool to use (semantic search, keyword search, or paragraph reading),
+          and at what granularity, collecting sentence-level evidence as needed. The learned
+          policy develops interpretable skimming and scanning behavior and improves retrieval
+          recall and QA accuracy on multi-hop benchmarks.
+        </p>
+        <div class="paper-links">
+          <a href="https://arxiv.org/abs/2607.10463" target="_blank" rel="noopener">arXiv</a>
+          <a href="https://arxiv.org/pdf/2607.10463" target="_blank" rel="noopener">PDF</a>
+        </div>
+      </div>
+    </div>
     <div class="paper">
       <a
         class="paper-fig"

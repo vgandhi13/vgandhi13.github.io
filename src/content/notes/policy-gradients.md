@@ -184,6 +184,62 @@ Then repeat from step 1 with the updated policy.
 
 This algorithm works, but it is noisy and has very high variance. A single lucky episode with a huge reward can dominate the gradient estimate.[^high-variance-example]
 
+### Reward-to-go: fixing credit assignment
+
+One natural question comes up: why should an action at time $t$ get credit (or blame) for rewards that happened *before* it? Policy behavior at time $t$ can't affect rewards at $t' < t$; future actions cannot change the past.[^credit-assignment-example]
+
+Causality says we should only weight $\nabla_\theta \log \pi_\theta(a_t \mid s_t)$ by the rewards that came after it, not the whole trajectory's return. So we replace
+
+$$
+\sum_{t'=1}^{T} r_{t'}
+$$
+
+with the **reward-to-go**,
+
+$$
+\sum_{t'=t}^{T} r_{t'}
+$$
+
+giving a new estimator:
+
+$$
+\nabla_\theta J(\theta) \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_{i,t} \mid s_{i,t}) \left( \sum_{t'=t}^{T} r(s_{i,t'}, a_{i,t'}) \right)
+$$
+
+Before, every action in a trajectory was weighted by the same total return. Now, each action is weighted only by the rewards that came after it, the only ones it could have influenced. Removing this irrelevant past-reward noise decreases variance, while the expected gradient stays correct.[^reward-to-go-example]
+
+### Baselines: centering the reward
+
+Even with reward-to-go, there's still a problem.[^baseline-problem-example] If every trajectory in a batch gets a similar, uniformly positive reward, REINFORCE increases the probability of all of them, even the relatively worst one, since it only looks at each trajectory's raw reward, not how it compares to the rest of the batch.
+
+To fix this, we introduce a **baseline** $b$ and subtract it from the reward:
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}\left[ \nabla_\theta \log p_\theta(\tau) \left( r(\tau) - b \right) \right]
+$$
+
+A natural choice is the batch's average reward,
+
+$$
+b = \frac{1}{N} \sum_{i=1}^{N} r(\tau_i)
+$$
+
+so instead of weighting by $r(\tau)$, we weight by how much better or worse than average each trajectory did.[^baseline-applied-example] This also reduces variance: rewards that used to be large, similar numbers become small numbers centered at zero, so the gradient magnitude no longer swings wildly from batch to batch.[^baseline-variance-example]
+
+Subtracting a constant baseline doesn't bias the gradient. In expectation,
+
+$$
+\mathbb{E}\left[ \nabla_\theta \log p_\theta(\tau) \left( r(\tau) - b \right) \right] = \mathbb{E}\left[ \nabla_\theta \log p_\theta(\tau) \, r(\tau) \right],
+$$
+
+so the estimator stays unbiased. (The full proof isn't given here; see [Stanford CS224R's policy gradient slides](https://cs224r.stanford.edu/slides/03_cs224r_policy_gradients_2026.pdf).) The average reward is a pretty good baseline: unbiased, and lower variance.
+
+### Limits of baselines: sparse rewards
+
+Even with a baseline, policy gradient still struggles when the reward is sparse, given only once at the very end of a trajectory. The baseline centers a trajectory's *total* return around the batch average, but it can't see inside the trajectory: two trajectories that happen to end with the same final reward get exactly the same weight, even if one made real progress along the way and the other made none at all.[^sparse-reward-example]
+
+Because the reward is sparse, the gradient doesn't know which specific action along the timeline was good or bad; it just scales the entire sequence of actions by the same final number. Policy gradient is still noisy and high-variance in this regime: even with a baseline, it struggles to tell "close failures" from "total failures" apart. Fixing this needs either **dense rewards** (small intermediate rewards for sub-steps toward the goal) or **large batches**, so the noise averages out over enough samples.
+
 [^wiki]: Adapted from Wikipedia, ["Policy gradient method"](https://en.wikipedia.org/wiki/Policy_gradient_method).
 
 [^reward-sign-intuition]: The update for a trajectory $\tau_i$ is $r(\tau_i) \sum_t \nabla_\theta \log \pi_\theta(a_t \mid s_t)$: it scales the gradient of the log-probability of the actions taken by how much reward they earned. If a trajectory gets a large reward, $r(\tau)$ is positive and large, and gradient ascent increases $\log \pi_\theta(a_t \mid s_t)$ for the actions taken: "these actions led to success, make them more likely." If the reward is low or negative, the opposite happens: "these actions were bad, reduce their probability."
@@ -232,6 +288,79 @@ This algorithm works, but it is noisy and has very high variance. A single lucky
     | 3 | 1000 | 3 | 3000 |
 
     The average becomes $\frac{20 + 5 + 3000}{3} \approx 1008$, almost entirely determined by episode 3. Resample a different batch of 3 episodes without that lucky outlier, and the estimate could be back down near $28$, even though the policy hasn't changed at all. That swing between batches, driven by which episodes happened to be sampled, is the high variance.
+
+[^credit-assignment-example]: Imagine a robot walking:
+
+    | Time | Action | Reward |
+    |---|---|---|
+    | $t=1$ | step forward | $+1$ |
+    | $t=2$ | step forward | $+1$ |
+    | $t=3$ | step forward | $+1$ |
+    | $t=4$ | big step backward | $-10$ |
+    | $t=5$ | step forward | $+1$ |
+
+    Total reward: $1 + 1 + 1 - 10 + 1 = -6$.
+
+    Under the original REINFORCE estimator, every action gets multiplied by this same total return, $R = -6$: $\nabla_\theta \log \pi_\theta(a_1 \mid s_1)$ is scaled by $-6$, and so is $\nabla_\theta \log \pi_\theta(a_2 \mid s_2)$, and so on for every timestep:
+
+    $$
+    g = -6 \, \nabla_\theta \log \pi_\theta(a_1) - 6 \, \nabla_\theta \log \pi_\theta(a_2) - 6 \, \nabla_\theta \log \pi_\theta(a_3) - 6 \, \nabla_\theta \log \pi_\theta(a_4) - 6 \, \nabla_\theta \log \pi_\theta(a_5)
+    $$
+
+    Even the three good forward steps get blamed: they didn't cause the backward mistake at $t=4$, yet REINFORCE blames the entire trajectory for it.
+
+[^reward-to-go-example]: Using the same rewards ($1, 1, 1, -10, 1$), the reward-to-go estimator gives each action its own future return, $G_t = \sum_{t'=t}^{T} r_{t'}$:
+
+    $$
+    G_1 = 1+1+1-10+1 = -6, \quad G_2 = 1+1-10+1 = -7, \quad G_3 = 1-10+1 = -8,
+    $$
+
+    $$
+    G_4 = -10+1 = -9, \quad G_5 = 1
+    $$
+
+    Now each action gets a learning signal that reflects its actual consequences. In particular, $G_5 = 1$: the last forward step, which happened entirely after the mistake, correctly gets a positive signal instead of sharing in the $-6$ blame. The resulting gradient estimate is
+
+    $$
+    g = -6 \, \nabla_\theta \log \pi_\theta(a_1) - 7 \, \nabla_\theta \log \pi_\theta(a_2) - 8 \, \nabla_\theta \log \pi_\theta(a_3) - 9 \, \nabla_\theta \log \pi_\theta(a_4) + 1 \, \nabla_\theta \log \pi_\theta(a_5)
+    $$
+
+    each action weighted by its own $G_t$ instead of the same flat $-6$.
+
+[^baseline-problem-example]: Suppose we run 3 trajectories:
+
+    | Trajectory | Reward |
+    |---|---|
+    | $\tau_1$ | 100 |
+    | $\tau_2$ | 110 |
+    | $\tau_3$ | 105 |
+
+    Average reward: $105$. All three trajectories get a positive update, even $\tau_1$, which is actually the worst trajectory of the batch: REINFORCE just sees "reward $= 100$, increase probability," without accounting for the fact that $100$ is below average.
+
+[^baseline-applied-example]: With $b = 105$: trajectory 1 gets $100 - 105 = -5$, a negative signal, reduce its probability. Trajectory 2 gets $110 - 105 = +5$, a positive signal, increase it. Trajectory 3 gets $105 - 105 = 0$, no update, exactly average behavior. This is a much more informative learning signal than the raw rewards.
+
+[^baseline-variance-example]: Suppose a batch of rewards is $[99, 100, 101, 102, 98]$. Without a baseline, the gradient is scaled by these large, similar numbers, so its magnitude fluctuates with whatever the rewards happen to be. Subtracting the average ($100$) gives $[-1, 0, +1, +2, -2]$: much smaller numbers, centered at zero, with below-average trajectories now correctly getting a negative signal.
+
+[^sparse-reward-example]: Consider training a robot policy $\pi_\theta$ to fold a jacket, with reward $r(s, a)$ given only at the end of the episode: $1.0$ for a neatly folded jacket, $0.5$ for an okay job with some wrinkles, $0$ for failing to fold it at all. Suppose 4 trajectories:
+
+    | Trajectory | Outcome | Reward |
+    |---|---|---|
+    | $\tau_1$ | Doesn't touch the jacket | $0$ |
+    | $\tau_2$ | Folds only the sleeves | $0.5$ |
+    | $\tau_3$ | Flattens the jacket but doesn't fold it | $0$ |
+    | $\tau_4$ | Folds it perfectly | $1.0$ |
+
+    The baseline is $b = \frac{0 + 0.5 + 0 + 1.0}{4} = 0.375$, and each trajectory's weight is $r(\tau_i) - b$:
+
+    $$
+    \tau_1: 0 - 0.375 = -0.375, \qquad \tau_2: 0.5 - 0.375 = +0.125
+    $$
+
+    $$
+    \tau_3: 0 - 0.375 = -0.375, \qquad \tau_4: 1.0 - 0.375 = +0.625
+    $$
+
+    $\tau_1$ and $\tau_3$ get the exact same weight, $-0.375$, even though flattening the jacket ($\tau_3$) is a real step toward folding it, while never touching it ($\tau_1$) makes no progress at all. Because the reward only arrives at the end, the baseline has no way to tell these two failures apart.
 
 [^why-mc-fails-directly]: Plain Monte Carlo only estimates expectations. If you sample trajectories $\tau \sim p_\theta(\tau)$, averaging computes
 
