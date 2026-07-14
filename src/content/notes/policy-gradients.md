@@ -419,6 +419,10 @@ $$
 
 The huge trajectory-length product is gone. What's left is a single probability ratio per timestep, far more stable than multiplying together $T$ of them.
 
+---
+
+*This topic is what convinced me to start writing these notes properly and publishing them here, so I can come back later and find the detailed examples waiting in the footnotes instead of re-deriving them from scratch. Made while going through Stanford's [CS224R](https://cs224r.stanford.edu/) and talking it through with GPT-5.5.*
+
 [^wiki]: Adapted from Wikipedia, ["Policy gradient method"](https://en.wikipedia.org/wiki/Policy_gradient_method).
 
 [^reward-sign-intuition]: The update for a trajectory $\tau_i$ is $r(\tau_i) \sum_t \nabla_\theta \log \pi_\theta(a_t \mid s_t)$: it scales the gradient of the log-probability of the actions taken by how much reward they earned. If a trajectory gets a large reward, $r(\tau)$ is positive and large, and gradient ascent increases $\log \pi_\theta(a_t \mid s_t)$ for the actions taken: "these actions led to success, make them more likely." If the reward is low or negative, the opposite happens: "these actions were bad, reduce their probability."
