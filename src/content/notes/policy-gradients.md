@@ -2,7 +2,7 @@
 title: Policy Gradients
 description: "RL and MDP preliminaries: states, actions, trajectories, and the expected-reward objective."
 date: 2026-07-12
-updated: 2026-07-13
+updated: 2026-07-14
 ---
 
 Policy gradient methods are a class of reinforcement learning algorithms and a sub-class of policy optimization methods. Unlike value-based methods, which learn a value function to derive a policy, policy optimization methods directly learn a policy function $\pi$ that selects actions without consulting a value function. For policy gradient to apply, the policy function $\pi_\theta$ is parameterized by a differentiable parameter $\theta$.[^wiki]
@@ -42,6 +42,8 @@ RL methods split by where their training data comes from:
 
 - **offline**: using only an existing dataset, no new data from the learned policy
 - **online**: using new data from the learned policy
+
+This note only covers the online case.
 
 ## Online RL
 
@@ -240,6 +242,183 @@ Even with a baseline, policy gradient still struggles when the reward is sparse,
 
 Because the reward is sparse, the gradient doesn't know which specific action along the timeline was good or bad; it just scales the entire sequence of actions by the same final number. Policy gradient is still noisy and high-variance in this regime: even with a baseline, it struggles to tell "close failures" from "total failures" apart. Fixing this needs either **dense rewards** (small intermediate rewards for sub-steps toward the goal) or **large batches**, so the noise averages out over enough samples.
 
+### Implementing this efficiently: the surrogate objective
+
+Putting [reward-to-go](#reward-to-go-fixing-credit-assignment) and the baseline together, the full estimator is
+
+$$
+\nabla_\theta J(\theta) \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_{i,t} \mid s_{i,t}) \left( G_{i,t} - b \right), \qquad G_{i,t} = \sum_{t'=t}^{T} r(s_{i,t'}, a_{i,t'})
+$$
+
+Computing this naively means calling `backward()` once per state-action pair: differentiate $\log \pi_\theta(a_t \mid s_t)$, multiply by its own $(G_t - b)$, and sum. That's a lot of individual backward passes.[^naive-backward-count]
+
+Deep learning frameworks are built around a single scalar loss and one `backward()` call, not thousands of gradients accumulated by hand. So instead we construct a scalar **surrogate objective** $\tilde{J}(\theta)$: not the true objective $J(\theta) = \mathbb{E}[r]$, but a quantity whose gradient happens to equal the policy gradient we actually want:
+
+$$
+\tilde{J}(\theta) = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \log \pi_\theta(a_{i,t} \mid s_{i,t}) \left( G_{i,t} - b \right)
+$$
+
+$(G_{i,t} - b)$ comes from the environment and the batch of collected data, not from the network, so autograd treats it as a constant with no dependence on $\theta$. Differentiating $\tilde{J}(\theta)$ therefore only differentiates $\log \pi_\theta(a_{i,t} \mid s_{i,t})$, carrying $(G_{i,t} - b)$ straight through:
+
+$$
+\nabla_\theta \left[ \log \pi_\theta(a_t \mid s_t) \left( G_t - b \right) \right] = \left( G_t - b \right) \nabla_\theta \log \pi_\theta(a_t \mid s_t)
+$$
+
+which is exactly the policy gradient term above. A single `backward()` call on $\tilde{J}(\theta)$ therefore gives the same gradient as summing every individual term by hand.[^surrogate-not-loss]
+
+$\log \pi_\theta(a_t \mid s_t)$ is also exactly the term that shows up in maximum likelihood training: for classification, cross-entropy loss is $-\log p(y \mid x)$. The policy gradient loss, $-\log \pi_\theta(a_t \mid s_t) \, (G_t - b)$, is the same thing weighted by $(G_t - b)$, a **weighted maximum likelihood** that pushes up the log-probability of actions in proportion to how much better than the baseline they did.
+
+In PyTorch, this is:
+
+```python
+log_probs = policy.log_prob(actions)
+loss = -(log_probs * advantages).mean()
+
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()
+```
+
+where `advantages` holds $(G_t - b)$ per timestep, and the sign is flipped since optimizers minimize by convention.
+
+### On-policy vs. off-policy
+
+Every variant of the estimator covered so far, from vanilla REINFORCE through reward-to-go, the baseline, and the surrogate objective, shares one property: the expectation $\mathbb{E}_{\tau \sim p_\theta(\tau)}[\cdot]$ is over trajectories sampled from the *current* policy $\pi_\theta$. But step 3 of the [full algorithm](#full-algorithm) changes $\theta$. Once that happens, the trajectories used to compute that gradient no longer come from the policy we're now trying to improve, so we have to go back to step 1 and collect a fresh batch under the new $\theta$ before taking another gradient step.
+
+<figure>
+  <img src="/images/notes/on-off-policy-definitions.jpg" alt="Definitions: on-policy, an update uses only data from the current policy. Off-policy, an update can reuse data from other, past policies." width="400" />
+  <figcaption>Source: <a href="https://cs224r.stanford.edu/">Stanford CS224R</a>.</figcaption>
+</figure>
+
+Every estimator above is **on-policy**: each gradient step needs its own brand-new batch of trajectories, and none of the old data can be reused once $\theta$ changes. That makes them sample-inefficient.
+
+### Importance sampling: reusing old trajectories
+
+Being on-policy means all the old data is, technically, invalid the moment the policy changes: we need fresh rollouts under the new $\theta$ at every single gradient step, which is expensive. **Importance sampling** gives a way to reuse trajectories collected under an older policy instead.
+
+The general trick: suppose we want an expectation under a distribution $p$,
+
+$$
+\mathbb{E}_{x \sim p(x)}[f(x)] = \int p(x) \, f(x) \, dx
+$$
+
+but only have samples from a different distribution $q(x)$. Multiplying the integrand by $\frac{q(x)}{q(x)} = 1$,
+
+$$
+\int p(x) \, f(x) \, dx = \int q(x) \, \frac{p(x)}{q(x)} \, f(x) \, dx = \mathbb{E}_{x \sim q(x)} \left[ \frac{p(x)}{q(x)} \, f(x) \right]
+$$
+
+so an expectation under $p$ can be estimated from samples drawn from $q$ instead, as long as each sample is reweighted by the **importance weight** $\frac{p(x)}{q(x)}$.
+
+Applying this to the policy gradient objective: we want $J(\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)}[r(\tau)]$, the expectation under the *current* policy $\pi_\theta$, but only have trajectories $\tau \sim \bar{p}(\tau)$ collected under an older policy $\bar\pi$. Importance sampling rewrites the objective as
+
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \bar{p}(\tau)} \left[ \frac{p_\theta(\tau)}{\bar{p}(\tau)} \, r(\tau) \right]
+$$
+
+so the old trajectories can be reused, each one reweighted by the **correction factor** $\frac{p_\theta(\tau)}{\bar{p}(\tau)}$: how much more (or less) likely that trajectory would be under the new policy than under the old one.
+
+To compute this correction factor, recall the [trajectory factorization](#trajectory-factorization) $p_\theta(\tau) = p(s_1) \prod_{t=1}^{T} \pi_\theta(a_t \mid s_t) \, p(s_{t+1} \mid s_t, a_t)$, and likewise for the old policy, $\bar{p}(\tau) = p(s_1) \prod_{t=1}^{T} \bar\pi(a_t \mid s_t) \, p(s_{t+1} \mid s_t, a_t)$. Both trajectories were generated in the same environment, so the initial state distribution $p(s_1)$ and the dynamics $p(s_{t+1} \mid s_t, a_t)$ are identical top and bottom, and cancel out of the ratio:[^is-cancellation-visual]
+
+$$
+\frac{p_\theta(\tau)}{\bar{p}(\tau)} = \prod_{t=1}^{T} \frac{\pi_\theta(a_t \mid s_t)}{\bar\pi(a_t \mid s_t)}
+$$
+
+leaving only a ratio of policy probabilities. We never need to know the environment dynamics, only the old and new policies' probabilities of the actions actually taken.[^importance-weight-example]
+
+### Off-policy policy gradient
+
+Combining reward-to-go, the baseline, and importance sampling gives a full **off-policy** policy gradient: update the latest policy $\pi_\theta$ using trajectories sampled from an old policy $\bar\pi$, instead of $\pi_\theta$ itself.
+
+Start from the on-policy reward-to-go-with-baseline estimator, written as an exact expectation:
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim p_\theta(\tau)} \left[ \left( \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_t \mid s_t) \right) \left( G_t - b \right) \right]
+$$
+
+The problem: this expectation is over trajectories $\tau \sim p_\theta(\tau)$, sampled from the very policy we're trying to update, exactly the data we don't have.
+
+Using [importance sampling](#importance-sampling-reusing-old-trajectories), rewrite the expectation over the old policy's trajectory distribution $\bar{p}(\tau)$ instead, correcting each sample with the importance weight $\frac{p_\theta(\tau)}{\bar{p}(\tau)}$:
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \bar{p}(\tau)} \left[ \frac{p_\theta(\tau)}{\bar{p}(\tau)} \left( \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_t \mid s_t) \right) \left( G_t - b \right) \right]
+$$
+
+and substituting in the [per-timestep form](#importance-sampling-reusing-old-trajectories) of that ratio,
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \bar{p}(\tau)} \left[ \underbrace{\prod_{t=1}^{T} \frac{\pi_\theta(a_t \mid s_t)}{\bar\pi(a_t \mid s_t)}}_{\text{Importance ratio}} \cdot \left( \sum_{t=1}^{T} \nabla_\theta \log \pi_\theta(a_t \mid s_t) \right) \left( G_t - b \right) \right]
+$$
+
+This is now genuinely off-policy: it can be computed entirely from trajectories collected under the old policy $\bar\pi$, with no fresh rollouts under $\pi_\theta$ required.
+
+But the product term, $\prod_{t=1}^{T} \frac{\pi_\theta(a_t \mid s_t)}{\bar\pi(a_t \mid s_t)}$, is the catch: it multiplies $T$ per-timestep ratios together, and for longer horizons this product can become vanishingly small or explosively large, since even a small, consistent per-step difference between the two policies compounds multiplicatively over many timesteps.[^is-product-blowup-example]
+
+### Reducing variance: per-timestep importance sampling
+
+Because of this high-variance trajectory-level product, it helps to stop thinking about importance-sampling an entire trajectory at once, and instead importance-sample one timestep, one state-action pair, at a time.[^reward-to-go-parallel] Instead of
+
+$$
+\mathbb{E}_{\text{trajectory}}[\cdots]
+$$
+
+consider
+
+$$
+\mathbb{E}_{\text{state-action}}[\cdots]
+$$
+
+Write each timestep's importance ratio as $\rho_t = \frac{\pi_\theta(s_t, a_t)}{\bar\pi(s_t, a_t)}$, and its gradient contribution as $g_t = \nabla_\theta \log \pi_\theta(a_t \mid s_t) \, (G_t - b)$. The **old**, trajectory-level estimator, for a single trajectory, was
+
+$$
+\left( \prod_{t=1}^{T} \rho_t \right) \left( \sum_{t=1}^{T} g_t \right)
+$$
+
+one giant product of ratios, multiplied by one giant sum of gradient contributions: every $g_t$ in the sum gets scaled by the *same* trajectory-wide weight. The **new**, per-timestep estimator is instead
+
+$$
+\sum_{t=1}^{T} \rho_t \, g_t
+$$
+
+Now every timestep carries its own weight. Instead of
+
+$$
+\text{trajectory} \longrightarrow \text{one huge weight}
+$$
+
+we have
+
+- step 1 → its own weight $\rho_1$
+- step 2 → its own weight $\rho_2$
+- step 3 → its own weight $\rho_3$
+- ...
+
+Each $g_t$ is scaled only by its own timestep's ratio, not by a product of every ratio in the trajectory. This is exactly why per-timestep importance sampling reduces variance so dramatically.
+
+But there's a new problem: a policy doesn't output $\pi_\theta(s_t, a_t)$ directly, only $\pi_\theta(a_t \mid s_t)$. Expanding $\pi(s, a)$ with the chain rule of probability, $\pi(s, a) = \pi(a \mid s) \, \pi(s)$, splits $\rho_t$ into two factors:
+
+$$
+\rho_t = \frac{\pi_\theta(s_t, a_t)}{\bar\pi(s_t, a_t)} = \frac{\pi_\theta(a_t \mid s_t)}{\bar\pi(a_t \mid s_t)} \cdot \frac{\pi_\theta(s_t)}{\bar\pi(s_t)}
+$$
+
+The first factor, the ratio of action probabilities, is easy: both policies hand it to us directly. The second factor, the ratio of *state* marginals, is not. $\pi(s_t)$ isn't something either policy outputs: it's the probability that the agent reaches state $s_t$ at all, which depends on the policy, every action taken before $t$, and the environment's transition dynamics, none of which we have direct access to.
+
+In practice, this state-marginal ratio is just approximated as $1$. If $\pi_\theta$ is only a small update away from $\bar\pi$, the two policies tend to visit nearly the same states, so $\pi_\theta(s_t) \approx \bar\pi(s_t)$ and
+
+$$
+\frac{\pi_\theta(s_t)}{\bar\pi(s_t)} \approx 1
+$$
+
+This approximation only holds when the two policies are close together.
+
+Substituting it back in gives a fully practical estimator:
+
+$$
+\nabla_\theta J(\theta) \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=1}^{T} \underbrace{\frac{\pi_\theta(a_{i,t} \mid s_{i,t})}{\bar\pi(a_{i,t} \mid s_{i,t})}}_{\text{Probability ratio}} \, \nabla_\theta \log \pi_\theta(a_{i,t} \mid s_{i,t}) \left( G_{i,t} - b \right)
+$$
+
+The huge trajectory-length product is gone. What's left is a single probability ratio per timestep, far more stable than multiplying together $T$ of them.
+
 [^wiki]: Adapted from Wikipedia, ["Policy gradient method"](https://en.wikipedia.org/wiki/Policy_gradient_method).
 
 [^reward-sign-intuition]: The update for a trajectory $\tau_i$ is $r(\tau_i) \sum_t \nabla_\theta \log \pi_\theta(a_t \mid s_t)$: it scales the gradient of the log-probability of the actions taken by how much reward they earned. If a trajectory gets a large reward, $r(\tau)$ is positive and large, and gradient ascent increases $\log \pi_\theta(a_t \mid s_t)$ for the actions taken: "these actions led to success, make them more likely." If the reward is low or negative, the opposite happens: "these actions were bad, reduce their probability."
@@ -361,6 +540,37 @@ Because the reward is sparse, the gradient doesn't know which specific action al
     $$
 
     $\tau_1$ and $\tau_3$ get the exact same weight, $-0.375$, even though flattening the jacket ($\tau_3$) is a real step toward folding it, while never touching it ($\tau_1$) makes no progress at all. Because the reward only arrives at the end, the baseline has no way to tell these two failures apart.
+
+[^naive-backward-count]: Suppose $N = 100$ trajectories, each with $T = 1000$ steps. There are $100 \times 1000 = 100{,}000$ terms $\nabla_\theta \log \pi_\theta(a_t \mid s_t)$ in the sum. Calling `backward()` separately for each one would mean 100,000 backward passes, one per state-action pair, far too slow to be practical.
+
+[^surrogate-not-loss]: $\tilde{J}(\theta)$ isn't a meaningful loss value on its own the way a supervised loss is, where a lower number means a better fit. Its only job is to make `loss.backward()` produce the correct gradient; the number itself isn't something worth tracking for its own sake.
+
+[^is-cancellation-visual]: Writing out the full ratio before canceling anything,
+
+    $$
+    \frac{p_\theta(\tau)}{\bar{p}(\tau)} = \frac{p(s_1) \prod_{t=1}^{T} \pi_\theta(a_t \mid s_t) \, p(s_{t+1} \mid s_t, a_t)}{p(s_1) \prod_{t=1}^{T} \bar\pi(a_t \mid s_t) \, p(s_{t+1} \mid s_t, a_t)}
+    $$
+
+    the initial state distribution and the environment dynamics appear identically in the numerator and denominator, so they cancel:
+
+    $$
+    \frac{p_\theta(\tau)}{\bar{p}(\tau)} = \frac{\textcolor{#3b82f6}{\cancel{p(s_1)}} \prod_{t=1}^{T} \pi_\theta(a_t \mid s_t) \, \textcolor{#e07856}{\cancel{p(s_{t+1} \mid s_t, a_t)}}}{\textcolor{#3b82f6}{\cancel{p(s_1)}} \prod_{t=1}^{T} \bar\pi(a_t \mid s_t) \, \textcolor{#e07856}{\cancel{p(s_{t+1} \mid s_t, a_t)}}} = \prod_{t=1}^{T} \frac{\pi_\theta(a_t \mid s_t)}{\bar\pi(a_t \mid s_t)}
+    $$
+
+    the initial state distribution (blue) and the transition dynamics (orange) drop out entirely, leaving only the ratio of policy probabilities at each timestep.
+
+[^importance-weight-example]: Suppose a single-step decision between two actions, and the old and new policies assign:
+
+    | Action | $\bar\pi$ (old) | $\pi_\theta$ (new) |
+    |---|---|---|
+    | Left | 0.8 | 0.4 |
+    | Right | 0.2 | 0.6 |
+
+    If the trajectory we collected took **Right**, its importance weight is $w = \frac{\pi_\theta(\text{Right})}{\bar\pi(\text{Right})} = \frac{0.6}{0.2} = 3$: this trajectory becomes three times as important, since the new policy likes Right much more than the old one did. If instead the trajectory had taken **Left**, $w = \frac{\pi_\theta(\text{Left})}{\bar\pi(\text{Left})} = \frac{0.4}{0.8} = 0.5$: it becomes half as important, since the new policy likes Left less than the old one did. This is exactly how old data gets corrected for the policy having changed.
+
+[^is-product-blowup-example]: Suppose every one of the $T$ per-timestep ratios happens to be a modest $1.1$ (the new policy is just slightly more likely to take each action than the old one). Over $T=50$ steps, the product is $1.1^{50} \approx 117$, a huge multiplier. If instead every ratio is $0.9$, the product is $0.9^{50} \approx 0.005$, close to zero. A slight, consistent per-step difference between the two policies compounds multiplicatively over a long trajectory, which is why this off-policy estimator tends to be very high variance in practice.
+
+[^reward-to-go-parallel]: This is similar in spirit to the move from the trajectory's return to the [reward-to-go](#reward-to-go-fixing-credit-assignment) $G_t$ earlier in this note: both replace one trajectory-wide quantity with a separate quantity per timestep. There, the motivation was credit assignment, an action shouldn't be weighted by rewards it couldn't have influenced. Here, the motivation is variance reduction, an action shouldn't be reweighted by a product of every ratio in the trajectory, only its own. Same move, different reason.
 
 [^why-mc-fails-directly]: Plain Monte Carlo only estimates expectations. If you sample trajectories $\tau \sim p_\theta(\tau)$, averaging computes
 
