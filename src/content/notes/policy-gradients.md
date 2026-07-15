@@ -419,6 +419,26 @@ $$
 
 The huge trajectory-length product is gone. What's left is a single probability ratio per timestep, far more stable than multiplying together $T$ of them.
 
+### When does our off-policy approximation stop working?
+
+The per-timestep estimator above leans on approximating $\frac{\pi_\theta(s_t)}{\bar\pi(s_t)} \approx 1$, which quietly assumes $\pi_\theta$ hasn't drifted far from $\bar\pi$.[^close-policies-example] Once the new policy diverges enough, this breaks: the two policies start visiting different states, so the trajectories collected under $\bar\pi$ no longer describe what $\pi_\theta$ would actually encounter.[^maze-example]
+
+To keep the approximation valid, we can constrain how far a single update is allowed to move the policy: require the new policy to stay close to the old one, measured by KL divergence,
+
+$$
+D_{\mathrm{KL}}(\pi_\theta \,\|\, \bar\pi) \leq \delta
+$$
+
+KL divergence measures how different two probability distributions are. If $\pi_\theta$ stays within $\delta$ of $\bar\pi$ at every state, the old data stays relevant, the state-marginal approximation $\pi_\theta(s) \approx \bar\pi(s)$ stays reasonable, and the resulting gradient estimate stays trustworthy.
+
+This constraint shouldn't be checked at a single state; it should hold on average, over the states the old policy actually visited:
+
+$$
+\mathbb{E}_{s \sim \bar\pi} \left[ D_{\mathrm{KL}}\big(\pi_\theta(\cdot \mid s) \,\|\, \bar\pi(\cdot \mid s)\big) \right] \leq \delta
+$$
+
+Pick a small threshold $\delta$, and reject (or shrink) any update that would push the policy further than that. This constrained-optimization idea, keeping every update inside a "trust region" around the old policy, is exactly what [TRPO](https://arxiv.org/abs/1502.05477) is built around.
+
 ---
 
 *This topic is what convinced me to start writing these notes properly and publishing them here, so I can come back later and find the detailed examples waiting in the footnotes instead of re-deriving them from scratch. Made while going through Stanford's [CS224R](https://cs224r.stanford.edu/) and talking it through with GPT-5.5.*
@@ -617,3 +637,21 @@ The huge trajectory-length product is gone. What's left is a single probability 
     $$
 
     In reinforcement learning we usually don't know the environment's transition probabilities. We can sample transitions by interacting with the environment, but we don't have an analytical formula for them.
+
+[^close-policies-example]: Suppose the old and new policies choose between two actions:
+
+    | Action | $\bar\pi$ (old) | $\pi_\theta$ (new) |
+    |---|---|---|
+    | Left | 0.51 | 0.55 |
+    | Right | 0.49 | 0.45 |
+
+    These policies behave almost identically, so trajectories collected under $\bar\pi$ are still representative of what $\pi_\theta$ would experience. Compare a case where the policies diverge sharply instead:
+
+    | Action | $\bar\pi$ (old) | $\pi_\theta$ (new) |
+    |---|---|---|
+    | Left | 0.99 | 0.01 |
+    | Right | 0.01 | 0.99 |
+
+    Here the old data is almost entirely "Left" trajectories, but the new policy almost always chooses "Right." The old dataset no longer describes what the new policy actually does.
+
+[^maze-example]: Suppose $\bar\pi$ always explores the left side of a maze (start → left corridor → treasure), while $\pi_\theta$ always goes right (start → right corridor → monster). The old dataset has zero experience with the right corridor, so there's no way to estimate what $\pi_\theta$ would actually earn there: the data needed to make that estimate was never collected.
