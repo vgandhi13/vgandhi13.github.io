@@ -2,10 +2,12 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-07-16
+updated: 2026-07-18
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
+
+In one line: **policy gradients** observe what was good or bad, then do more of the good stuff; **actor-critic** learns to estimate what's good or bad, then does more of the good stuff. Same recipe, just swapping a noisy observation for a neural network's own estimate of the value function.
 
 ## Motivation: policy gradient makes inefficient use of data
 
@@ -110,6 +112,23 @@ In practice, this fitted model is a neural network: it takes a state $s$ as inpu
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
+## Training the value network
+
+Fitting $\hat{V}^\pi_\phi(s)$ turns into an ordinary supervised learning problem: for every state $s_{i,t}$ visited in a batch, use the observed return $y_{i,t} = G_{i,t}$, the actual reward-to-go collected from that state onward, as the regression label.
+
+- **input**: the state $s$
+- **target**: the observed return $y$
+
+The loss is standard mean squared error between the network's prediction and this target,
+
+$$
+L(\phi) = \frac{1}{2} \sum_i \left( \hat{V}^\pi_\phi(s_i) - y_i \right)^2
+$$
+
+training $\phi$ by gradient descent on $L$, exactly like any other regression problem.[^v-loss-example]
+
+Every episode that passes through a given state contributes another noisy sample of the return from there. Training on many of these samples pushes the network's prediction toward their *average*, which is exactly $V^\pi(s)$: the expected return under $\pi$, not any single episode's realization of it.[^v-convergence-example]
+
 ## Bootstrapping: expressing Q with just V
 
 Fitting a network for $V^\pi$ alone, without a separate $Q$-network, is enough. Start from $Q^\pi(s_t, a_t)$ written as a sum of expected future rewards, and pull out the very first one, the reward that arrives immediately after taking $a_t$:
@@ -134,6 +153,107 @@ A^\pi(s_t, a_t) \approx r(s_t, a_t) + V^\pi(s_{t+1}) - V^\pi(s_t) \quad \text{Le
 $$
 
 No $Q$-network required: the advantage, which needed $Q^\pi$ a moment ago, can now be computed from $V^\pi$ alone, plus the one reward that was actually observed.
+
+## Temporal difference learning: bootstrapped targets
+
+The [Monte Carlo target](#training-the-value-network) used above, $y_{i,t} = G_{i,t} = \sum_{t'=t}^{T} r_{i,t'}$, has a practical problem: you can't compute it until the episode is over. If an episode runs for $10{,}000$ steps, the network can't take a single gradient step until step $10{,}000$.
+
+The fix is the same [bootstrapped estimate](#bootstrapping-expressing-q-with-just-v) derived above, now used as the training target itself, instead of just for the advantage:
+
+$$
+y = r + \hat{V}^\pi(s')
+$$
+
+Instead of waiting for the rest of the episode, the label is available immediately: one observed reward, plus the network's own current guess at everything after it.[^td-target-example]
+
+At first, that guess can be quite wrong. But every gradient step improves $\hat{V}^\pi$ a little, which means every subsequent target $y = r + \hat{V}^\pi(s')$ gets a little more accurate too: the network is teaching itself, bootstrapping better and better labels out of its own improving predictions.
+
+The loss function doesn't change at all, only the target does:
+
+$$
+L(\phi) = \frac{1}{2} \left( \hat{V}^\pi(s) - y \right)^2, \qquad y = r + \hat{V}^\pi(s')
+$$
+
+Learning is now much faster, since it no longer waits for an episode to end.
+
+This is called **temporal difference (TD) learning** because of what's being compared: the current prediction $\hat{V}^\pi(s)$, against a target built from the *next* time step, $r + \hat{V}^\pi(s')$. Their difference is the **TD error**,
+
+$$
+\delta = r + \hat{V}^\pi(s') - \hat{V}^\pi(s)
+$$
+
+If $\delta > 0$, the state turned out better than expected, so $\hat{V}^\pi(s)$ should increase. If $\delta < 0$, it turned out worse than expected, so $\hat{V}^\pi(s)$ should decrease.
+
+## Bias vs. variance: Monte Carlo vs. TD
+
+The Monte Carlo target from [training the value network](#training-the-value-network) and the bootstrapped TD target above sit on opposite ends of a classic tradeoff.
+
+The Monte Carlo target, $y = G_{i,t}$, uses the actual future return realized in that one sampled episode. It's unbiased: averaged over enough episodes, it converges to the true $V^\pi(s)$. But it's noisy, since a single episode can be lucky or unlucky, so the label attached to any one state can swing widely from episode to episode.
+
+The TD target, $y = r + \hat{V}^\pi(s')$, uses the current, imperfect estimate $\hat{V}^\pi(s')$ in place of the true value of the next state. Since $\hat{V}^\pi$ can be wrong, especially early in training, this introduces bias: the target itself may be systematically off. But it only depends on one sampled reward, not an entire trajectory's worth of randomness, so it has much lower variance.
+
+- **Monte Carlo**: unbiased, high variance
+- **TD**: some bias, lower variance
+
+Monte Carlo trusts the data completely and pays for it in noise; TD trades some of that noise away by trusting its own, imperfect predictions instead.[^mc-td-bias-variance-example]
+
+## N-step returns: a middle ground
+
+Monte Carlo and 1-step TD are two ends of a spectrum: sum every real reward all the way to $T$, or bootstrap after just one. Nothing forces that choice to be so extreme.
+
+<figure>
+  <img src="/images/notes/n-step-returns.jpg" alt="Diagram comparing Monte Carlo (sum rewards over the whole trajectory), bootstrapped (one reward plus V), and an n-step return in between (sum rewards over n steps, then plus V) along the same set of trajectories." />
+  <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
+</figure>
+
+An **n-step return** sums the actual, observed rewards for the first $n$ steps, then bootstraps off $\hat{V}^\pi$ for everything after that:
+
+$$
+y_{i,t} = \sum_{t'=t}^{t+n-1} r(s_{i,t'}, a_{i,t'}) + \hat{V}^\pi(s_{i,t+n})
+$$
+
+$n=1$ recovers the [1-step TD target](#temporal-difference-learning-bootstrapped-targets) from above; $n=T$ recovers the [Monte Carlo target](#training-the-value-network), with no bootstrapping at all.
+
+In practice, some $n$ strictly in between, $1 < n < T$, often works best: using $n$ real rewards before bootstrapping means less of the estimate leans on $\hat{V}^\pi$ being correct, so it has less variance than Monte Carlo; but it also depends on fewer of the single sampled trajectory's rewards than the full return does, so it has lower bias than the 1-step bootstrap.
+
+## A full algorithm walkthrough
+
+Putting every piece together needs one last bit of notation: the **discount factor** $\gamma \in [0, 1]$, which weights rewards further in the future slightly less than immediate ones (everywhere above has implicitly used $\gamma = 1$). With it, the actor-critic algorithm is:
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem 1.25rem 1rem;">
+
+1. Sample a batch of trajectories $\{(s_{i,1}, a_{i,1}, \dots, s_{i,T}, a_{i,T})\}$ by running the current policy $\pi_\theta$.
+2. Fit $\hat{V}_\phi^{\pi_\theta}$ to the summed rewards in the batch.
+3. Evaluate the advantage at every timestep,
+   $$
+   \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i}) = r(s_{t,i}, a_{t,i}) + \gamma \hat{V}_\phi^{\pi_\theta}(s_{t+1,i}) - \hat{V}_\phi^{\pi_\theta}(s_{t,i}), \qquad \forall t, i
+   $$
+4. Evaluate the policy gradient,
+   $$
+   \nabla_\theta J(\theta) \approx \sum_{t,i} \nabla_\theta \log \pi_\theta(a_{t,i} \mid s_{t,i}) \, \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i})
+   $$
+5. Update the policy, $\theta \leftarrow \theta + \alpha \nabla_\theta J(\theta)$.
+
+</div>
+
+Then repeat from step 1 with the newly updated policy.
+
+Step 2's target and loss are exactly the [n-step return](#n-step-returns-a-middle-ground) from above, now with discounting folded in:
+
+$$
+y_{i,t} = \sum_{t'=t}^{t+n-1} \gamma^{t'-t} r(s_{i,t'}, a_{i,t'}) + \gamma^n \hat{V}_\phi^\pi(s_{i,t+n})
+$$
+
+$$
+\mathcal{L}(\phi) = \frac{1}{2} \sum_{i} \left\Vert \hat{V}_\phi^\pi(s_i) - y_{i} \right\Vert^2
+$$
+
+Steps 1 and 4 are the actor: the policy network $\pi_\theta(a \mid s)$, updated by the policy gradient. Steps 2 and 3 are the critic: the value network $\hat{V}^\pi_\phi(s)$, whose bootstrapped estimate turns raw rewards into the advantage the actor learns from. Two separate networks, trained together, each taking the same state $s$ as input, giving the method its name.
+
+<figure>
+  <img src="/images/notes/actor-critic-networks.jpg" alt="Two neural networks side by side, both taking state s as input: one outputting π_θ(a|s), the other outputting V-hat^π(s), labeled 'actor-critic algorithm'." />
+  <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
+</figure>
 
 [^walking-inefficiency-example]: Consider a robot walking, where a good start is undone by one bad step:
 
@@ -206,3 +326,35 @@ No $Q$-network required: the advantage, which needed $Q^\pi$ a moment ago, can n
     | Pawn | $96$ | $-2$ |
 
     Instead of three huge, nearly identical rewards, the advantage shows Queen is mildly better than average, Bishop is exactly average, and Pawn is mildly worse, a much more informative signal than $100$, $98$, and $96$.
+
+[^v-loss-example]: Suppose the network currently predicts $\hat{V}^\pi(s) = 5$ for some state, but the observed return from that state was $6$. The loss is $(5 - 6)^2 = 1$. After enough gradient steps on examples like this one, the prediction gradually climbs toward the target:
+
+    | Step | Prediction |
+    |---|---|
+    | Before training | $5$ |
+    | After some training | $5.7$ |
+    | After more training | $5.95$ |
+    | Eventually | $6$ |
+
+[^v-convergence-example]: Suppose state $S$ shows up across five different episodes, with observed returns $5$, $8$, $6$, $9$, and $7$. The network sees the training pairs $(S, 5)$, $(S, 8)$, $(S, 6)$, $(S, 9)$, $(S, 7)$, one per episode. Minimizing squared error across all of them pulls the prediction toward their average, $\frac{5+8+6+9+7}{5} = 7$, so the network learns $\hat{V}^\pi(S) \approx 7$, close to the state's true expected return.
+
+[^td-target-example]: Suppose the immediate reward is $r = 2$, and the network's current prediction for the next state is $\hat{V}^\pi(s') = 5$. The bootstrapped target is $y = 2 + 5 = 7$, available right away, without waiting to see how the rest of the episode plays out.
+
+[^mc-td-bias-variance-example]: Consider two episodes running through the same two states, Pink and Blue, before reaching a terminal:
+
+    <figure>
+      <img src="/images/notes/mc-td-example.jpg" alt="A trajectory running through a pink state, then a blue state, branching to either a green terminal (reward +1) or a red terminal (reward -1), with reward 0 elsewhere along the path." width="280" />
+      <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
+    </figure>
+
+    - Episode 1: Blue $\to$ Green ($+1$)
+    - Episode 2: Pink $\to$ Blue $\to$ Red ($-1$)
+
+    | Estimate | Value | Why |
+    |---|---|---|
+    | $MC(\text{Blue})$ | $0$ | Blue was visited twice, with returns $+1$ and $-1$. Average $= \frac{1 + (-1)}{2} = 0$. |
+    | $MC(\text{Pink})$ | $-1$ | Pink was visited only once, and that episode ended at the red terminal. Return $= -1$. |
+    | $TD(\text{Blue})$ | $0$ | Blue is followed by a different state in each episode, Green in episode 1, Red in episode 2, and both are terminal, so $V(\text{terminal}) = 0$. Its TD target in episode 1 is $r(\text{Blue}, \text{Green}) + V(\text{Green}) = 1 + 0 = 1$; in episode 2 it's $r(\text{Blue}, \text{Red}) + V(\text{Red}) = -1 + 0 = -1$. Blue sees both targets over training, and gradient descent on the two squared errors pulls its estimate toward their average, $\frac{1 + (-1)}{2} = 0$. |
+    | $TD(\text{Pink})$ | $0$ | The TD target for Pink is $r + V(\text{Blue}) = 0 + 0 = 0$, since Blue has already learned a value of $0$ after the two episodes. |
+
+    The key difference: Monte Carlo uses the actual return from the episode, while TD uses the immediate reward plus the estimated value of the next state. That's why $MC(\text{Pink}) = -1$: it saw the whole bad outcome. But $TD(\text{Pink}) = 0$: it only looks one step ahead to Blue, whose estimated value is already $0$.
