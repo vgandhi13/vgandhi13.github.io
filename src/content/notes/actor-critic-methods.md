@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-07-18
+updated: 2026-07-24
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -255,6 +255,84 @@ Steps 1 and 4 are the actor: the policy network $\pi_\theta(a \mid s)$, updated 
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
+## Off-policy actor-critic
+
+The [algorithm above](#a-full-algorithm-walkthrough) is on-policy: every gradient step needs a fresh batch of trajectories collected under the current policy $\pi_\theta$, including the batch the critic $\hat{V}_\phi^{\pi_\theta}$ is trained on. Turning this into an off-policy method means reusing data collected under an older policy for more than one gradient step, instead of collecting a batch, taking one gradient step, and throwing it away.[^offpolicy-sample-efficiency] Each transition gets reused many times instead of once, which is far more sample-efficient. [Importance sampling](/notes/policy-gradients/#importance-sampling-reusing-old-trajectories) is what makes that reuse valid, at the cost of a slightly stale advantage estimate.
+
+### Version 1: Multiple Gradient Steps
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem 1.25rem 1rem;">
+
+1. Sample a batch of trajectories $\{(s_{i,1}, a_{i,1}, \dots, s_{i,T}, a_{i,T})\}$ by running the current policy $\pi_\theta$.
+2. Fit $\hat{V}_\phi^{\pi_\theta}$ to the summed rewards in the batch.
+3. Evaluate the advantage at every timestep,
+   $$
+   \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i}) = r(s_{t,i}, a_{t,i}) + \gamma \hat{V}_\phi^{\pi_\theta}(s_{t+1,i}) - \hat{V}_\phi^{\pi_\theta}(s_{t,i}), \qquad \forall t, i
+   $$
+4. Evaluate the importance-weighted policy gradient,
+   $$
+   \nabla_{\theta'} J(\theta') \approx \sum_{t,i} \frac{\pi_{\theta'}(a_{i,t} \mid s_{i,t})}{\pi_\theta(a_{i,t} \mid s_{i,t})} \, \nabla_{\theta'} \log \pi_{\theta'}(a_{t,i} \mid s_{t,i}) \, \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i})
+   $$
+5. Update $\theta' \leftarrow \theta' + \alpha \nabla_{\theta'} J(\theta')$, then repeat from step 4 for another gradient step on the same batch.
+
+</div>
+
+This is what gives the version its name: instead of one gradient step per batch, steps 4 and 5 loop several times on $\theta'$ before the outer loop ever touches step 1 again. But the advantage $\hat{A}^{\pi_\theta}$ being reused in every one of those inner steps is still exactly what step 3 computed, from the old policy $\pi_\theta$; it never gets recomputed as $\theta'$ moves. The more inner steps you take, the more outdated that advantage becomes, and the less it reflects what $\theta'$ would actually experience now. $\theta'$ can't wander too far from $\theta$ before this stops being reliable: once the two policies disagree enough, the importance weights also blow up, exactly the [failure mode trust regions exist to prevent](/notes/policy-gradients/#when-does-our-off-policy-approximation-stop-working). In practice, "multiple" here means a handful of steps, not many.
+
+After a handful of these inner steps, set $\theta \leftarrow \theta'$ and repeat from step 1 with a freshly collected batch.
+
+### Version 2: Replay Buffers
+
+[Update this]
+
+## Proximal Policy Optimization
+
+Recall the [surrogate objective](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective) trick from policy gradients: instead of writing out a full gradient by hand, define a scalar objective whose gradient recovers it, so a single `backward()` call does the work. Applying that here, to the importance-weighted update from [off-policy actor-critic](#version-1-multiple-gradient-steps), gives the surrogate objective
+
+$$
+\tilde{J}(\theta') \approx \sum_{t,i} \frac{\pi_{\theta'}(a_{i,t} \mid s_{i,t})}{\pi_\theta(a_{i,t} \mid s_{i,t})} \, \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i})
+$$
+
+Differentiating $\tilde{J}$ with respect to $\theta'$, treating $\hat{A}^{\pi_\theta}$ as a constant, gives back exactly that importance-weighted policy gradient. As always, climbing $\tilde{J}$ increases the probability of high-advantage actions and decreases the probability of low-advantage ones.
+
+$\tilde{J}$ has two pieces. The **importance ratio**,
+
+$$
+r(\theta') = \frac{\pi_{\theta'}(a \mid s)}{\pi_\theta(a \mid s)}
+$$
+
+compares the new policy to the old one: $r=1$ means $\theta'$ behaves exactly like $\theta$; $r>1$ means $\theta'$ is more likely to take this action than $\theta$ was; $r<1$ means less likely. The **advantage**, $\hat{A}^{\pi_\theta}(s,a)$, was computed once from the old policy's data: positive means the action was good, negative means it was bad. Multiplying them together says: increase the probability of good actions, decrease the probability of bad ones.
+
+### Why multiple gradient steps can go wrong
+
+[Version 1](#version-1-multiple-gradient-steps) already flagged the risk of repeating steps 4 and 5 too many times: nothing in $\tilde{J}$ itself penalizes $\theta'$ for drifting far from $\theta$, so an optimizer that's free to keep climbing will happily push $r(\theta')$ far past $1$, long after the advantage estimate it's multiplying has stopped being trustworthy.[^ppo-drift-example]
+
+**TRPO** fixes this by directly constraining how far $\theta'$ is allowed to move, measured by [KL divergence](/notes/policy-gradients/#when-does-our-off-policy-approximation-stop-working): $D_{\mathrm{KL}}(\pi_{\theta'} \,\|\, \pi_\theta) \leq \delta$. It works well, but solving a constrained optimization problem at every gradient step is mathematically involved.
+
+**PPO** takes a simpler route: instead of constraining the policy directly, just stop the importance ratio itself from getting too large.
+
+### Clipping the importance ratio
+
+Pick a small $\epsilon$ (commonly $\epsilon = 0.2$), and clip $r(\theta')$ to the interval $[1-\epsilon, 1+\epsilon]$ before it's allowed to multiply the advantage: anything outside that interval gets pulled back to the nearest edge.[^clip-example]
+
+$$
+\mathrm{clip}\big(r(\theta'),\, 1-\epsilon,\, 1+\epsilon\big)
+$$
+
+Clipping matters because, left alone, $r(\theta') \, \hat{A}^{\pi_\theta}$ grows without bound: for a fixed positive advantage, a bigger ratio always means a bigger objective, so the optimizer is rewarded for pushing $\theta'$ arbitrarily far from $\theta$. Once the clipped ratio hits its boundary, it stops growing, so there's no more reward for pushing it any further.[^clip-benefit-example]
+
+### The PPO objective
+
+Taking the *smaller* of the clipped and unclipped versions gives the full PPO objective:
+
+$$
+L(\theta') = \min\Big( r(\theta') \, \hat{A}^{\pi_\theta}(s,a), \ \ \mathrm{clip}\big(r(\theta'), 1-\epsilon, 1+\epsilon\big) \, \hat{A}^{\pi_\theta}(s,a) \Big)
+$$
+
+Why take the minimum, instead of just always optimizing $\mathrm{clip}(r(\theta')) \, \hat{A}^{\pi_\theta}$ on its own? Because clipping alone can accidentally reward exactly the policy changes it's supposed to discourage: whenever $r(\theta')$ has moved outside the trust region in a *bad* direction, the clipped term can score *better* than the true, unclipped one. Taking the minimum always keeps whichever number is worse, so a bad update can never be made to look better than it actually is.[^ppo-min-example]
+
+Either way, the policy can't change too much in a single update while still improving the objective. This clipping mechanism, simple to implement and no constrained optimization required, is the core idea that makes PPO both stable and simple compared with earlier trust-region methods like TRPO.
+
 [^walking-inefficiency-example]: Consider a robot walking, where a good start is undone by one bad step:
 
     | Step | Action | Outcome |
@@ -358,3 +436,48 @@ Steps 1 and 4 are the actor: the policy network $\pi_\theta(a \mid s)$, updated 
     | $TD(\text{Pink})$ | $0$ | The TD target for Pink is $r + V(\text{Blue}) = 0 + 0 = 0$, since Blue has already learned a value of $0$ after the two episodes. |
 
     The key difference: Monte Carlo uses the actual return from the episode, while TD uses the immediate reward plus the estimated value of the next state. That's why $MC(\text{Pink}) = -1$: it saw the whole bad outcome. But $TD(\text{Pink}) = 0$: it only looks one step ahead to Blue, whose estimated value is already $0$.
+
+[^offpolicy-sample-efficiency]: **Without** off-policy learning: collect data, take one gradient step, discard all the data, collect again. Every transition is used exactly once, no matter how expensive it was to collect. **With** off-policy learning: collect data once, then take a gradient step, another, another, another, and only then collect more. Each transition gets reused across every one of those steps instead of being thrown away after a single update.
+
+[^ppo-drift-example]: Suppose the old policy is Left $0.5$, Right $0.5$, and the advantage says $A(\text{Left}) = 10$. The optimizer keeps increasing the probability of Left. After several gradient steps: Left $0.99$, Right $0.01$. The importance ratio for Left is now $r = \frac{0.99}{0.5} = 1.98$. Left unchecked, further optimization pushes $r$ to $5$, $10$, $20$, $50$, and beyond: $\theta'$ becomes very different from the $\theta$ that generated the advantage estimate, so the optimizer ends up trusting information that's no longer accurate.
+
+[^clip-example]: With $\epsilon = 0.2$, the clipping interval is $[0.8, 1.2]$:
+
+    | Raw ratio | Clipped |
+    |---|---|
+    | $0.5$ | $0.8$ |
+    | $0.9$ | $0.9$ |
+    | $1.1$ | $1.1$ |
+    | $1.5$ | $1.2$ |
+    | $4.0$ | $1.2$ |
+
+    Anything outside $[0.8, 1.2]$ gets pulled back to the nearest edge; anything already inside passes through unchanged.
+
+[^clip-benefit-example]: Suppose the advantage is $A = 5$. Without clipping, the objective grows without bound as the ratio grows:
+
+    | Ratio | Objective |
+    |---|---|
+    | $1$ | $5$ |
+    | $2$ | $10$ |
+    | $5$ | $25$ |
+    | $20$ | $100$ |
+
+    With $\epsilon = 0.2$ clipping applied first:
+
+    | Ratio | Clipped | Objective |
+    |---|---|---|
+    | $1$ | $1$ | $5$ |
+    | $1.1$ | $1.1$ | $5.5$ |
+    | $1.5$ | $1.2$ | $6$ |
+    | $4$ | $1.2$ | $6$ |
+
+    Once the ratio passes $1.2$, the clipped objective stops growing: there's no more reward for increasing the probability any further.
+
+[^ppo-min-example]: Compare $\min\big(r\hat{A}, \, \mathrm{clip}(r)\hat{A}\big)$ against always optimizing just $\mathrm{clip}(r)\hat{A}$ on its own, with $\epsilon = 0.2$ (clip interval $[0.8, 1.2]$):
+
+    - **Good action, ratio too high**: $A=+10$, $r=1.5$. Unclipped $rA = 1.5(10) = 15$; clipped $= 1.2(10) = 12$. $\min(15, 12) = 12$, exactly what clipping alone would give. Here the $\min$ changes nothing.
+    - **Bad action, ratio too high**: $A=-10$, $r=1.5$ (a bad action made much more likely). Unclipped $= 1.5(-10) = -15$; clipped $= 1.2(-10) = -12$. Since $-12 > -15$, always using the clipped objective would score this update $-12$, better than it deserves, effectively rewarding the bad update for landing outside the clip region. PPO's $\min(-15, -12) = -15$ refuses that, keeping the worse, true score.
+    - **Good action, ratio too low**: $A=+10$, $r=0.6$ (a good action made much less likely). Unclipped $= 0.6(10) = 6$; clipped $= 0.8(10) = 8$. Always using the clipped objective would score this $8$, again better than it deserves. PPO's $\min(6, 8) = 6$ keeps the worse score instead.
+    - **Bad action, ratio correctly reduced**: $A=-10$, $r=0.2$ (a bad action correctly made much less likely). Unclipped $= 0.2(-10) = -2$; clipped $= 0.8(-10) = -8$. $\min(-2, -8) = -8$: PPO still applies the more conservative, clipped score here, even though this particular change was in the right direction. Once $r$ moves outside the trust region, the objective saturates, whether or not that move happened to be beneficial.
+
+    In every case, the $\min$ either matches the clipped objective, when clipping alone already handles the update correctly, or falls back to the true, unclipped score, when clipping alone would have flattered a bad update. That's what stops the clipped objective from ever making an undesirable policy change look better than it is.
