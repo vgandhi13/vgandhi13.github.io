@@ -67,13 +67,39 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   previews), and `description` (frontmatter, shown when only the title matches). Stop words
   live in `src/lib/stopwords.js`, shared by index and query side. Result cards: query words
   are highlighted in the title whenever they match; preview priority is body sentence
-  (deep-linked via `#:~:text=`) → description → first 140 chars. Mid-word/inflected queries
-  are handled two ways: preview matching falls back to the token's longest prefix ≥3 chars
-  ("sweepin" still finds and marks "sweep"), and a zero-hit Fuse search retries with
-  end-trimmed tokens ("sweeping" scores worse than "sweepin" in Fuse and would otherwise
-  return nothing). `<Search scope="note|blog">`
+  (deep-linked via `#:~:text=`) → description → first 140 chars. `<Search scope="note|blog">`
   sets the placeholder and ranks that collection first (other collection still shown, badged).
   Stay dependency-light: Fuse.js only.
+- **Search ranking is scope → literal overlap → Fuse score**, in that order (`Array.sort` is
+  stable, so Fuse's own order, including its 2× title weight, breaks ties). "Literal overlap"
+  = for each query token, the length of its longest prefix literally present in title+`plain`,
+  **summed across tokens** so multi-token queries rank on total coverage. Summing matters: on
+  "proximal policy optimization" both RL notes tie at 12 on the longest single token
+  ("optimization"), and only the sum (26 vs 25) separates a full `proximal` from `proxima`
+  found inside "ap**proxima**tion".
+  This exists because Fuse ranks by *edit distance*, so an unrelated near-miss can beat a real
+  hit by a rounding error: on "clipped", `flipped` in policy-gradients (1 substitution, score
+  .9600) outranked `grad clip` in instruction-finetuning (.9631) — a 0.3% gap deciding the
+  whole order. Don't "fix" that class of bug by lowering Fuse's `threshold`; it would take
+  inflection recall with it. Add ranking evidence instead.
+- **Search prefix matching** (`prefixMatch`, drives highlighting, previews, deep links, and
+  the overlap key): a query token matches its own longest prefix present in the text, but at
+  least **half the token, min 3 chars**. Half is load-bearing — `clip` is 4/7 of "clipped" and
+  must keep matching, while `cli` (3/7, from "**cli**mb") must not, so a flat 60% floor is
+  wrong. Known wart: 2–4 char queries keep the 3-char floor, so "kl" still marks *quic**kl**y*
+  and "clip" still marks *cli* in *climb*; both rank last now, but a word-boundary bonus is
+  the real fix if it ever matters.
+- **Search recall fallback** retries with end-trimmed tokens while *no hit has any literal
+  overlap* — deliberately **not** gated on zero hits. A fully-typed inflection scores worse in
+  Fuse than its own prefix ("sweeping" .9713 vs "sweepin" .9631), so "sweeping" returned two
+  notes that don't contain "sweep" and missed the only one that does; the junk hits were
+  exactly what suppressed the retry. A retry never replaces hits with none.
+- **Search `<mark>` styling must be `.search-hit mark`**, not `.search-snippet mark` — both the
+  title and the snippet get marks, and scoping it to the snippet left title marks on the
+  browser default (black-on-yellow), which only shows up when a query matches a *title*.
+  Unresolved: dark-mode marks are below the AA the rest of the palette holds to, because
+  `color: inherit` puts low-contrast text on `--mark-bg` `#5c4d12` (snippet/muted 2.51:1,
+  title/link 3.97:1). `color: var(--heading)` would take both to 7.28:1; user hasn't decided.
 - **Verifying client-side JS** (search etc.): grepping `dist/` isn't enough — drive it with
   playwright headless against the dev server, `chromium.launch({ channel: 'chrome' })` to use
   installed Chrome (no browser download). Playwright is NOT installed globally or in the repo:

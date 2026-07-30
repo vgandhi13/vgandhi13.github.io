@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-07-24
+updated: 2026-07-26
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -323,11 +323,13 @@ Clipping matters because, left alone, $r(\theta') \, \hat{A}^{\pi_\theta}$ grows
 
 ### The PPO objective
 
-Taking the *smaller* of the clipped and unclipped versions gives the full PPO objective:
+Taking the *smaller* of the clipped and unclipped versions, then summing back over the sampled timesteps the way $\tilde{J}$ did, gives the full PPO objective:
 
 $$
-L(\theta') = \min\Big( r(\theta') \, \hat{A}^{\pi_\theta}(s,a), \ \ \mathrm{clip}\big(r(\theta'), 1-\epsilon, 1+\epsilon\big) \, \hat{A}^{\pi_\theta}(s,a) \Big)
+\tilde{J}^{\mathrm{CLIP}}(\theta') \approx \sum_{t,i} \min\Big( r_{t,i}(\theta') \, \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i}), \ \ \mathrm{clip}\big(r_{t,i}(\theta'), 1-\epsilon, 1+\epsilon\big) \, \hat{A}^{\pi_\theta}(s_{t,i}, a_{t,i}) \Big)
 $$
+
+where $r_{t,i}(\theta')$ is the importance ratio at a single sampled state-action pair. The $\min$ and the clip both apply per sample, inside the sum: every term is capped on its own before anything is added up. The PPO paper writes this same objective as $L^{\mathrm{CLIP}}(\theta')$, with an expectation over samples in place of the sum.
 
 Why take the minimum, instead of just always optimizing $\mathrm{clip}(r(\theta')) \, \hat{A}^{\pi_\theta}$ on its own? Because clipping alone can accidentally reward exactly the policy changes it's supposed to discourage: whenever $r(\theta')$ has moved outside the trust region in a *bad* direction, the clipped term can score *better* than the true, unclipped one. Taking the minimum always keeps whichever number is worse, so a bad update can never be made to look better than it actually is.[^ppo-min-example]
 

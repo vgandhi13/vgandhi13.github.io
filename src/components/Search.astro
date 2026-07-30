@@ -1,9 +1,10 @@
 ---
 // Full-text search over notes and blog posts. Fetches /search-index.json
 // lazily on first focus; matching is fuzzy (Fuse.js) and stop words are
-// ignored on both the index and query side. `scope` sets the placeholder
-// and ranks that collection's results first; matches from the other
-// collection still appear (badged) below.
+// ignored on both the index and query side. Ranking is scope, then literal
+// prefix overlap, then Fuse's score. `scope` sets the placeholder and ranks
+// that collection's results first; matches from the other collection still
+// appear (badged) below.
 interface Props {
   scope: 'note' | 'blog';
 }
@@ -64,10 +65,13 @@ const { scope } = Astro.props;
     return loading;
   }
 
-  /** Longest prefix (≥3 chars) of `t` occurring in `lower` — catches mid-word queries
-   *  and inflections ("sweepin" still finds "sweep"). */
+  /** Longest prefix of `t` occurring in `lower` — catches mid-word queries and
+   *  inflections ("sweepin" still finds "sweep"). At least half the token (min 3
+   *  chars) must match, so a long query can't latch onto a short unrelated fragment:
+   *  "clipped" finds "clip" in "grad clip" but not "cli" in "climb". */
   function prefixMatch(lower: string, t: string) {
-    for (let p = t; p.length >= Math.min(3, t.length); p = p.slice(0, -1)) {
+    const floor = Math.min(t.length, Math.max(3, Math.ceil(t.length / 2)));
+    for (let p = t; p.length >= floor; p = p.slice(0, -1)) {
       const i = lower.indexOf(p);
       if (i !== -1) return { index: i, length: p.length };
     }
@@ -139,16 +143,40 @@ const { scope } = Astro.props;
     }
 
     browse?.setAttribute('hidden', '');
+
+    // How many characters of the query literally appear in a doc: for each token,
+    // the length of its longest prefix present in title+plain, summed. Fuse ranks by
+    // edit distance, so an unrelated near-miss ("flipped" for a "clipped" query) can
+    // outscore a genuine shorter hit ("grad clip") by a rounding error. Literal
+    // overlap is the evidence Fuse can't see; it orders what Fuse recalls, and 0
+    // means "fuzzy match only". Summing (not max) is what makes multi-token queries
+    // rank on total coverage — on "proximal policy optimization" both notes max out
+    // at 12 via "optimization", but summing separates full "proximal" from "proxima".
+    const overlapOf = (doc: Doc) => {
+      const hay = `${doc.title} ${doc.plain}`.toLowerCase();
+      return tokens.reduce((sum, t) => sum + (prefixMatch(hay, t)?.length ?? 0), 0);
+    };
+
     let raw = fuse!.search(tokens.join(' '));
-    // recall fallback: a fully-typed inflection ("sweeping") can score worse in Fuse
-    // than its own prefix ("sweepin") and drop to zero hits — retry with the ends
-    // of the tokens shaved off
-    for (let cut = 1; raw.length === 0 && cut <= 3; cut++) {
+    // recall fallback: a fully-typed inflection ("sweeping") scores worse in Fuse than
+    // its own prefix ("sweepin"), so the doc that literally contains the word can be
+    // missing while unrelated fuzzy near-misses come back. Retry with the token ends
+    // shaved off until a literal match appears — gating this on zero hits instead
+    // misses the common case, since the junk hits are what suppress the retry.
+    for (let cut = 1; cut <= 3 && !raw.some((r) => overlapOf(r.item)); cut++) {
       const trimmed = tokens.map((t) => (t.length - cut >= 3 ? t.slice(0, t.length - cut) : t));
-      raw = fuse!.search(trimmed.join(' '));
+      const retry = fuse!.search(trimmed.join(' '));
+      if (retry.length) raw = retry; // never trade hits for none
     }
+    // memoized so the comparator below doesn't re-scan `plain` on every comparison
+    const overlap = new Map(raw.map(({ item }) => [item, overlapOf(item)]));
     const hits = raw
-      .sort((a, b) => Number(b.item.type === scope) - Number(a.item.type === scope))
+      // sort is stable, so Fuse's own order (incl. its 2x title weight) breaks ties
+      .sort(
+        (a, b) =>
+          Number(b.item.type === scope) - Number(a.item.type === scope) ||
+          overlap.get(b.item)! - overlap.get(a.item)!
+      )
       .slice(0, 10);
 
     resultsEl.innerHTML = '';
@@ -265,7 +293,9 @@ const { scope } = Astro.props;
     font-weight: 550;
   }
 
-  .search-snippet mark {
+  /* both the title and the snippet get marks — scoping this to .search-snippet left
+     title marks on the browser default (black-on-yellow), which is jarring in dark mode */
+  .search-hit mark {
     background: var(--mark-bg);
     color: inherit;
     border-radius: 3px;
