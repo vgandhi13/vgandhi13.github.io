@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-07-26
+updated: 2026-07-30
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -301,7 +301,15 @@ $$
 r(\theta') = \frac{\pi_{\theta'}(a \mid s)}{\pi_\theta(a \mid s)}
 $$
 
-compares the new policy to the old one: $r=1$ means $\theta'$ behaves exactly like $\theta$; $r>1$ means $\theta'$ is more likely to take this action than $\theta$ was; $r<1$ means less likely. The **advantage**, $\hat{A}^{\pi_\theta}(s,a)$, was computed once from the old policy's data: positive means the action was good, negative means it was bad. Multiplying them together says: increase the probability of good actions, decrease the probability of bad ones.
+compares the new policy to the old one. Unpacking each symbol:
+
+- $s$ is the current state. For an LLM, that's the prompt plus the tokens generated so far.
+- $a$ is the action. For an LLM, usually the next token, or sometimes the entire generated sequence.
+- $\pi_\theta$ is the old policy: the model as it was before the update.
+- $\pi_{\theta'}$ is the new policy, the one being trained.
+- $\pi(a \mid s)$ is the probability the policy assigns to taking action $a$ in state $s$.
+
+So $r=1$ means $\theta'$ behaves exactly like $\theta$; $r>1$ means $\theta'$ is more likely to take this action than $\theta$ was; $r<1$ means less likely.[^ratio-example] The **advantage**, $\hat{A}^{\pi_\theta}(s,a)$, was computed once from the old policy's data: positive means the action was good, negative means it was bad. Multiplying them together says: increase the probability of good actions, decrease the probability of bad ones.
 
 ### Why multiple gradient steps can go wrong
 
@@ -334,6 +342,29 @@ where $r_{t,i}(\theta')$ is the importance ratio at a single sampled state-actio
 Why take the minimum, instead of just always optimizing $\mathrm{clip}(r(\theta')) \, \hat{A}^{\pi_\theta}$ on its own? Because clipping alone can accidentally reward exactly the policy changes it's supposed to discourage: whenever $r(\theta')$ has moved outside the trust region in a *bad* direction, the clipped term can score *better* than the true, unclipped one. Taking the minimum always keeps whichever number is worse, so a bad update can never be made to look better than it actually is.[^ppo-min-example]
 
 Either way, the policy can't change too much in a single update while still improving the objective. This clipping mechanism, simple to implement and no constrained optimization required, is the core idea that makes PPO both stable and simple compared with earlier trust-region methods like TRPO.
+
+### What "the old policy" means in practice
+
+The denominator of the ratio is not the model from the previous gradient step; it's a frozen snapshot. Call it $P_0$. That frozen copy does two jobs: it generates the rollouts, and it supplies $\pi_\theta(a \mid s)$ for every ratio computed off them.
+
+One pass of the loop looks like this:
+
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem 1.25rem 1rem;">
+
+1. **Freeze the old policy.** Take a copy of the current model and call it $P_0$. Nothing trains this copy; it only generates rollouts and supplies the denominator $\pi_{P_0}(a \mid s)$.
+2. **Generate a batch with $P_0$.** Prompt 1 → response A, prompt 2 → response B, prompt 3 → response C, and so on.
+3. **Score the batch.** Compute rewards for every response, then advantages for every sampled state-action pair.
+4. **Take a gradient step.** The trainable model moves $P_0 \to P_1$, so the ratio is $\dfrac{\pi_{P_1}}{\pi_{P_0}}$.
+5. **Take another.** $P_1 \to P_2$, ratio $\dfrac{\pi_{P_2}}{\pi_{P_0}}$. And another: $P_2 \to P_3$, ratio $\dfrac{\pi_{P_3}}{\pi_{P_0}}$. The numerator moves every step; the denominator does not move at all.
+6. **Reset.** After enough passes over the batch (typically 2 to 10 epochs), discard the data, set the old policy to the latest one ($P_3$ here, which now plays both roles), and repeat from step 2 with a completely fresh batch.
+
+</div>
+
+That final reset is what keeps the batch honest: the actions and rewards in it came from $P_0$, so training on them long after the policy has moved to, say, $P_{20}$ means optimizing against behavior the current model no longer exhibits, and the gradient estimates get steadily less accurate.
+
+The reason to squeeze several steps out of one batch at all is cost. For LLM RL, generating rollouts dominates: a single batch might mean generating 16,000 completions, scoring each one with a reward model or verifier, and computing advantages, which can take minutes. A gradient step on data already sitting in GPU memory is cheap by comparison. Taking exactly one update per batch would mean paying the expensive part over and over for one cheap step each time.
+
+Despite the importance ratio, PPO is usually called an on-policy algorithm, because the data it trains on always comes from the current policy or one that's only a few optimization steps old.
 
 [^walking-inefficiency-example]: Consider a robot walking, where a good start is undone by one bad step:
 
@@ -440,6 +471,26 @@ Either way, the policy can't change too much in a single update while still impr
     The key difference: Monte Carlo uses the actual return from the episode, while TD uses the immediate reward plus the estimated value of the next state. That's why $MC(\text{Pink}) = -1$: it saw the whole bad outcome. But $TD(\text{Pink}) = 0$: it only looks one step ahead to Blue, whose estimated value is already $0$.
 
 [^offpolicy-sample-efficiency]: **Without** off-policy learning: collect data, take one gradient step, discard all the data, collect again. Every transition is used exactly once, no matter how expensive it was to collect. **With** off-policy learning: collect data once, then take a gradient step, another, another, another, and only then collect more. Each transition gets reused across every one of those steps instead of being thrown away after a single update.
+
+[^ratio-example]: Suppose the state is the prompt "The capital of France is", the action taken during rollout was the token `Paris`, and the old policy assigned it $0.60$:
+
+    | Next token | Old policy |
+    |---|---|
+    | `Paris` | $0.60$ |
+    | `London` | $0.25$ |
+    | `Rome` | $0.15$ |
+
+    After a training step, the new policy predicts:
+
+    | Next token | New policy |
+    |---|---|
+    | `Paris` | $0.75$ |
+    | `London` | $0.18$ |
+    | `Rome` | $0.07$ |
+
+    The ratio for the action actually taken is $r = \frac{0.75}{0.60} = 1.25$: the new policy makes `Paris` 25% more likely than before. Suppose instead the new policy had predicted `Paris` $0.30$, `London` $0.50$, `Rome` $0.20$. Then $r = \frac{0.30}{0.60} = 0.5$, and the chosen action is only half as likely as it was under the old policy.
+
+    Which direction is desirable depends on the sign of the advantage. With $A = +2$, a larger ratio increases the objective, so the optimizer is encouraged to raise this action's probability. With $A = -2$, raising the probability *hurts* the objective, and the optimizer pushes the ratio below $1$ instead.
 
 [^ppo-drift-example]: Suppose the old policy is Left $0.5$, Right $0.5$, and the advantage says $A(\text{Left}) = 10$. The optimizer keeps increasing the probability of Left. After several gradient steps: Left $0.99$, Right $0.01$. The importance ratio for Left is now $r = \frac{0.99}{0.5} = 1.98$. Left unchecked, further optimization pushes $r$ to $5$, $10$, $20$, $50$, and beyond: $\theta'$ becomes very different from the $\theta$ that generated the advantage estimate, so the optimizer ends up trusting information that's no longer accurate.
 
