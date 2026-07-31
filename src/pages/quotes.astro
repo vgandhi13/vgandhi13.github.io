@@ -1,0 +1,93 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Favorite quotes, newest first is not required: order is whatever reads best.
+// To add one: { text: '...', author: '...', source?: '...' }
+// `source` is optional context (a book, talk, or paper) shown after the name.
+const quotes: { text: string; author: string; source?: string }[] = [
+  {
+    text:
+      'People have a misconception that it takes a lot of exceptional people to make frontier models. ' +
+      'You need a handful of experienced people, but mostly you need a lot of motivated and talented people… ' +
+      'This technology is not that old. The people who have experience like myself only have a few years of ' +
+      'experience working on this. A lot of people can build that experience very quickly.',
+    author: 'Devendra Singh Chaplot',
+    source: 'at Sarvam Epoch',
+  },
+];
+---
+
+<Base title="Quotes · Varun Gandhi" description="A few favorite quotes from computer scientists.">
+  <h1>Quotes</h1>
+  <p class="intro">
+    Lines from computer scientists that I keep coming back to.
+  </p>
+  {quotes.length === 0 ? (
+    <p class="empty">Nothing here yet.</p>
+  ) : (
+    <ul class="quote-list">
+      {quotes.map((q) => (
+        <li>
+          <blockquote>{q.text}</blockquote>
+          <p class="attribution">
+            {q.author}{q.source && <span class="source">, {q.source}</span>}
+          </p>
+        </li>
+      ))}
+    </ul>
+  )}
+</Base>
+
+<style>
+  .intro {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  .empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .quote-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .quote-list li {
+    margin-bottom: 2rem;
+  }
+
+  /* Base.astro styles blockquotes as muted pull-quotes with a left rule; on this
+     page the quote *is* the content, so it gets body color and no rule. */
+  blockquote {
+    margin: 0;
+    padding-left: 0;
+    border-left: none;
+    color: var(--text);
+    font-size: 1.05rem;
+  }
+
+  blockquote::before {
+    content: '\201C';
+  }
+
+  blockquote::after {
+    content: '\201D';
+  }
+
+  .attribution {
+    margin: 0.4rem 0 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .attribution::before {
+    content: '\2014\00a0';
+  }
+
+  .source {
+    font-style: italic;
+  }
+</style>
