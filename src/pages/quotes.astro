@@ -3,14 +3,23 @@ import Base from '../layouts/Base.astro';
 
 // Favorite quotes, newest first is not required: order is whatever reads best.
 // To add one: { text: '...', author: '...', source?: '...' }
+// `text` can be an array when several passages from the same person and occasion
+// belong together: each becomes its own paragraph under one attribution.
 // `source` is optional context (a book, talk, or paper) shown after the name.
-const quotes: { text: string; author: string; source?: string }[] = [
+const quotes: { text: string | string[]; author: string; source?: string }[] = [
   {
-    text:
+    text: [
       'People have a misconception that it takes a lot of exceptional people to make frontier models. ' +
-      'You need a handful of experienced people, but mostly you need a lot of motivated and talented people… ' +
-      'This technology is not that old. The people who have experience like myself only have a few years of ' +
-      'experience working on this. A lot of people can build that experience very quickly.',
+        'You need a handful of experienced people, but mostly you need a lot of motivated and talented people… ' +
+        'This technology is not that old. The people who have experience like myself only have a few years of ' +
+        'experience working on this. A lot of people can build that experience very quickly.',
+      'It is good for the world if there are thousands of models, by different providers. ' +
+        'Competition breeds innovation, and specialization is better than one size fits all. ' +
+        'Different users want models at different sizes and different price points. Specifically for India, ' +
+        'we have so many languages and cultures, and our own education, legal and political systems, our own ' +
+        'public policy. So we want models that can be customized for all these things, and that is why we ' +
+        'need to build these models here.',
+    ],
     author: 'Devendra Singh Chaplot',
     source: 'at Sarvam Epoch',
   },
@@ -28,7 +37,9 @@ const quotes: { text: string; author: string; source?: string }[] = [
     <ul class="quote-list">
       {quotes.map((q) => (
         <li>
-          <blockquote>{q.text}</blockquote>
+          <blockquote>
+            {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p>{para}</p>)}
+          </blockquote>
           <p class="attribution">
             {q.author}{q.source && <span class="source">, {q.source}</span>}
           </p>
@@ -69,11 +80,20 @@ const quotes: { text: string; author: string; source?: string }[] = [
     font-size: 1.05rem;
   }
 
-  blockquote::before {
+  blockquote p {
+    margin: 0 0 0.9rem;
+  }
+
+  blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Quotation marks wrap the whole passage, not each paragraph. */
+  blockquote p:first-child::before {
     content: '\201C';
   }
 
-  blockquote::after {
+  blockquote p:last-child::after {
     content: '\201D';
   }
 
