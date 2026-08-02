@@ -185,10 +185,12 @@ const news = [
           </a>
         </h3>
         <p class="paper-authors">
-          <strong>Varun Gandhi</strong>, Jaewook Lee, Shantanu Todmal, Franck Dernoncourt,
+          <strong>Varun Gandhi</strong>*, Jaewook Lee*, Shantanu Todmal, Franck Dernoncourt,
           Ryan Rossi, Zichao Wang, Andrew Lan
         </p>
-        <p class="paper-venue">arXiv preprint, 2026</p>
+        <p class="paper-venue">
+          arXiv preprint, 2026 <span class="paper-note">· * Equal contribution</span>
+        </p>
         <p class="paper-summary">
           GRASP uses reinforcement learning to train an agentic RAG policy that decides when to
           retrieve, which tool to use (semantic search, keyword search, or paragraph reading),
@@ -525,6 +527,10 @@ const news = [
     color: var(--text-muted);
     font-size: 0.9rem;
     margin: 0 0 0.25rem;
+  }
+
+  .paper-note {
+    font-size: 0.8rem;
   }
 
   .paper-summary {
