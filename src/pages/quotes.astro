@@ -5,8 +5,16 @@ import Base from '../layouts/Base.astro';
 // To add one: { text: '...', author: '...', source?: '...' }
 // `text` can be an array when several passages from the same person and occasion
 // belong together: each becomes its own paragraph under one attribution.
-// `source` is optional context (a book, talk, or paper) shown after the name.
-const quotes: { text: string | string[]; author: string; source?: string }[] = [
+// `source` is optional context (a book, talk, or paper) shown after the name, and
+// links to `url` when one is given. Set `paraphrased` when the wording is recalled
+// rather than transcribed, so the page never passes it off as verbatim.
+const quotes: {
+  text: string | string[];
+  author: string;
+  source?: string;
+  url?: string;
+  paraphrased?: boolean;
+}[] = [
   {
     text: [
       'People have a misconception that it takes a lot of exceptional people to make frontier models. ' +
@@ -22,6 +30,23 @@ const quotes: { text: string | string[]; author: string; source?: string }[] = [
     ],
     author: 'Devendra Singh Chaplot',
     source: 'at Sarvam Epoch',
+  },
+  {
+    text: [
+      'With scaling laws, people realized that scaling pretraining is the thing to do. The big breakthrough ' +
+        'of pretraining is the realization that this recipe is good: if you mix some data with some compute ' +
+        'into a neural net of a certain size, you will get results, and you know you will get something ' +
+        'better if you scale the recipe up.',
+      'At some point though, pretraining will run out of data. The data is very finite. So then we either do ' +
+        'souped up pretraining or some kind of RL, and in some sense we are back to the age of research.',
+      'From 2012 to 2020, it was the age of research. From 2020 to 2025, it was the age of scaling. But now ' +
+        'the scale is so big that the belief that things would be significantly different if it were even ' +
+        '100x bigger might not be true. So we are back to the age of research again.',
+    ],
+    author: 'Ilya Sutskever',
+    source: 'on the Dwarkesh Podcast',
+    url: 'https://youtube.com/shorts/pLHWn5SQvLM',
+    paraphrased: true,
   },
 ];
 ---
@@ -40,8 +65,9 @@ const quotes: { text: string | string[]; author: string; source?: string }[] = [
           <blockquote>
             {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p>{para}</p>)}
           </blockquote>
+          {/* kept on one line: a line break here renders as a space before the comma */}
           <p class="attribution">
-            {q.author}{q.source && <span class="source">, {q.source}</span>}
+            {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
           </p>
         </li>
       ))}
@@ -109,5 +135,9 @@ const quotes: { text: string | string[]; author: string; source?: string }[] = [
 
   .source {
     font-style: italic;
+  }
+
+  .paraphrased {
+    font-style: normal;
   }
 </style>
