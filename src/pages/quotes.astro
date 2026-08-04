@@ -30,6 +30,7 @@ const quotes: {
     ],
     author: 'Devendra Singh Chaplot',
     source: 'at Sarvam Epoch',
+    url: 'https://www.youtube.com/watch?v=peO2ReobYSw',
   },
   {
     text: [
@@ -48,13 +49,36 @@ const quotes: {
     url: 'https://youtube.com/shorts/pLHWn5SQvLM',
     paraphrased: true,
   },
+  {
+    text: [
+      'Current LLM agents can do really well and are incredibly capable when they are given a clear and ' +
+        'detailed specification. With access to these kinds of agents, the scarce skill then becomes having ' +
+        'incredibly good taste in what you ask them to work on.',
+      'A researcher can have all the tools and techniques, but often most of the battle is what problem you ' +
+        'are going to spend your time on. That high level wisdom of what to work on is incredibly important, ' +
+        'and I think models are not necessarily going to be good at it. We are going to have people steering ' +
+        'a lot of AI-assisted computation in order to accomplish great things more quickly, but the essence ' +
+        'of what you want the models to do is the key thing to focus on.',
+      'Building taste is difficult. Working on a lot of problems in the past teaches you what kind of ' +
+        'problems might be interesting in future, and what might just be possible by cobbling together ' +
+        'previous approaches. Another way is to write down a bunch of things you think might be important in ' +
+        'the near future, pick one of them to work on, and after a certain amount of time go back and ' +
+        'evaluate which of the others turned out to be important and worked for other people. That gives you ' +
+        'a lot more samples to build taste from. Finally, do crazy thought experiments, and don’t take as ' +
+        'given the things that most people seem to take as given.',
+    ],
+    author: 'Jeff Dean',
+    source: '“The 1% Rule for Building in AI”',
+    url: 'https://www.youtube.com/watch?v=CxXgV54KzpQ',
+    paraphrased: true,
+  },
 ];
 ---
 
-<Base title="Quotes · Varun Gandhi" description="A few favorite quotes from computer scientists.">
-  <h1>Quotes</h1>
+<Base title="Excerpts · Varun Gandhi" description="Ideas from computer scientists that I keep coming back to.">
+  <h1>Excerpts</h1>
   <p class="intro">
-    Lines from computer scientists that I keep coming back to.
+    Ideas from computer scientists that I keep coming back to.
   </p>
   {quotes.length === 0 ? (
     <p class="empty">Nothing here yet.</p>
@@ -73,6 +97,21 @@ const quotes: {
       ))}
     </ul>
   )}
+  <script is:inline>
+    // Fisher-Yates shuffle of the excerpts, run inline right after the list so it
+    // reorders before first paint (same pre-paint trick as the theme script in
+    // Base.astro). No-JS visitors simply get the authored order.
+    (() => {
+      const list = document.querySelector('.quote-list');
+      if (!list) return;
+      const items = Array.from(list.children);
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      for (const item of items) list.append(item);
+    })();
+  </script>
 </Base>
 
 <style>
@@ -93,7 +132,18 @@ const quotes: {
   }
 
   .quote-list li {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: 8px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .quote-list li:hover {
+    border-color: var(--text-muted);
+    border-left-color: var(--link);
   }
 
   /* Base.astro styles blockquotes as muted pull-quotes with a left rule; on this
@@ -124,7 +174,7 @@ const quotes: {
   }
 
   .attribution {
-    margin: 0.4rem 0 0;
+    margin: 0.9rem 0 0;
     font-size: 0.9rem;
     color: var(--text-muted);
   }
