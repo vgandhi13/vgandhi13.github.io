@@ -85,6 +85,10 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     --border: #e4e4e4;
     --surface: #f6f6f6;
     --mark-bg: #fff1a8;
+    /* accepted-paper venue lines; both AA on --bg in either theme.
+       --venue = archival venue (main / Findings), --venue-workshop = workshop */
+    --venue: #8a6412;
+    --venue-workshop: #146c3f;
     color-scheme: light;
   }
 
@@ -97,6 +101,8 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     --border: #31353c;
     --surface: #21252b;
     --mark-bg: #5c4d12;
+    --venue: #d9a93a;
+    --venue-workshop: #5fd39a;
     color-scheme: dark;
   }
 

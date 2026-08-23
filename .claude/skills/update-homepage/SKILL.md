@@ -38,7 +38,9 @@ overlap — news is announcements, timeline is the curated story.
 
 Copy an existing `.paper` div — two-column layout: figure thumbnail (left, links to arXiv)
 and info (right): linked title, author line with `<strong>Varun Gandhi</strong>`, venue line
-(`arXiv preprint, YYYY` — switch to e.g. `Accepted at ACL 2026` if it lands somewhere),
+(`arXiv preprint, YYYY`; once it lands somewhere, switch to the venue and wrap it in
+`<span class="venue-accepted">` for an archival venue or `<span class="venue-workshop">` for a
+workshop, and make sure the string itself names the tier — see CLAUDE.md),
 1–2 sentence summary, then `.paper-links` buttons (arXiv abs + PDF; add Project Page / Code
 if they exist). Figure: user supplies an image; compress with `sips -Z 800` (or 640 if still
 >500KB) into `public/images/papers/<kebab-slug>.png`. Thumbnails render letterboxed in a

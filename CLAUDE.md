@@ -60,8 +60,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Theme**: light/dark via `data-theme` on `<html>`, set pre-paint by an inline script in
   Base.astro, persisted in localStorage, falls back to `prefers-color-scheme`. All colors are
   CSS variables in Base.astro (`--bg, --text, --heading, --text-muted, --link, --border,
-  --surface, --mark-bg`). Dark palette was contrast-tuned (WCAG AA, body ~10:1, muted ~5:1);
-  keep headings brighter than body text.
+  --surface, --mark-bg, --venue, --venue-workshop`). Dark palette was contrast-tuned (WCAG AA,
+  body ~10:1, muted ~5:1); keep headings brighter than body text.
+- **Accepted papers** in the Research section wrap their venue in a span so it renders semibold
+  in an accent color, while a still-unaccepted `arXiv preprint, YYYY` stays muted — the two read
+  as different states in the list. Two tiers, two hues: `.venue-accepted` → `--venue` amber
+  (`#8a6412` light 5.37:1 / `#d9a93a` dark 7.88:1) for archival venues (main conference,
+  Findings); `.venue-workshop` → `--venue-workshop` green (`#146c3f` light 6.47:1 / `#5fd39a`
+  dark 9.17:1) for workshops. Reuse the tokens for the next acceptance rather than hardcoding a
+  hex. **The venue string must name the tier itself** (say "Workshop" when it is one) — the
+  color is decoration, the words are the claim, and abbreviating a workshop paper to just
+  "RLC 2026" would read as a main-conference paper. User picked amber from a rendered comparison
+  of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
+  green for workshops; they were told green-as-success next to amber-as-caution can imply the
+  workshop is the stronger result, and accepted that tradeoff.
 - **Search**: `/search-index.json` is generated at build from both collections. Each doc has
   `text` (stop-word-stripped, for Fuse.js fuzzy matching), `plain` (readable, for sentence
   previews), and `description` (frontmatter, shown when only the title matches). Stop words

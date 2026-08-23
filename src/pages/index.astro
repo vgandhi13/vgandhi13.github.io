@@ -32,8 +32,12 @@ const socials = [
 
 const news = [
   {
+    date: 'Aug 2026',
+    text: 'GRASP was accepted to Findings of EMNLP 2026. See you in Budapest!',
+  },
+  {
     date: 'Jul 2026',
-    text: 'New preprint: "GRASP: GRanularity-Aware Search Policy for Agentic RAG", from my internship work with Adobe Research.',
+    text: 'New preprint: "GRASP: GRanularity-Aware Search Policy for Agentic RAG", from my externship work with Adobe Research.',
   },
   {
     date: 'Jun 2026',
@@ -189,7 +193,8 @@ const news = [
           Ryan Rossi, Zichao Wang, Andrew Lan
         </p>
         <p class="paper-venue">
-          arXiv preprint, 2026 <span class="paper-note">· * Equal contribution</span>
+          <span class="venue-accepted">Findings of EMNLP 2026</span>
+          <span class="paper-note">· * Equal contribution</span>
         </p>
         <p class="paper-summary">
           GRASP uses reinforcement learning to train an agentic RAG policy that decides when to
@@ -229,7 +234,9 @@ const news = [
           Abhranil Chandra, Sankaran Vaidyanathan, Utsav Dhanuka, <strong>Varun Gandhi</strong>,
           Scott Niekum
         </p>
-        <p class="paper-venue">arXiv preprint, 2026</p>
+        <p class="paper-venue">
+          <span class="venue-workshop">RL Beyond Rewards Workshop, RLC 2026</span>
+        </p>
         <p class="paper-summary">
           HExA is a training-free framework that lets LLM agents improve through active
           experimentation — learning reusable skills and integrating evidence to solve novel
@@ -531,6 +538,18 @@ const news = [
 
   .paper-note {
     font-size: 0.8rem;
+  }
+
+  /* accepted venues get an accent, preprints stay muted, so the two read as
+     different states in the paper list; workshops get their own hue */
+  .venue-accepted {
+    color: var(--venue);
+    font-weight: 600;
+  }
+
+  .venue-workshop {
+    color: var(--venue-workshop);
+    font-weight: 600;
   }
 
   .paper-summary {
