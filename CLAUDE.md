@@ -74,6 +74,16 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
+- **Excerpts share links** (`src/pages/quotes.astro`): every excerpt renders as `<li id={slug}>`
+  with a "Copy link" control that copies an absolute `…/quotes/#slug`. Slugs come from the
+  author (`slugify`). Slugs are deliberately **not** position-derived: a second quote by the same
+  author throws at build time rather than silently taking `#author` and pushing the existing one
+  to `-2`, which would repoint links already shared. Resolve a clash by adding an explicit `id`
+  to the *newer* quote and leaving the older slug alone. Two things that look redundant are not: the control is a real `<a href="#slug">` so it
+  still works without JS or clipboard access (the address bar becomes the shareable thing), and
+  the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
+  the element the browser already jumped to, landing a shared link at the wrong offset.
+
 - **Search**: `/search-index.json` is generated at build from both collections. Each doc has
   `text` (stop-word-stripped, for Fuse.js fuzzy matching), `plain` (readable, for sentence
   previews), and `description` (frontmatter, shown when only the title matches). Stop words

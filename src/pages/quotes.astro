@@ -8,12 +8,16 @@ import Base from '../layouts/Base.astro';
 // `source` is optional context (a book, talk, or paper) shown after the name, and
 // links to `url` when one is given. Set `paraphrased` when the wording is recalled
 // rather than transcribed, so the page never passes it off as verbatim.
+// Each excerpt gets a shareable #anchor, slugged from `author`. A second quote by the
+// same author fails the build; give that one an explicit `id` (short and memorable,
+// e.g. id: 'karpathy-understanding') so the first one's shared link keeps working.
 const quotes: {
   text: string | string[];
   author: string;
   source?: string;
   url?: string;
   paraphrased?: boolean;
+  id?: string;
 }[] = [
   {
     text: [
@@ -82,27 +86,113 @@ const quotes: {
     author: 'Andrej Karpathy',
     source: 'commonly attributed',
   },
+  {
+    text: [
+      'When you grow up you tend to get told the world is the way it is and your life is just to live ' +
+        'your life inside the world. Try not to bash into the walls too much, try to have a nice family ' +
+        'life, have fun, save a little money. But that is a very limited life, life can be much broader. ' +
+        'Once you discover one simple fact, and that is everything you call life was made up by people ' +
+        'that were no smarter than you. And you can change it, you can influence it. You can build your ' +
+        'own things that other people can use. And the minute that you understand that you can poke life, ' +
+        'and if you push in something will actually pop out the other side, that you can change and mold it.',
+      'The most important thing is to shake off this erroneous notion that life is there and you are just ' +
+        'going to live in it versus embrace it, change it, make your mark upon it. However you learn it, ' +
+        'once you learn, you’ll want to change life and make it better because it is kind of messed up in ' +
+        'a lot of ways. Once you learn that you will never be the same again.',
+    ],
+    author: 'Steve Jobs',
+    paraphrased: true,
+  },
+  {
+    text: [
+      'In future people won’t necessarily be having shitty jobs or nothing to do. Instead they will be ' +
+        'handling and guiding the Robots and AI. If we don’t get ASI, if AI gets you to expert level but ' +
+        'doesn’t go beyond and still needs human taste, guidance and creativity, humans are still the ' +
+        'motivated things in the society. People become like Pokémon trainers or robot/AI handlers.',
+      'That is what we are seeing today. People who are using AI today are more productive than ever. ' +
+        'The only way you are being displaced by AI if you are refusing to use it.',
+    ],
+    author: 'Naval Ravikant',
+    source: '“Riding AGI, AI Anxiety, …”',
+    url: 'https://www.youtube.com/watch?v=6m-ZZBCiiEE',
+  },
+  {
+    text: [
+      'There will be 3 types of people in the future:',
+      'The Purists - reject AI and become new-age hippies',
+      'The Automatons - outsource every decision and become machines',
+      'The New Renaissance Man - maintains humanity and leverages tech to do what used to be impossible',
+    ],
+    author: 'Dan Koe',
+    source: 'on X',
+    url: 'https://x.com/thedankoe/status/2091876986444533842',
+  },
+  {
+    text: 'Computer Science is no more about computers than astronomy is about telescopes',
+    author: 'Edsger Wybe Dijkstra',
+    // Wikiquote files this under Disputed ("possibly folklore"); the longer version
+    // with microscopes and beakers is documented to Fellows and Parberry, Computing
+    // Research News, Jan 1993. Attribution kept as Dijkstra at the site owner's call.
+    id: 'dijkstra',
+  },
 ];
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+// Slugs are never derived from array position: a shared link has to keep pointing at
+// the same excerpt no matter what gets added above it later. So a second quote by an
+// author collides on purpose and fails the build, and you resolve it by pinning `id`
+// on the NEW one, which leaves the already-shared link on the old one untouched.
+const seen = new Map<string, string>();
+const entries = quotes.map((q) => {
+  const slug = q.id ?? slugify(q.author);
+  const clash = seen.get(slug);
+  if (clash) {
+    throw new Error(
+      `Duplicate excerpt anchor "#${slug}" (${clash} and ${q.author}). Add an explicit ` +
+        `id to the newer quote, e.g. id: '${slug}-${slugify(
+          (Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' ')
+        )}'. Do not renumber the existing one: its link is already out in the world.`
+    );
+  }
+  seen.set(slug, q.author);
+  return { ...q, slug };
+});
 ---
 
-<Base title="Excerpts · Varun Gandhi" description="Ideas from computer scientists that I keep coming back to.">
+<Base title="Excerpts · Varun Gandhi" description="Ideas about AI and technology, or by computer scientists, that I keep coming back to.">
   <h1>Excerpts</h1>
   <p class="intro">
-    Ideas from computer scientists that I keep coming back to.
+    Ideas about AI and technology, or by computer scientists, that I keep coming back to.
   </p>
   {quotes.length === 0 ? (
     <p class="empty">Nothing here yet.</p>
   ) : (
     <ul class="quote-list">
-      {quotes.map((q) => (
-        <li>
+      {entries.map((q) => (
+        <li id={q.slug}>
           <blockquote>
             {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p>{para}</p>)}
           </blockquote>
-          {/* kept on one line: a line break here renders as a space before the comma */}
-          <p class="attribution">
-            {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
-          </p>
+          <div class="meta">
+            {/* kept on one line: a line break here renders as a space before the comma */}
+            <p class="attribution">
+              {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
+            </p>
+            <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={`Copy a link to this excerpt by ${q.author}`}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              <span class="share-text">Copy link</span>
+            </a>
+          </div>
         </li>
       ))}
     </ul>
@@ -121,6 +211,39 @@ const quotes: {
       }
       for (const item of items) list.append(item);
     })();
+
+    // The shuffle above moves the element the browser already scrolled to, so a
+    // shared #link lands at the wrong offset. Re-run the jump once layout settles.
+    addEventListener('DOMContentLoaded', () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (id) document.getElementById(id)?.scrollIntoView({ block: 'center' });
+    });
+
+    // Share controls copy an absolute link. They stay real anchors, so with no JS
+    // (or no clipboard access) clicking still jumps to the excerpt and puts the
+    // shareable URL in the address bar.
+    if (navigator.clipboard) {
+      for (const btn of document.querySelectorAll('.share')) {
+        btn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          const slug = btn.dataset.slug;
+          try {
+            await navigator.clipboard.writeText(location.origin + location.pathname + '#' + slug);
+          } catch {
+            location.hash = slug;
+            return;
+          }
+          const label = btn.querySelector('.share-text');
+          btn.classList.add('copied');
+          label.textContent = 'Copied';
+          clearTimeout(btn.resetTimer);
+          btn.resetTimer = setTimeout(() => {
+            btn.classList.remove('copied');
+            label.textContent = 'Copy link';
+          }, 1600);
+        });
+      }
+    }
   </script>
 </Base>
 
@@ -148,10 +271,17 @@ const quotes: {
     border: 1px solid var(--border);
     border-left: 3px solid var(--border);
     border-radius: 8px;
+    scroll-margin-top: 2rem;
     transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 
   .quote-list li:hover {
+    border-color: var(--text-muted);
+    border-left-color: var(--link);
+  }
+
+  /* the excerpt someone was linked to, so a shared link lands somewhere obvious */
+  .quote-list li:target {
     border-color: var(--text-muted);
     border-left-color: var(--link);
   }
@@ -174,10 +304,47 @@ const quotes: {
     margin-bottom: 0;
   }
 
+  .meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.9rem;
+  }
+
   .attribution {
-    margin: 0.9rem 0 0;
+    margin: 0;
     font-size: 0.9rem;
     color: var(--text-muted);
+  }
+
+  .share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .share:hover,
+  .share:focus-visible {
+    color: var(--link);
+    background: var(--bg);
+  }
+
+  .share.copied,
+  .share.copied:hover {
+    color: var(--heading);
+    background: var(--bg);
+  }
+
+  .share svg {
+    flex-shrink: 0;
   }
 
   .attribution::before {
