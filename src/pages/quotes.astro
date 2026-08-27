@@ -8,6 +8,9 @@ import Base from '../layouts/Base.astro';
 // `source` is optional context (a book, talk, or paper) shown after the name, and
 // links to `url` when one is given. Set `paraphrased` when the wording is recalled
 // rather than transcribed, so the page never passes it off as verbatim.
+// `note` is your own commentary on the excerpt. It renders below the attribution,
+// under a rule and in a lighter register, so it reads as annotation and never as
+// something the speaker said. Keep it to a line.
 // Each excerpt gets a shareable #anchor, slugged from `author`. A second quote by the
 // same author fails the build; give that one an explicit `id` (short and memorable,
 // e.g. id: 'karpathy-understanding') so the first one's shared link keeps working.
@@ -17,6 +20,7 @@ const quotes: {
   source?: string;
   url?: string;
   paraphrased?: boolean;
+  note?: string;
   id?: string;
 }[] = [
   {
@@ -128,6 +132,22 @@ const quotes: {
     url: 'https://x.com/thedankoe/status/2091876986444533842',
   },
   {
+    text: [
+      'The problem was you can’t just ask Aristotle questions. And I think as we look to the next ' +
+        '50-100yrs, if we really can come up with these machines that can capture an underlying ' +
+        'spirit… maybe someday after a person’s dead and gone, we can ask this machine, hey what ' +
+        'would Aristotle have said?',
+      'And maybe we won’t get the right answer. But maybe we will. And that’s really exciting to ' +
+        'me. And that’s why I’m doing what I’m doing.',
+    ],
+    author: 'Steve Jobs',
+    source: 'at the International Design Conference in Aspen, 1983',
+    url: 'https://www.youtube.com/watch?v=t9HmOz8H0qI',
+    note: 'Said in 1983, describing more or less what we got with AI in 2026.',
+    // #steve-jobs is taken by the earlier excerpt; pinning keeps that link valid
+    id: 'jobs-aristotle',
+  },
+  {
     text: 'Computer Science is no more about computers than astronomy is about telescopes',
     author: 'Edsger Wybe Dijkstra',
     // Wikiquote files this under Disputed ("possibly folklore"); the longer version
@@ -193,6 +213,7 @@ const entries = quotes.map((q) => {
               <span class="share-text">Copy link</span>
             </a>
           </div>
+          {q.note && <p class="commentary">{q.note}</p>}
         </li>
       ))}
     </ul>
@@ -345,6 +366,26 @@ const entries = quotes.map((q) => {
 
   .share svg {
     flex-shrink: 0;
+  }
+
+  /* my own commentary, not the speaker's: the rule and the lighter register are
+     what keep the two voices apart once the card is screenshotted or shared */
+  .commentary {
+    margin: 0.85rem 0 0;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
+  /* a short rule rather than a full-width one: --border sits almost on top of
+     --surface, so the hairline divider it would draw here is invisible */
+  .commentary::before {
+    content: '';
+    display: block;
+    width: 26px;
+    margin-bottom: 0.55rem;
+    border-top: 2px solid var(--text-muted);
+    opacity: 0.45;
   }
 
   .attribution::before {
