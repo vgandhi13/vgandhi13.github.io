@@ -155,6 +155,23 @@ const quotes: {
     // Research News, Jan 1993. Attribution kept as Dijkstra at the site owner's call.
     id: 'dijkstra',
   },
+  {
+    text: 'I visualize a time when we will be to robots what dogs are to humans. And I am rooting ' +
+      'for the machines.',
+    author: 'Claude Shannon',
+    source: 'Omni, August 1987',
+    // Wikiquote has "I can visualize a time in the future when we will be to robots as dogs
+    // are to humans", with "I am rooting for the machines!" as a separate remark in the same
+    // interview; this is the popular one-sentence rendering, hence the flag.
+    paraphrased: true,
+  },
+  {
+    // The em dash is Feynman's own and stays: the no-em-dash rule in CLAUDE.md governs
+    // prose written for this site, not the wording of a quotation.
+    text: 'The first principle is that you must not fool yourself—and you are the easiest person ' +
+      'to fool.',
+    author: 'Richard Feynman',
+  },
 ];
 
 const slugify = (value: string) =>
@@ -186,10 +203,10 @@ const entries = quotes.map((q) => {
 });
 ---
 
-<Base title="Excerpts · Varun Gandhi" description="Ideas about AI and technology, or by computer scientists, that I keep coming back to.">
+<Base title="Excerpts · Varun Gandhi" description="Ideas about AI and technology, or by scientists, that I keep coming back to.">
   <h1>Excerpts</h1>
   <p class="intro">
-    Ideas about AI and technology, or by computer scientists, that I keep coming back to.
+    Ideas about AI and technology, or by scientists, that I keep coming back to.
   </p>
   {quotes.length === 0 ? (
     <p class="empty">Nothing here yet.</p>
