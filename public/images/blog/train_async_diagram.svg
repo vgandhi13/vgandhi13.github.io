@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 650" role="img" color="#212A35"
+     aria-label="train_async pipeline: rollouts flow through an admission gate to streaming inference GPUs, a ready pool, backward GPUs, and record(), which fires optimizer steps. Feedback loops: version stamps flow back to inference, recording reopens the admission gate, and a starvation path rushes fresh rollouts through short backward chunks.">
+  <defs>
+    <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="currentColor"/>
+    </marker>
+    <marker id="arrB" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#4A90CF"/>
+    </marker>
+    <marker id="arrA" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#D98A24"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="650" fill="#FCFCFA"/>
+
+  <g font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="11" fill="currentColor">
+
+    <!-- ============ main pipeline, left to right, centerline y=300 ============ -->
+
+    <!-- rollouts source -->
+    <rect x="24" y="252" width="132" height="96" rx="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <text x="90" y="276" text-anchor="middle" font-size="13" font-weight="700">rollouts[]</text>
+    <text x="90" y="293" text-anchor="middle" opacity="0.62">12,800 · id order</text>
+    <g fill="currentColor" opacity="0.5">
+      <rect x="38" y="304" width="12" height="12" rx="2"/>
+      <rect x="54" y="304" width="12" height="12" rx="2"/>
+      <rect x="70" y="304" width="12" height="12" rx="2"/>
+      <rect x="86" y="304" width="12" height="12" rx="2"/>
+      <rect x="102" y="304" width="12" height="12" rx="2"/>
+      <rect x="118" y="304" width="12" height="12" rx="2"/>
+    </g>
+    <text x="90" y="336" text-anchor="middle" font-size="10.5" opacity="0.62">next_index</text>
+
+    <line x1="156" y1="300" x2="188" y2="300" stroke="currentColor" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- admission gate -->
+    <rect x="196" y="252" width="158" height="96" rx="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <text x="275" y="276" text-anchor="middle" font-size="13" font-weight="700">admission gate</text>
+    <text x="275" y="295" text-anchor="middle">admit while in_flight &lt; cap</text>
+    <text x="275" y="312" text-anchor="middle" opacity="0.62">cap 512 → tapers at tail</text>
+    <text x="275" y="329" text-anchor="middle" font-size="10.5" opacity="0.62">floor 320 keeps steps assemblable</text>
+
+    <line x1="354" y1="300" x2="386" y2="300" stroke="currentColor" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- inference cluster -->
+    <rect x="394" y="228" width="238" height="144" rx="9" fill="currentColor" fill-opacity="0.045" stroke="currentColor" stroke-width="1.5"/>
+    <text x="513" y="250" text-anchor="middle" font-size="13" font-weight="700">inference GPUs</text>
+    <rect x="410" y="260" width="206" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75"/>
+    <text x="422" y="278">GPU 0</text>
+    <g fill="currentColor" opacity="0.5">
+      <rect x="472" y="266" width="7" height="16" rx="1.5"/><rect x="483" y="266" width="7" height="16" rx="1.5"/>
+      <rect x="494" y="266" width="7" height="16" rx="1.5"/><rect x="505" y="266" width="7" height="16" rx="1.5"/>
+      <rect x="516" y="266" width="7" height="16" rx="1.5"/><rect x="527" y="266" width="7" height="16" rx="1.5"/>
+      <rect x="538" y="266" width="7" height="16" rx="1.5"/><rect x="549" y="266" width="7" height="16" rx="1.5"/>
+    </g>
+    <text x="564" y="278" font-size="10.5" opacity="0.62">×64 slots</text>
+    <rect x="410" y="296" width="206" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75"/>
+    <text x="422" y="314">GPU 1</text>
+    <g fill="currentColor" opacity="0.5">
+      <rect x="472" y="302" width="7" height="16" rx="1.5"/><rect x="483" y="302" width="7" height="16" rx="1.5"/>
+      <rect x="494" y="302" width="7" height="16" rx="1.5"/><rect x="505" y="302" width="7" height="16" rx="1.5"/>
+      <rect x="516" y="302" width="7" height="16" rx="1.5"/><rect x="527" y="302" width="7" height="16" rx="1.5"/>
+      <rect x="538" y="302" width="7" height="16" rx="1.5"/><rect x="549" y="302" width="7" height="16" rx="1.5"/>
+    </g>
+    <text x="564" y="314" font-size="10.5" opacity="0.62">×64 slots</text>
+    <text x="513" y="344" text-anchor="middle">slot frees → pulls next rollout</text>
+    <text x="513" y="361" text-anchor="middle" fill="#4A90CF">stamped with current version at completion</text>
+
+    <line x1="632" y1="300" x2="664" y2="300" stroke="currentColor" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- ready pool -->
+    <rect x="672" y="252" width="126" height="96" rx="9" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <text x="735" y="278" text-anchor="middle" font-size="13" font-weight="700">ready pool</text>
+    <text x="735" y="298" text-anchor="middle">state: INFERENCED</text>
+    <text x="735" y="315" text-anchor="middle" opacity="0.62">completion order,</text>
+    <text x="735" y="330" text-anchor="middle" opacity="0.62">not id order</text>
+
+    <line x1="798" y1="300" x2="830" y2="300" stroke="currentColor" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- backward cluster -->
+    <rect x="838" y="228" width="192" height="144" rx="9" fill="currentColor" fill-opacity="0.045" stroke="currentColor" stroke-width="1.5"/>
+    <text x="934" y="250" text-anchor="middle" font-size="13" font-weight="700">backward GPUs</text>
+    <text x="934" y="273" text-anchor="middle">cuts chunk of ≤64 from ready</text>
+    <text x="934" y="290" text-anchor="middle" opacity="0.62">one chunk = one full-GPU pass</text>
+    <text x="934" y="313" text-anchor="middle">wakes when: 64 ready · drain ·</text>
+    <text x="934" y="329" text-anchor="middle"><tspan fill="#D98A24">starved fresh rollout</tspan></text>
+    <text x="934" y="352" text-anchor="middle" opacity="0.62">run_backward → record(chunk)</text>
+
+    <line x1="1030" y1="300" x2="1060" y2="300" stroke="currentColor" stroke-width="1.6" marker-end="url(#arr)"/>
+
+    <!-- record column -->
+    <rect x="1068" y="186" width="188" height="228" rx="9" fill="currentColor" fill-opacity="0.045" stroke="currentColor" stroke-width="1.5"/>
+    <text x="1162" y="210" text-anchor="middle" font-size="13" font-weight="700">record()</text>
+    <rect x="1084" y="222" width="156" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75"/>
+    <text x="1162" y="240" text-anchor="middle" font-weight="600">done pool</text>
+    <text x="1162" y="257" text-anchor="middle" font-size="10.5" opacity="0.62">state: BACKWARDED</text>
+    <line x1="1162" y1="266" x2="1162" y2="282" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+    <text x="1162" y="299" text-anchor="middle" font-size="11.5" font-weight="700">≥ 256?</text>
+    <text x="1162" y="315" text-anchor="middle" font-size="10.5">swap freshest into batch</text>
+    <text x="1162" y="331" text-anchor="middle" font-size="10.5" fill="#D98A24">all stale? park + starve</text>
+    <line x1="1162" y1="338" x2="1162" y2="352" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+    <rect x="1084" y="358" width="156" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75"/>
+    <text x="1162" y="376" text-anchor="middle" font-weight="600">optimizer_step</text>
+    <text x="1162" y="392" text-anchor="middle" font-size="10.5" opacity="0.62">version++ · in_flight −= 256</text>
+
+    <!-- ============ feedback: weights version (blue, top) ============ -->
+    <path d="M1162 186 V132 H513 V220" fill="none" stroke="#4A90CF" stroke-width="1.6" marker-end="url(#arrB)"/>
+    <text x="838" y="122" text-anchor="middle" fill="#4A90CF">version++ → every later inference completion carries the new stamp</text>
+
+    <!-- ============ feedback: backpressure release (top of bottom band) ============ -->
+    <path d="M1090 414 V468 H275 V350" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="690" y="459" text-anchor="middle" opacity="0.75">batch recorded: in_flight −= 256 → gate reopens</text>
+
+    <!-- ============ feedback: starvation escape (amber, dashed, rare path) ============ -->
+    <path d="M1200 414 V518 H230 V352" fill="none" stroke="#D98A24" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrA)"/>
+    <path d="M934 518 V378" fill="none" stroke="#D98A24" stroke-width="1.5" stroke-dasharray="7 5" marker-end="url(#arrA)"/>
+    <text x="940" y="537" fill="#D98A24">wake backward: cut short chunk, freshest first</text>
+    <text x="940" y="554" fill="#D98A24" opacity="0.85">trigger: batch all stale → park in done, starve for fresher</text>
+    <text x="240" y="537" fill="#D98A24">grant: one admission past the cap</text>
+
+    <!-- ============ footnotes ============ -->
+    <text x="24" y="600" opacity="0.62">steady state: ≤ 512 rollouts in flight ≈ 2 batches ahead → implicit staleness bound of ~1 version</text>
+    <text x="24" y="618" opacity="0.62">shutdown: rollouts exhausted → inference workers exit → backward drains ready in short chunks → record([]) flushes a parked batch</text>
+  </g>
+</svg>

@@ -187,6 +187,24 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     margin: 1.5rem 0;
   }
 
+  /* Dense diagrams: break out of the 58rem prose column up to the figure's natural
+     width, and scroll rather than shrink below ~1024px. Shrinking to fit is what
+     you want for a photo and exactly wrong for a diagram, whose 11px labels turn
+     into 7px mush at column width. */
+  figure.wide {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1280px, calc(100vw - 2.5rem));
+    overflow-x: auto;
+  }
+
+  figure.wide img {
+    display: block;
+    width: 100%;
+    min-width: 1024px;
+  }
+
   figcaption {
     margin-top: 0.35rem;
     font-size: 0.82rem;

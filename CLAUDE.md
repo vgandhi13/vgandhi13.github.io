@@ -140,6 +140,18 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   ImageMagick on this machine; use a Pillow venv in the scratchpad, `ImageChops.difference`
   vs white + `getbbox`). Cited figures use `<figure>`/`<figcaption>` (global styles in
   Base.astro); details in the publish-content skill.
+- **Wide diagrams**: `<figure class="wide">` breaks out of the 58rem prose column up to 1280px
+  and scrolls below ~1024px instead of shrinking (global styles in Base.astro). Shrink-to-fit is
+  right for a photo and wrong for a dense diagram: at column width the `train_async` SVG's 11px
+  labels became ~7px. Verified no page-level horizontal scroll at 1440/1024/390 — the `100vw`
+  breakout leaves 2.5rem of slack so the scrollbar can't push the body sideways.
+  Known: an SVG carrying its own light background rect renders as a bright slab in dark mode
+  (`/images/blog/train_async_diagram.svg` does). That one is *written* against `currentColor`
+  (26 uses), so inlining it into the page instead of `<img>`-ing it would make it theme-aware,
+  but its two accents (`#4A90CF`, `#D98A24`) would then need retuning per theme — `#4A90CF` is
+  only ~3.3:1 on white. User hasn't decided; the white-slab version is consistent with the
+  white-background figures already in the notes.
+
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.
 - The homepage header hides the site name (`hideSiteName` prop on Base) because the hero shows
