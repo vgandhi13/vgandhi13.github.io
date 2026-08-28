@@ -84,6 +84,16 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
   the element the browser already jumped to, landing a shared link at the wrong offset.
 
+- **Excerpt figures** (`image: { src, alt }` on a quote): attaches a diagram from the same
+  source under the quote, stored in `public/images/quotes/`. A trimmed screenshot is still a
+  rectangle of paper, and on the excerpt card that rectangle reads as a slab, so the flat
+  background is blended away rather than shown: `mix-blend-mode: multiply` drops white onto
+  `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black. Both are
+  lossless **only for grayscale line art** — convert with Pillow's `.convert('L')` when adding
+  one; a colored diagram would come out hue-flipped and needs the plain white-figure treatment
+  instead. (This is the same white-slab problem as the `train_async` SVG, solved for the case
+  where the art has no color to lose.)
+
 - **Search**: `/search-index.json` is generated at build from both collections. Each doc has
   `text` (stop-word-stripped, for Fuse.js fuzzy matching), `plain` (readable, for sentence
   previews), and `description` (frontmatter, shown when only the title matches). Stop words

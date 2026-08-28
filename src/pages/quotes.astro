@@ -11,6 +11,9 @@ import Base from '../layouts/Base.astro';
 // `note` is your own commentary on the excerpt. It renders below the attribution,
 // under a rule and in a lighter register, so it reads as annotation and never as
 // something the speaker said. Keep it to a line.
+// `image` hangs a figure from the same source under the quote. Keep it grayscale
+// line art: dark mode inverts the image rather than punching a white slab into the
+// card, which is lossless for black-on-white and wrong for anything colored.
 // Each excerpt gets a shareable #anchor, slugged from `author`. A second quote by the
 // same author fails the build; give that one an explicit `id` (short and memorable,
 // e.g. id: 'karpathy-understanding') so the first one's shared link keeps working.
@@ -21,6 +24,7 @@ const quotes: {
   url?: string;
   paraphrased?: boolean;
   note?: string;
+  image?: { src: string; alt: string };
   id?: string;
 }[] = [
   {
@@ -172,6 +176,28 @@ const quotes: {
       'to fool.',
     author: 'Richard Feynman',
   },
+  {
+    text: [
+      'The 80% Fallacy: When you start building using AI, you’re likely to get pretty good ' +
+        'results very quickly. However, the journey from 80% to 100% is far more challenging than ' +
+        'the journey from 0% to 80%. It’s a reality that catches many beginners off guard, ' +
+        'leading to wasted resources, missed deadlines, and failed projects.',
+      'The Exponential Difficulty of Completion means that as AI projects advance, challenges and ' +
+        'complexities multiply. Minor issues in the early stages can suddenly become major roadblocks.',
+      // the opening clause repeats paragraph one verbatim, so it is bracketed away
+      '[This is] due to two main factors: Technical Complexity (primarily for Classical AI) ' +
+        'and Unpredictable Outputs (especially for Generative AI).',
+    ],
+    author: 'Tobias Zwingmann',
+    source: '“The 80% Fallacy”',
+    url: 'https://blog.tobiaszwingmann.com/p/80-percent-fallacy-why-building-your-ai-use-case-might-be-harder-than-you-think',
+    image: {
+      src: '/images/quotes/exponential-difficulty.png',
+      alt: 'Hand-drawn chart of time against progress: an almost flat line most of the way, ' +
+        'turning near-vertical at the end, with a stick figure walking the flat part saying ' +
+        '“This will be easy!”',
+    },
+  },
 ];
 
 const slugify = (value: string) =>
@@ -217,6 +243,11 @@ const entries = quotes.map((q) => {
           <blockquote>
             {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p>{para}</p>)}
           </blockquote>
+          {q.image && (
+            <figure class="quote-figure">
+              <img src={q.image.src} alt={q.image.alt} loading="lazy" />
+            </figure>
+          )}
           <div class="meta">
             {/* kept on one line: a line break here renders as a space before the comma */}
             <p class="attribution">
@@ -340,6 +371,27 @@ const entries = quotes.map((q) => {
 
   blockquote p:last-child {
     margin-bottom: 0;
+  }
+
+  /* a figure from the same source as the quote. These are black-on-white line
+     drawings, and a rectangle of paper sitting on the card reads as a slab in
+     either theme, so the flat background is blended away instead: multiply drops
+     white onto --surface, and dark mode inverts first so screen drops the black.
+     Both are lossless only while the art is grayscale, so keep it that way. */
+  .quote-figure {
+    margin: 1.1rem 0 0;
+  }
+
+  .quote-figure img {
+    display: block;
+    width: min(100%, 460px);
+    margin: 0 auto;
+    mix-blend-mode: multiply;
+  }
+
+  :global(:root[data-theme='dark']) .quote-figure img {
+    filter: invert(1);
+    mix-blend-mode: screen;
   }
 
   .meta {
