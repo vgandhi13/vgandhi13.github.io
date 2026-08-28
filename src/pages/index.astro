@@ -208,6 +208,10 @@ const news = [
           <a href="https://arxiv.org/pdf/2607.10463" target="_blank" rel="noopener">PDF</a>
           <a href="https://vgandhi13.github.io/GRASP-Project-Page/" target="_blank" rel="noopener">Website</a>
           <a href="https://github.com/vgandhi13/GRASP" target="_blank" rel="noopener">Code</a>
+          <a href="https://research.adobe.com/publication/grasp-granularity-aware-search-policy-for-agentic-rag/" target="_blank" rel="noopener">
+            <img src="/logos/adobe.com.png" alt="" width="14" height="14" loading="lazy" />
+            Adobe Research
+          </a>
         </div>
       </div>
     </div>
@@ -566,10 +570,19 @@ const news = [
   }
 
   .paper-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     border: 1px solid var(--link);
     border-radius: 6px;
     padding: 0.15rem 0.6rem;
     font-size: 0.85rem;
+  }
+
+  .paper-links img {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
   }
 
   .paper-links a:hover {
