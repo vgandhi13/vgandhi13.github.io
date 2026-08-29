@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Sarvam AI Photos · Varun Gandhi"
+  description="A photo from my Machine Learning Engineer internship at Sarvam AI."
+>
+  <p class="back"><a href="/">← Home</a></p>
+  <h1>Sarvam AI</h1>
+  <p class="intro">A photo from the internship.</p>
+
+  <figure>
+    <img
+      src="/images/sarvam/lunch-vivek.jpg"
+      alt="Varun Gandhi with Sarvam AI co-founder Dr. Vivek Raghavan and members of the Vision-Language Models team, standing outside a coffee shop"
+      width="1092"
+      height="1200"
+    />
+    <figcaption>Lunch with Sarvam AI co-founder Dr. Vivek Raghavan and a few members of the Vision-Language Models team.</figcaption>
+  </figure>
+</Base>
+
+<style>
+  .back {
+    margin-top: 2rem;
+  }
+
+  .intro {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  figure img {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+</style>
