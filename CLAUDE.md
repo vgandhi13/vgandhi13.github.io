@@ -156,11 +156,34 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   labels became ~7px. Verified no page-level horizontal scroll at 1440/1024/390 — the `100vw`
   breakout leaves 2.5rem of slack so the scrollbar can't push the body sideways.
   Known: an SVG carrying its own light background rect renders as a bright slab in dark mode
-  (`/images/blog/train_async_diagram.svg` does). That one is *written* against `currentColor`
-  (26 uses), so inlining it into the page instead of `<img>`-ing it would make it theme-aware,
-  but its two accents (`#4A90CF`, `#D98A24`) would then need retuning per theme — `#4A90CF` is
-  only ~3.3:1 on white. User hasn't decided; the white-slab version is consistent with the
-  white-background figures already in the notes.
+  (`/images/blog/train_async_diagram.svg` does, though the scheduling-RL post no longer embeds
+  it — that image is now an orphaned asset, kept in case a future post wants it). That one is
+  *written* against `currentColor` (26 uses), so inlining it into the page instead of
+  `<img>`-ing it would make it theme-aware, but its two accents (`#4A90CF`, `#D98A24`) would
+  then need retuning per theme — `#4A90CF` is only ~3.3:1 on white. User hasn't decided; the
+  white-slab version is consistent with the white-background figures already in the notes.
+
+- **Inline `<svg>` diagrams** (hand-drawn box/flow diagrams written directly in the markdown,
+  as in the scheduling-RL post): pick plain `<figure>` vs `<figure class="wide">` by comparing
+  the diagram's `viewBox` width to the ~880px prose column, not by reflex — three diagrams at
+  `viewBox="0 0 900 …"` were first shipped as `.wide` (breaking out to 1280px) and visibly
+  overhung the text on both sides once compared side by side with the paragraphs; dropping
+  `.wide` let them size to the column (900→880 is a ~2% shrink, no legibility loss). Reserve
+  `.wide` for a diagram genuinely denser than the column, like `train_async_diagram.svg` above.
+  A plain (non-wide) `<figure svg>` still needs `width: 100%; height: auto` in Base.astro's
+  global styles — unlike `<img>`, a `viewBox`-only `<svg>` has no intrinsic size to shrink from
+  and falls back to the browser's 300×150 replaced-element default without it. Color the boxes
+  with the `--diagram-green/-blue/-purple/-orange` tokens (plus `-border` variants) in Base.astro
+  rather than hardcoding hex, so they retune with the theme like everything else; text inside
+  the SVG should stay on `currentColor`/`var(--text-muted)` for the same reason.
+  **Never leave a blank line inside an HTML block** (a `<figure>…</figure>` or any raw HTML
+  embedded in markdown) — CommonMark's raw-HTML-block rule ends at the first blank line, so
+  everything after it reverts to markdown parsing; indented SVG child lines (4+ spaces deep from
+  nesting) then read as an indented code block and get syntax-highlighted as literal text
+  instead of rendering as a diagram. No build error, no warning — this only shows up as visibly
+  wrong output, so if a `<figure>` renders as a wall of text, blank lines inside it are the
+  first thing to check. Keep multi-part diagrams visually separated with comments or extra
+  indentation, never blank lines.
 
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.

@@ -89,6 +89,16 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
        --venue = archival venue (main / Findings), --venue-workshop = workshop */
     --venue: #8a6412;
     --venue-workshop: #146c3f;
+    /* fill/border pairs for tinted boxes in inline SVG diagrams (post prose stays in
+       --text/--heading via currentColor; these are only backdrops, so AA doesn't apply) */
+    --diagram-green: #dcefdc;
+    --diagram-green-border: #8bb88b;
+    --diagram-blue: #dce9f7;
+    --diagram-blue-border: #82a8d1;
+    --diagram-purple: #eee3f7;
+    --diagram-purple-border: #a77bc2;
+    --diagram-orange: #f8ead6;
+    --diagram-orange-border: #d39a4b;
     color-scheme: light;
   }
 
@@ -103,6 +113,14 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     --mark-bg: #5c4d12;
     --venue: #d9a93a;
     --venue-workshop: #5fd39a;
+    --diagram-green: #29402d;
+    --diagram-green-border: #719a74;
+    --diagram-blue: #28394d;
+    --diagram-blue-border: #7295bd;
+    --diagram-purple: #3b2d47;
+    --diagram-purple-border: #a77bc2;
+    --diagram-orange: #463821;
+    --diagram-orange-border: #c79a56;
     color-scheme: dark;
   }
 
@@ -183,6 +201,15 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     max-width: 100%;
   }
 
+  /* an inline <svg> with only a viewBox (no width/height) has no intrinsic size to
+     shrink from like an <img> does, so without this it renders at the browser's
+     300×150 replaced-element default instead of filling the column. */
+  figure svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
   figure {
     margin: 1.5rem 0;
   }
@@ -199,7 +226,8 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     overflow-x: auto;
   }
 
-  figure.wide img {
+  figure.wide img,
+  figure.wide svg {
     display: block;
     width: 100%;
     min-width: 1024px;
