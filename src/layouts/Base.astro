@@ -197,8 +197,15 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     margin: 2rem 0;
   }
 
+  /* height: auto keeps a non-square image proportional once max-width shrinks it —
+     without it, an <img> carrying explicit width/height attributes (for a photo,
+     to avoid layout shift) keeps that fixed pixel height while the width shrinks,
+     visibly squashing it. Every other sized <img> on the site is either square
+     (logos, profile pic) or sets its own height via a more specific class rule
+     with object-fit, so this doesn't affect them. */
   img {
     max-width: 100%;
+    height: auto;
   }
 
   /* an inline <svg> with only a viewBox (no width/height) has no intrinsic size to
