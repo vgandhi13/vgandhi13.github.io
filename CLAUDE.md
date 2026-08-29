@@ -187,6 +187,17 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.
+- **A small logo/icon PNG with an opaque white background** (e.g. `public/logos/arxiv.org.png`,
+  used in `.paper-links`) is the same white-slab-in-dark-mode problem as the wide-diagram SVGs
+  above, for a raster asset: chroma-key the white to transparent instead of leaving it. Compute
+  alpha per pixel from `255 - min(r,g,b)` (distance from pure white) with a small threshold
+  (~40) below which alpha ramps to 0 and above which it's fully opaque — this keeps a soft edge
+  on anti-aliased pixels near the background while leaving saturated foreground colors
+  (including grays that read as "light" by pure luminance) fully solid. A flat luminance
+  threshold or a hard cutoff both misfire here: gray strokes near-white in brightness would
+  either vanish or keep a visible fringe. Pillow venv in the scratchpad, same as the
+  white-margin-trimming recipe elsewhere in this file. Verify by compositing onto a dark swatch
+  before trusting it, not just by eyeballing the PNG on this tool's (white) preview background.
 - The homepage header hides the site name (`hideSiteName` prop on Base) because the hero shows
   it; subpages show it top-left.
 - **Intentional easter eggs — do not remove**: the HTML comment in Base.astro, the console.log
