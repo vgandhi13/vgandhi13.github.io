@@ -11,7 +11,7 @@ draft: false
 **Note:** This is a simulation. No real GPUs were used. GPU work is represented by `asyncio.sleep()`.
 
 The interesting part is the scheduling problem. I wanted to see how much time we could save by
-changing *when* each GPU does inference and backward work, without changing the training rules.
+changing when each GPU does inference and backward work, without changing the training rules.
 
 ## The setup
 
