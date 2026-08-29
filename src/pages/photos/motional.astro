@@ -1,0 +1,48 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Motional Photos · Varun Gandhi"
+  description="A couple of photos from my Software Engineer internship at Motional."
+>
+  <p class="back"><a href="/">← Home</a></p>
+  <h1>Motional</h1>
+  <p class="intro">A couple of photos from the internship.</p>
+
+  <figure>
+    <img
+      src="/images/motional/pittsburgh-avnc.jpg"
+      alt="Varun Gandhi giving a thumbs up next to a white Motional IONIQ 5 robotaxi, equipped with lidar and sensor pods, parked on a rainy road in Pittsburgh"
+      width="1200"
+      height="922"
+    />
+    <figcaption>Visiting the Pittsburgh office and riding in one of Motional's driverless IONIQ 5 robotaxis.</figcaption>
+  </figure>
+
+  <figure>
+    <img
+      src="/images/motional/redsox-game.jpg"
+      alt="A large group of interns, managers, and team members posing together outside Fenway Park in Boston, in front of a 'Go Red Sox' mural"
+      width="1200"
+      height="900"
+    />
+    <figcaption>At a Boston Red Sox game with fellow interns, managers, and the team.</figcaption>
+  </figure>
+</Base>
+
+<style>
+  .back {
+    margin-top: 2rem;
+  }
+
+  .intro {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  figure img {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+</style>

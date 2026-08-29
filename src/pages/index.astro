@@ -106,8 +106,17 @@ const news = [
         <span class="tl-date">2026</span>
         <img class="tl-logo" src="/logos/motional.com.png" alt="Motional" width="52" height="52" loading="lazy" />
         <div class="tl-body">
-          This summer, I'm interning as a Software Engineer at
-          <a href="https://motional.com" target="_blank" rel="noopener">Motional</a>.
+          Interned as a Software Engineer at
+          <a href="https://motional.com" target="_blank" rel="noopener">Motional</a> in the Core
+          Onboard Software team, where I contributed to the core configuration system of their
+          autonomous vehicle stack running on their IONIQ 5 robotaxis.
+          <a class="tl-photos" href="/photos/motional/" aria-label="Photos from the Motional internship">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Photos
+          </a>
         </div>
       </li>
       <li>
@@ -479,6 +488,26 @@ const news = [
 
   .tl-body {
     padding-top: 0.1rem;
+  }
+
+  .tl-photos {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .tl-photos:hover {
+    color: var(--link);
+    border-color: var(--link);
+    text-decoration: none;
   }
 
   @media (max-width: 32rem) {
