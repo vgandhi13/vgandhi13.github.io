@@ -246,33 +246,39 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     color: var(--text-muted);
   }
 
-  /* A pair of figures shown side by side for direct comparison (e.g. RLHF vs.
-     RLVR scoring). Breaks out like figure.wide since two columns need more
-     room than half the prose column gives; stacks below ~700px where there
-     isn't room to keep both halves legible. */
+  /* Two columns of figures side by side for direct comparison (e.g. RLHF vs.
+     RLVR scoring), each column holding one or more figures. Deliberately does
+     NOT break out of the prose column: a wider row overhangs the body text on
+     both sides, which reads as a mistake. Stacks below ~700px. */
   .figure-row {
-    position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(1280px, calc(100vw - 2.5rem));
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0;
     margin: 1.5rem 0;
   }
 
-  .figure-row figure {
-    margin: 0;
-    padding: 0 1.5rem;
+  /* grid items default to min-width:auto, which lets a wide image push the
+     column past its 1fr share and re-create the overhang */
+  .figure-col {
+    min-width: 0;
+    padding: 0 1.25rem;
   }
 
-  .figure-row figure:first-child {
+  .figure-col:first-child {
     padding-left: 0;
     border-right: 1px solid var(--text-muted);
   }
 
-  .figure-row figure:last-child {
+  .figure-col:last-child {
     padding-right: 0;
+  }
+
+  .figure-col figure {
+    margin: 0 0 1.25rem;
+  }
+
+  .figure-col figure:last-child {
+    margin-bottom: 0;
   }
 
   @media (max-width: 700px) {
@@ -280,7 +286,7 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
       grid-template-columns: 1fr;
     }
 
-    .figure-row figure:first-child {
+    .figure-col:first-child {
       padding-right: 0;
       border-right: none;
       border-bottom: 1px solid var(--text-muted);
@@ -288,7 +294,7 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
       margin-bottom: 1.25rem;
     }
 
-    .figure-row figure:last-child {
+    .figure-col:last-child {
       padding-left: 0;
     }
   }

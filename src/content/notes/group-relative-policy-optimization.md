@@ -9,7 +9,7 @@ Yann LeCun has described intelligence with a cake analogy: "If intelligence is a
 of the cake is unsupervised learning, the icing on the cake is supervised learning, and the
 cherry on the cake is reinforcement learning (RL)."
 
-Conventional LLMs typically go through a three-step training pipeline:
+Conventional LLMs typically go through a three-step training pipeline, following this:
 
 1. **Pre-training.** Self-supervised learning on vast swaths of internet data makes up the
    majority of the cake, especially when viewed in compute spent (FLOPs).
@@ -59,23 +59,23 @@ model must evaluate subjective qualities. In contrast, RLVR uses verification fu
 return definitive scores.
 
 <div class="figure-row">
-
-<figure>
-  <img src="/images/notes/rlhf-scoring-example.png" alt="RLHF example: a prompt asking to explain opportunity cost in economics, with an open-ended prose response and no verification step, since a reward model must judge subjective quality" />
-  <figcaption>RLHF: scoring is a subjective judgment call. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-</figure>
-
-<figure>
-  <img src="/images/notes/rlvr-scoring-example.png" alt="RLVR example: a prompt asking for the sum of primes less than 20, with a response boxing the final answer 77, verified by the check extracted_answer == 77 giving Reward = 1" />
-  <figcaption>RLVR: scoring is a definitive check against the extracted answer. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-</figure>
-
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rlhf-scoring-example.png" alt="RLHF example: a prompt asking to explain opportunity cost in economics, with an open-ended prose response and no verification step, since a reward model must judge subjective quality" />
+      <figcaption>RLHF: scoring is a subjective judgment call. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+  </div>
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rlvr-scoring-example.png" alt="RLVR example: a prompt asking for the sum of primes less than 20, with a response boxing the final answer 77, verified by the check extracted_answer == 77 giving Reward = 1" />
+      <figcaption>RLVR: scoring is a definitive check against the extracted answer. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+    <figure>
+      <img src="/images/notes/rlvr-code-scoring-example.png" alt="RLVR example for code generation: a prompt asking for a Python Fibonacci function, verified by unit tests (fib(0) == 0, fib(1) == 1, fib(10) == 55), all passing for Reward = 1" />
+      <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+  </div>
 </div>
-
-<figure>
-  <img src="/images/notes/rlvr-code-scoring-example.png" alt="RLVR example for code generation: a prompt asking for a Python Fibonacci function, verified by unit tests (fib(0) == 0, fib(1) == 1, fib(10) == 55), all passing for Reward = 1" />
-  <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-</figure>
 
 Unlike RLHF, there is no reward model to train, no reward model to overfit, and no proxy
 misalignment to worry about. But this only works when correctness is cleanly verifiable: for
