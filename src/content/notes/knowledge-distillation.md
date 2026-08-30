@@ -2,6 +2,7 @@
 title: Knowledge Distillation, On Policy Distillation, On Policy Self Distillation
 description: A reading list in progress on knowledge distillation, on-policy distillation, and on-policy self-distillation.
 date: 2026-08-29
+wip: true
 ---
 
 TODO: this note is a placeholder while I work through the material below and write it up

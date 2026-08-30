@@ -54,6 +54,13 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Stale Vite dep cache**: if client-side JS (e.g. search) silently stops working in dev and
   the console shows `504 Outdated Optimize Dep`, kill the dev server, `rm -rf
   node_modules/.vite`, and restart. Happens when deps change while the server runs.
+  The same staleness also hits **scoped CSS**, with no console error at all: a newly added
+  `.foo` rule in a page's `<style>` is present in the HTML the dev server serves (curl shows
+  it) yet never applies in the browser, and `el.matches()` against `document.styleSheets`
+  reports only `*` matching. Don't go restructuring the markup chasing a specificity or
+  flex-layout bug that isn't there: check the built output first (`npm run build` and
+  `npx astro preview --port <other>`), and if it behaves correctly there, it's this, so
+  restart dev with the cache cleared.
 - **Astro scoped styles don't reach JS-created DOM.** Any element built with
   `document.createElement` needs its styles in a `<style is:global>` block (this bit us in
   Search.astro). Keep such selectors namespaced (`.search-*`).

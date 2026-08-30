@@ -7,6 +7,9 @@ const schema = z.object({
   date: z.coerce.date(), // created — never changes
   updated: z.coerce.date().optional(), // bumped on every content revision
   draft: z.boolean().default(false),
+  // still being written: publishes as normal but is badged "in progress", so a
+  // reader knows it's incomplete. `draft` hides an entry entirely; this doesn't.
+  wip: z.boolean().default(false),
 });
 
 const notes = defineCollection({

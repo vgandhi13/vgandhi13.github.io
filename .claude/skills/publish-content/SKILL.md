@@ -33,9 +33,22 @@ character/subscript per line). Reconstruct the intended equation and write it as
    date: YYYY-MM-DD      # created — set once, NEVER change on later edits
    updated: YYYY-MM-DD   # add/bump to today on EVERY content revision (not for typo fixes
                          # the user didn't ask for); omit on first publish
+   wip: true             # OPTIONAL: still being written; omit once it's finished
    ---
    ```
    Filename becomes the URL: `instruction-finetuning.md` → `/notes/instruction-finetuning/`.
+
+   **Marking an entry unfinished.** When you publish something that is a stub, a reading list,
+   or otherwise visibly incomplete (and whenever the user asks readers to be able to tell),
+   set `wip: true`. It renders an "in progress" pill next to the title, both in the
+   `/notes/` list and on the entry page itself, so nobody mistakes a placeholder for a
+   finished note. This is NOT `draft: true`: `draft` unpublishes the entry entirely (it
+   disappears from the index and gets no page), whereas `wip` publishes normally and only
+   badges it. Remove the line when the note is done. Body-level `TODO:` lines are fine
+   alongside it, but they only help someone who already opened the page; `wip` is what shows
+   up in the index. Defined in `src/content.config.ts`, rendered in `src/pages/notes/index.astro`
+   and `src/layouts/Entry.astro` (Entry takes it via the `wip` prop, passed from
+   `src/pages/notes/[...id].astro`).
 3. Convert as you go:
    - Unicode/ASCII math → LaTeX: `$...$` inline, `$$...$$` display. E.g.
      `θ new =θ−η∇ θ L` → `$\theta_{\text{new}} = \theta - \eta \nabla_\theta L$`.

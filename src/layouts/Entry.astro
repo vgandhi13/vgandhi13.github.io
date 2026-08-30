@@ -9,9 +9,10 @@ interface Props {
   description?: string;
   backHref: string;
   backLabel: string;
+  wip?: boolean;
 }
 
-const { title, date, updated, description, backHref, backLabel } = Astro.props;
+const { title, date, updated, description, backHref, backLabel, wip = false } = Astro.props;
 
 const fmt = (d: Date) =>
   // timeZone UTC: frontmatter dates parse as UTC midnight; local formatting shifts a day
@@ -27,7 +28,7 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
 <Base title={`${title} · Varun Gandhi`} description={description}>
   <article>
     <p class="back"><a href={backHref}>← {backLabel}</a></p>
-    <h1>{title}</h1>
+    <h1>{title}{wip && <span class="wip-badge">in progress</span>}</h1>
     <p class="entry-date">
       {fmt(date)}{showUpdated && <span class="entry-updated"> · Updated {fmt(updated)}</span>}
     </p>
@@ -54,5 +55,20 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
 
   .entry-updated {
     font-style: italic;
+  }
+
+  /* sits on the h1, so it needs its own smaller/lighter type: inheriting the
+     heading's size and weight would read as part of the title itself */
+  .wip-badge {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
   }
 </style>

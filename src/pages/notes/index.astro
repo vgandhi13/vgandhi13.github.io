@@ -22,6 +22,7 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
     {notes.map((note) => (
       <li>
         <a href={`/notes/${note.id}/`}>{note.data.title}</a>
+        {note.data.wip && <span class="wip-badge">in progress</span>}
         <span class="date">
           {note.data.date.toLocaleDateString('en-US', {
             year: 'numeric',
@@ -52,6 +53,18 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
     gap: 1rem;
     padding: 0.45rem 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .wip-badge {
+    flex-shrink: 0;
+    margin-right: auto;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    white-space: nowrap;
   }
 
   .date {
