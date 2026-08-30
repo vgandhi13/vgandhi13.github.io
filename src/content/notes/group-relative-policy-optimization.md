@@ -26,7 +26,7 @@ pairwise preference between two candidate answers to the same prompt: A over B, 
 on. A neural network, the reward model, is then trained to imitate those preferences, so it can
 score responses the way the annotators would have.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/rlhf-reward-model.png" alt="Diagram: three boxes of pairwise human preferences, answer A over answer B, answer D over answer C, answer E over answer F, plus a note that there are thousands more, all feeding by arrows into a reward model described as a whole separate network" />
   <figcaption>Thousands of pairwise human judgements are distilled into a reward model, a whole separate network. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
