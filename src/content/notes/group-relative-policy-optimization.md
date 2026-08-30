@@ -479,6 +479,35 @@ That turned out to be sufficient for the model to exhibit reasoning abilities vi
 intermediate-step generation, showing that it is possible to skip the SFT stage altogether. The
 model improves its reasoning abilities through exploration instead of learning from examples.
 
+<figure>
+  <img src="/images/notes/r1-zero-skip-sft.png" alt="Diagram: a base model box, then an SFT warm-up box fed by human-written examples but crossed out with a large X, then an RLVR box, with an arrow running from the base model straight through to RLVR" />
+  <figcaption>R1-Zero drops the SFT warm-up on human-written examples and goes from the base model straight into RLVR.</figcaption>
+</figure>
+
+What it runs instead is a loop: sample completions from the current policy, check them with the
+verifier, update the policy on the result, and repeat.
+
+<figure>
+  <svg viewBox="0 0 900 230" role="img" aria-label="The RLVR training loop: rollout feeds verify, verify feeds update, and update loops back around to rollout">
+    <defs>
+      <marker id="rl-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,0 L9,4.5 L0,9 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <rect x="30" y="20" width="200" height="92" rx="12" fill="var(--diagram-blue)" stroke="var(--diagram-blue-border)" stroke-width="1.5" />
+    <text x="130" y="72" text-anchor="middle" font-size="19" fill="currentColor">rollout</text>
+    <rect x="350" y="20" width="200" height="92" rx="12" fill="var(--diagram-green)" stroke="var(--diagram-green-border)" stroke-width="1.5" />
+    <text x="450" y="72" text-anchor="middle" font-size="19" fill="currentColor">verify</text>
+    <rect x="670" y="20" width="200" height="92" rx="12" fill="var(--diagram-blue)" stroke="var(--diagram-blue-border)" stroke-width="1.5" />
+    <text x="770" y="72" text-anchor="middle" font-size="19" fill="currentColor">update</text>
+    <path d="M240 66 H336" stroke="currentColor" stroke-width="2" fill="none" marker-end="url(#rl-arrow)" />
+    <path d="M560 66 H656" stroke="currentColor" stroke-width="2" fill="none" marker-end="url(#rl-arrow)" />
+    <path d="M770 122 V170 Q770 186 754 186 H146 Q130 186 130 170 V126" stroke="currentColor" stroke-width="2" fill="none" marker-end="url(#rl-arrow)" />
+    <text x="450" y="212" text-anchor="middle" font-size="14" fill="var(--text-muted)">repeat</text>
+  </svg>
+  <figcaption>The RLVR loop R1-Zero trains in: roll out completions, verify them, update the policy, repeat.</figcaption>
+</figure>
+
 ## TODO
 
 1. Refer to the Castform GRPO website.
