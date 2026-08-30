@@ -49,7 +49,7 @@ reward signal is the ground truth itself, not a learned approximation of it.
 This can be seen as an RL feedback loop where, instead of a reward model, a verification
 function scores the agent's completions.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/rlvr-feedback-loop.png" alt="RLVR feedback loop diagram: training data provides prompts to an agent (policy pi-theta), which produces completions; a Verifiable Reward block scores the completion (reward = gamma if correct, else 0) and feeds the scalar reward back to the agent for a policy update" />
   <figcaption>RLVR as an RL feedback loop: a verification function stands in for the reward model. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
 </figure>
@@ -147,7 +147,7 @@ Completions that score above the group average get a positive advantage and beco
 completions that score below average get a negative advantage and become less likely. The model
 is always learning relative to itself, not some externally defined standard.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/grpo-group-baseline.png" alt="Diagram titled 'Let the group be its own baseline': a prompt q and a verifier feed K sampled responses, drawn as bars against a dashed horizontal line marking the group mean; bars above the mean carry upward arrows and bars below carry downward arrows, with a note reading 'no value network, no extra model'" />
   <figcaption>The group mean is the baseline: bars above it are reinforced, bars below are suppressed, and no value network is needed to draw the line. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
@@ -479,7 +479,7 @@ That turned out to be sufficient for the model to exhibit reasoning abilities vi
 intermediate-step generation, showing that it is possible to skip the SFT stage altogether. The
 model improves its reasoning abilities through exploration instead of learning from examples.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/r1-zero-skip-sft.png" alt="Diagram: a base model box, then an SFT warm-up box fed by human-written examples but crossed out with a large X, then an RLVR box, with an arrow running from the base model straight through to RLVR" />
   <figcaption>R1-Zero drops the SFT warm-up on human-written examples and goes from the base model straight into RLVR.</figcaption>
 </figure>
@@ -487,7 +487,7 @@ model improves its reasoning abilities through exploration instead of learning f
 What it runs instead is a loop: sample completions from the current policy, check them with the
 verifier, update the policy on the result, and repeat.
 
-<figure>
+<figure class="narrow">
   <svg viewBox="0 0 900 230" role="img" aria-label="The RLVR training loop: rollout feeds verify, verify feeds update, and update loops back around to rollout">
     <defs>
       <marker id="rl-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
@@ -512,7 +512,7 @@ Because there is no SFT stage, and training starts from the base pretrained mode
 no idea what a good reasoning trace even looks like. Nobody ever showed it one. All it gets is
 the verifier's verdict on the final answer.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/r1-zero-response-length.png" alt="Line chart of mean response length against RL steps: the curve rises steeply at first, keeps climbing through the middle of training, then flattens out near the end" />
   <figcaption>Mean response length over RL steps. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
@@ -532,7 +532,44 @@ could follow. Nothing in the reward signal cared about readability, only correct
 
 ## Issues That Come Up for RL for LLMs
 
-TODO: will update this section later.
+### 1. Policy entropy collapse
+
+Reinforcement learning improves a policy by exploring alternatives, but every reward also
+concentrates probability on what already worked. If that concentration goes too far, exploration
+dies. That failure is policy entropy collapse.
+
+Early in RL training the policy is still exploring: for a given prompt it can generate many
+different reasoning paths, spreading probability across a wide range of next tokens. As RL runs,
+that exploration can quietly die. Instead of a healthy spread of options, probability collapses
+onto a single repeated token.
+
+<div class="figure-row">
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/entropy-healthy-spread.png" alt="Bar chart of next-token probabilities early in training: eight bars of roughly similar height, labelled a healthy spread of options" />
+      <figcaption>Early on: probability is spread across many candidate tokens. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+    </figure>
+  </div>
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/entropy-collapsed.png" alt="Bar chart of next-token probabilities after collapse: one tall bar with all the others flattened to near zero, labelled probability collapses onto one token, above a row of identical boxes each reading then" />
+      <figcaption>After collapse: one token takes everything, and the output repeats. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+    </figure>
+  </div>
+</div>
+
+The policy has stopped exploring. It just repeats whatever already scores well, and once
+exploration is gone there is nothing left to discover.
+
+<figure class="narrow">
+  <img src="/images/notes/entropy-reward-plateau.png" alt="Line chart of reward against RL steps: the curve rises steeply then flattens, with the flat portion drawn in red" />
+  <figcaption>Reward rises for a while, then flattens. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+The reward curve rises for a while and then goes flat, not because the model solved the task but
+because it stopped trying anything new.
+
+TODO: more issues to come.
 
 ## TODO
 

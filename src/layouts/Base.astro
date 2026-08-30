@@ -249,6 +249,26 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     color: var(--text-muted);
   }
 
+  /* Simple figures (a line chart with two labels, a three-box flow) don't need the
+     full prose column: at 58rem they eat a screen of vertical height for very little
+     ink. Cap them and centre, keeping the caption aligned to the image, not the column.
+     Dense diagrams stay full width, and genuinely wide ones use figure.wide. */
+  figure.narrow img,
+  figure.narrow svg {
+    display: block;
+    /* min(..., 100%): a bare 34rem would override the global img max-width:100% and
+       overflow the viewport on a phone, where 34rem is wider than the screen */
+    max-width: min(34rem, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  figure.narrow figcaption {
+    max-width: min(34rem, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   /* Two columns of figures side by side for direct comparison (e.g. RLHF vs.
      RLVR scoring), each column holding one or more figures. Deliberately does
      NOT break out of the prose column: a wider row overhangs the body text on
