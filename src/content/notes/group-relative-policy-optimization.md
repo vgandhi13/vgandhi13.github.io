@@ -484,20 +484,6 @@ reward.
   })();
 </script>
 
-The fundamental claim behind DeepSeek-R1 and R1-Zero is that RLVR explicitly induces reasoning
-capabilities. However, recent findings suggest that reasoning behaviors, including the "Aha
-moment" described in the next section, might already be present in base models because of
-pre-training on extensive chain-of-thought data.[^r1zero-critical] A separate line of work found
-that self-reflection and self-correction emerge progressively throughout pre-training, across
-various domains and model sizes.[^reflection] Both further complicate attributing reasoning
-capabilities solely to RL.
-
-Perhaps the conclusion is that RL definitely turns simple base models into reasoning models, but
-it is not the only way to induce or improve reasoning. As the DeepSeek-R1 team showed,
-distillation also improves reasoning. And since distillation in that paper meant instruction
-fine-tuning on chain-of-thought data, it is likely that pre-training on data which already
-includes chain-of-thought induces these abilities too.
-
 ## How DeepSeek-R1 Models Were Trained Using RL
 
 The DeepSeek-R1 release was three kinds of model, differing in how much RL and SFT each one got:
@@ -594,6 +580,20 @@ DeepSeek-R1 is the flagship model, the one with the best performance. The differ
 DeepSeek-R1-Zero is that they alternated instruction fine-tuning, RLVR, and RLHF. The paper
 demonstrated clearly that supervised fine-tuning followed by reinforcement learning outperforms
 RL alone.
+
+The fundamental claim behind DeepSeek-R1 and R1-Zero is that RLVR explicitly induces reasoning
+capabilities. However, recent findings suggest that reasoning behaviors, including the "Aha
+moment" described above, might already be present in base models because of pre-training on
+extensive chain-of-thought data.[^r1zero-critical] A separate line of work found
+that self-reflection and self-correction emerge progressively throughout pre-training, across
+various domains and model sizes.[^reflection] Both further complicate attributing reasoning
+capabilities solely to RL.
+
+Perhaps the conclusion is that RL definitely turns simple base models into reasoning models, but
+it is not the only way to induce or improve reasoning. As the DeepSeek-R1 team showed,
+distillation also improves reasoning. And since distillation in that paper meant instruction
+fine-tuning on chain-of-thought data, it is likely that pre-training on data which already
+includes chain-of-thought induces these abilities too.
 
 ## Issues That Come Up for RL for LLMs
 
