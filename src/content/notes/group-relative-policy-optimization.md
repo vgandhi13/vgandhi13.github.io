@@ -95,56 +95,321 @@ Completions that score above the group average get a positive advantage and beco
 completions that score below average get a negative advantage and become less likely. The model
 is always learning relative to itself, not some externally defined standard.
 
-<div style="margin: 1.5rem 0;">
+<style>
+  .grpo-demo {
+    --gd-good: #146c3f;
+    --gd-good-bg: #e9f5ee;
+    --gd-good-border: #a6d5ba;
+    --gd-bad: #a32222;
+    --gd-bad-bg: #fceaea;
+    --gd-bad-border: #eab3b3;
+    --gd-warn: #8a6412;
+    --gd-warn-bg: #fdf4e3;
+    --gd-warn-border: #e5c78d;
+    --gd-panel: var(--surface);
+    --gd-card: var(--bg);
+    --gd-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin: 1.75rem 0;
+  }
+  :root[data-theme='dark'] .grpo-demo {
+    --gd-good: #5fd39a;
+    --gd-good-bg: #17301f;
+    --gd-good-border: #2f6b4b;
+    --gd-bad: #f0918f;
+    --gd-bad-bg: #341d1d;
+    --gd-bad-border: #6e3838;
+    --gd-warn: #d9a93a;
+    --gd-warn-bg: #332811;
+    --gd-warn-border: #6b552a;
+    --gd-panel: #15181d;
+    --gd-card: var(--surface);
+  }
+  .grpo-panel {
+    background: var(--gd-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem 1rem;
+  }
+  .grpo-step {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+  }
+  .grpo-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+  }
+  .grpo-card {
+    background: var(--gd-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 0.4rem;
+    text-align: center;
+  }
+  .grpo-card.is-good { border-color: var(--gd-good-border); }
+  .grpo-card.is-bad { border-color: var(--gd-bad-border); }
+  .grpo-card.is-warn { border-color: var(--gd-warn-border); }
+  .grpo-oid {
+    font-family: var(--gd-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+  .grpo-ans {
+    margin-top: 0.2rem;
+    font-family: var(--gd-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--heading);
+  }
+  .grpo-lab {
+    margin-top: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+  }
+  .grpo-score {
+    font-family: var(--gd-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--heading);
+  }
+  .grpo-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+  .grpo-arrow i {
+    display: block;
+    width: 1px;
+    height: 13px;
+    background: currentColor;
+    opacity: 0.45;
+  }
+  .grpo-arrow b {
+    font-weight: 400;
+    text-align: center;
+  }
+  .grpo-eq {
+    background: var(--gd-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 0.6rem;
+    text-align: center;
+    font-family: var(--gd-mono);
+    font-size: 0.95rem;
+    color: var(--heading);
+    overflow-x: auto;
+  }
+  .grpo-ask {
+    background: var(--gd-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 0.7rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--heading);
+  }
+  .grpo-calc {
+    font-family: var(--gd-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .grpo-adv {
+    margin-top: 0.15rem;
+    font-family: var(--gd-mono);
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+  .grpo-adv.is-up { color: var(--gd-good); }
+  .grpo-adv.is-down { color: var(--gd-bad); }
+  .grpo-adv.is-mild { color: var(--gd-warn); }
+  .grpo-pill {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .grpo-pill.is-up { background: var(--gd-good-bg); color: var(--gd-good); }
+  .grpo-pill.is-down { background: var(--gd-bad-bg); color: var(--gd-bad); }
+  .grpo-pill.is-mild { background: var(--gd-warn-bg); color: var(--gd-warn); }
+  .grpo-final {
+    background: var(--gd-good-bg);
+    border: 1px solid var(--gd-good-border);
+    border-radius: 8px;
+    padding: 0.8rem 0.7rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--heading);
+  }
+  .grpo-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+  .grpo-btn {
+    padding: 0.28rem 0.9rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .grpo-btn:hover,
+  .grpo-btn:focus-visible {
+    color: var(--link);
+    border-color: var(--link);
+  }
+  /* Staged reveal. Base state is fully visible, so with no JS (which never adds
+     .is-playing) the whole walkthrough still reads as a static diagram. */
+  @keyframes grpo-in {
+    from { opacity: 0; transform: translateY(7px); }
+    to { opacity: 1; transform: none; }
+  }
+  .grpo-demo.is-playing .grpo-reveal {
+    opacity: 0;
+    animation: grpo-in 0.42s ease forwards;
+    animation-delay: calc(var(--i) * 130ms);
+  }
+  .grpo-demo.is-playing.is-paused .grpo-reveal {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .grpo-demo.is-playing .grpo-reveal {
+      opacity: 1;
+      animation: none;
+    }
+    /* nothing to pause when the reveal never animates */
+    .grpo-pause { display: none; }
+  }
+  @media (max-width: 640px) {
+    .grpo-cards { grid-template-columns: repeat(2, 1fr); }
+    .grpo-eq { font-size: 0.82rem; }
+  }
+</style>
 
-<p style="font-weight: 600; margin-bottom: 0.5rem;">Prompt: “What is 17 × 24?” — sample 4 answers</p>
-
-<p style="font-weight: 600; margin: 1rem 0 0.5rem;">① Score each answer</p>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.75rem;">
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>o₁: 408 <span style="color: var(--venue-workshop);">✓</span></div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">score 1.0</div>
+<div class="grpo-demo" id="grpo-demo">
+  <div class="grpo-panel grpo-reveal" style="--i: 0">
+    <p class="grpo-step">prompt</p>
+    <div class="grpo-ask">“What is 17 × 24?”</div>
   </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>o₂: 391 <span style="color: var(--text-muted);">✗</span></div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">score 0.0</div>
+  <div class="grpo-arrow grpo-reveal" style="--i: 1"><i></i><b>sample 4 answers</b><i></i><span aria-hidden="true">▾</span></div>
+  <div class="grpo-panel grpo-reveal" style="--i: 2">
+    <p class="grpo-step">① score each answer</p>
+    <div class="grpo-cards">
+      <div class="grpo-card is-good grpo-reveal" style="--i: 3">
+        <div class="grpo-oid">o₁</div>
+        <div class="grpo-ans">408 ✓</div>
+        <div class="grpo-lab">score</div>
+        <div class="grpo-score">1.0</div>
+      </div>
+      <div class="grpo-card is-bad grpo-reveal" style="--i: 4">
+        <div class="grpo-oid">o₂</div>
+        <div class="grpo-ans">391 ✗</div>
+        <div class="grpo-lab">score</div>
+        <div class="grpo-score">0.0</div>
+      </div>
+      <div class="grpo-card is-good grpo-reveal" style="--i: 5">
+        <div class="grpo-oid">o₃</div>
+        <div class="grpo-ans">408 ✓</div>
+        <div class="grpo-lab">score</div>
+        <div class="grpo-score">1.0</div>
+      </div>
+      <div class="grpo-card is-warn grpo-reveal" style="--i: 6">
+        <div class="grpo-oid">o₄</div>
+        <div class="grpo-ans">~400 ≈</div>
+        <div class="grpo-lab">score</div>
+        <div class="grpo-score">0.5</div>
+      </div>
+    </div>
   </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>o₃: 408 <span style="color: var(--venue-workshop);">✓</span></div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">score 1.0</div>
+  <div class="grpo-arrow grpo-reveal" style="--i: 7"><i></i><b>average the scores</b><i></i><span aria-hidden="true">▾</span></div>
+  <div class="grpo-panel grpo-reveal" style="--i: 8">
+    <p class="grpo-step">② group average</p>
+    <div class="grpo-eq">(1.0 + 0.0 + 1.0 + 0.5) ÷ 4 = 0.625</div>
   </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>o₄: ~400 ≈</div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">score 0.5</div>
+  <div class="grpo-arrow grpo-reveal" style="--i: 9"><i></i><b>advantage = score − average</b><i></i><span aria-hidden="true">▾</span></div>
+  <div class="grpo-panel grpo-reveal" style="--i: 10">
+    <p class="grpo-step">③ who was above or below average?</p>
+    <div class="grpo-cards">
+      <div class="grpo-card grpo-reveal" style="--i: 11">
+        <div class="grpo-calc">1.0 − 0.625</div>
+        <div class="grpo-adv is-up">+0.38</div>
+        <span class="grpo-pill is-up">reinforce ↑</span>
+      </div>
+      <div class="grpo-card grpo-reveal" style="--i: 12">
+        <div class="grpo-calc">0.0 − 0.625</div>
+        <div class="grpo-adv is-down">−0.63</div>
+        <span class="grpo-pill is-down">suppress ↓</span>
+      </div>
+      <div class="grpo-card grpo-reveal" style="--i: 13">
+        <div class="grpo-calc">1.0 − 0.625</div>
+        <div class="grpo-adv is-up">+0.38</div>
+        <span class="grpo-pill is-up">reinforce ↑</span>
+      </div>
+      <div class="grpo-card grpo-reveal" style="--i: 14">
+        <div class="grpo-calc">0.5 − 0.625</div>
+        <div class="grpo-adv is-mild">−0.13</div>
+        <span class="grpo-pill is-mild">suppress ↓</span>
+      </div>
+    </div>
+  </div>
+  <div class="grpo-arrow grpo-reveal" style="--i: 15"><i></i><span aria-hidden="true">▾</span></div>
+  <div class="grpo-final grpo-reveal" style="--i: 16">update weights: more of o₁, o₃ · less of o₂, o₄</div>
+  <div class="grpo-controls" hidden>
+    <button type="button" class="grpo-btn grpo-pause" aria-pressed="false">⏸ pause</button>
+    <button type="button" class="grpo-btn grpo-replay">↺ replay</button>
   </div>
 </div>
 
-<p style="font-weight: 600; margin: 1rem 0 0.5rem;">② Group average</p>
-<p style="margin: 0;">(1.0 + 0.0 + 1.0 + 0.5) ÷ 4 = <strong>0.625</strong></p>
-
-<p style="font-weight: 600; margin: 1rem 0 0.5rem;">③ Advantage = score − average</p>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.75rem;">
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>1.0 − 0.625 = <strong>+0.38</strong></div>
-    <div style="color: var(--venue-workshop); font-size: 0.85rem;">reinforce ↑</div>
-  </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>0.0 − 0.625 = <strong>−0.63</strong></div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">suppress ↓</div>
-  </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>1.0 − 0.625 = <strong>+0.38</strong></div>
-    <div style="color: var(--venue-workshop); font-size: 0.85rem;">reinforce ↑</div>
-  </div>
-  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
-    <div>0.5 − 0.625 = <strong>−0.13</strong></div>
-    <div style="color: var(--text-muted); font-size: 0.85rem;">suppress ↓</div>
-  </div>
-</div>
-
-<p style="margin-top: 1rem;">Update weights: more of <strong>o₁, o₃</strong> · less of <strong>o₂, o₄</strong>.</p>
-
-</div>
+<script>
+  (() => {
+    const demo = document.getElementById('grpo-demo');
+    if (!demo) return;
+    const controls = demo.querySelector('.grpo-controls');
+    const pauseBtn = demo.querySelector('.grpo-pause');
+    const replayBtn = demo.querySelector('.grpo-replay');
+    const setPaused = (paused) => {
+      demo.classList.toggle('is-paused', paused);
+      pauseBtn.textContent = paused ? '▶ resume' : '⏸ pause';
+      pauseBtn.setAttribute('aria-pressed', String(paused));
+    };
+    const play = () => {
+      setPaused(false);
+      demo.classList.remove('is-playing');
+      void demo.offsetWidth; // force reflow so the animations restart
+      demo.classList.add('is-playing');
+    };
+    controls.hidden = false;
+    pauseBtn.addEventListener('click', () => setPaused(!demo.classList.contains('is-paused')));
+    replayBtn.addEventListener('click', play);
+    // Play once when it first scrolls into view, rather than on load, so the
+    // walkthrough isn't already over by the time the reader reaches it.
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            play();
+            io.disconnect();
+          }
+        }
+      }, { threshold: 0.25 });
+      io.observe(demo);
+    } else {
+      play();
+    }
+  })();
+</script>
 
 The objective (or loss) is then:
 
