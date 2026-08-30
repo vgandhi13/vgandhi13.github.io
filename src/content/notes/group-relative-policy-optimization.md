@@ -27,6 +27,11 @@ TODO: will update this section later.
 The training method for these models, Reinforcement Learning with Verifiable Rewards
 (RLVR)[^rlvr], proceeds very similarly to RLHF, but it makes the reward model optional in lieu
 of a scoring function that returns a positive reward when the answer is correct and 0 otherwise.
+
+RLHF collects human preference data, trains a reward model on it, then optimizes the policy
+against that proxy. RLVR skips all of that when you have a ground truth to check against: the
+reward signal is the ground truth itself, not a learned approximation of it.
+
 This can be seen as an RL feedback loop where, instead of a reward model, a verification
 function scores the agent's completions.
 
@@ -58,6 +63,11 @@ return definitive scores.
   <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
 </figure>
 
+Unlike RLHF, there is no reward model to train, no reward model to overfit, and no proxy
+misalignment to worry about. But this only works when correctness is cleanly verifiable: for
+tasks where quality is subjective or multi-dimensional, you are back to needing a learned
+reward.
+
 As mentioned before, PPO was the original algorithm used in RLHF.
 
 ## Group Relative Policy Optimization (GRPO)
@@ -78,8 +88,14 @@ the same baseline to every token in an episode, estimated via a Monte Carlo esti
 multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
 prompt/state ($s$).
 
-To make an update meaningful, an advantage is computed by subtracting this baseline from the
-reward. A positive advantage means the response was better than expected, so its probability
+The objective (or loss) is then:
+
+$$
+J(\theta) = \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}A_i, \text{clip}\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}, 1-\varepsilon, 1+\varepsilon\right)A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})\right)
+$$
+
+To make an update meaningful, the advantage $A_i$ is computed by subtracting this baseline from
+the reward. A positive advantage means the response was better than expected, so its probability
 should increase; a negative advantage means it was worse than expected, so its probability
 should decrease.
 
@@ -249,6 +265,11 @@ is always learning relative to itself, not some externally defined standard.
     font-weight: 600;
     color: var(--heading);
   }
+  .grpo-source {
+    margin: 0.5rem 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
   .grpo-controls {
     display: flex;
     justify-content: center;
@@ -281,16 +302,11 @@ is always learning relative to itself, not some externally defined standard.
     animation: grpo-in 0.42s ease forwards;
     animation-delay: calc(var(--i) * 130ms);
   }
-  .grpo-demo.is-playing.is-paused .grpo-reveal {
-    animation-play-state: paused;
-  }
   @media (prefers-reduced-motion: reduce) {
     .grpo-demo.is-playing .grpo-reveal {
       opacity: 1;
       animation: none;
     }
-    /* nothing to pause when the reveal never animates */
-    .grpo-pause { display: none; }
   }
   @media (max-width: 640px) {
     .grpo-cards { grid-template-columns: repeat(2, 1fr); }
@@ -366,8 +382,8 @@ is always learning relative to itself, not some externally defined standard.
   </div>
   <div class="grpo-arrow grpo-reveal" style="--i: 15"><i></i><span aria-hidden="true">▾</span></div>
   <div class="grpo-final grpo-reveal" style="--i: 16">update weights: more of o₁, o₃ · less of o₂, o₄</div>
+  <p class="grpo-source">Adapted from <a href="https://castform.com/learn/grpo-intro/">Castform's GRPO introduction</a>.</p>
   <div class="grpo-controls" hidden>
-    <button type="button" class="grpo-btn grpo-pause" aria-pressed="false">⏸ pause</button>
     <button type="button" class="grpo-btn grpo-replay">↺ replay</button>
   </div>
 </div>
@@ -377,21 +393,13 @@ is always learning relative to itself, not some externally defined standard.
     const demo = document.getElementById('grpo-demo');
     if (!demo) return;
     const controls = demo.querySelector('.grpo-controls');
-    const pauseBtn = demo.querySelector('.grpo-pause');
     const replayBtn = demo.querySelector('.grpo-replay');
-    const setPaused = (paused) => {
-      demo.classList.toggle('is-paused', paused);
-      pauseBtn.textContent = paused ? '▶ resume' : '⏸ pause';
-      pauseBtn.setAttribute('aria-pressed', String(paused));
-    };
     const play = () => {
-      setPaused(false);
       demo.classList.remove('is-playing');
       void demo.offsetWidth; // force reflow so the animations restart
       demo.classList.add('is-playing');
     };
     controls.hidden = false;
-    pauseBtn.addEventListener('click', () => setPaused(!demo.classList.contains('is-paused')));
     replayBtn.addEventListener('click', play);
     // Play once when it first scrolls into view, rather than on load, so the
     // walkthrough isn't already over by the time the reader reaches it.
@@ -410,12 +418,6 @@ is always learning relative to itself, not some externally defined standard.
     }
   })();
 </script>
-
-The objective (or loss) is then:
-
-$$
-J(\theta) = \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}A_i, \text{clip}\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}, 1-\varepsilon, 1+\varepsilon\right)A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})\right)
-$$
 
 ## TODO
 
