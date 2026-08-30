@@ -20,6 +20,20 @@ Conventional LLMs typically go through a three-step training pipeline:
 
 ## Reinforcement Learning from Human Feedback (RLHF)
 
+There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
+gets its signal from people instead. Thousands of human judgements are collected, each one a
+pairwise preference between two candidate answers to the same prompt: A over B, D over C, and so
+on. A neural network, the reward model, is then trained to imitate those preferences, so it can
+score responses the way the annotators would have.
+
+<figure>
+  <img src="/images/notes/rlhf-reward-model.png" alt="Diagram: three boxes of pairwise human preferences, answer A over answer B, answer D over answer C, answer E over answer F, plus a note that there are thousands more, all feeding by arrows into a reward model described as a whole separate network" />
+  <figcaption>Thousands of pairwise human judgements are distilled into a reward model, a whole separate network. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+That reward model is what the policy is then optimized against, which is the proxy the RLVR
+section below contrasts with.
+
 TODO: will update this section later.
 
 ## Reinforcement Learning with Verifiable Rewards (RLVR)
@@ -111,6 +125,11 @@ $$
 Completions that score above the group average get a positive advantage and become more likely;
 completions that score below average get a negative advantage and become less likely. The model
 is always learning relative to itself, not some externally defined standard.
+
+<figure>
+  <img src="/images/notes/grpo-group-baseline.png" alt="Diagram titled 'Let the group be its own baseline': a prompt q and a verifier feed K sampled responses, drawn as bars against a dashed horizontal line marking the group mean; bars above the mean carry upward arrows and bars below carry downward arrows, with a note reading 'no value network, no extra model'" />
+  <figcaption>The group mean is the baseline: bars above it are reinforced, bars below are suppressed, and no value network is needed to draw the line. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
 
 <style>
   .grpo-demo {
