@@ -32,7 +32,7 @@ function scores the agent's completions.
 
 <figure>
   <img src="/images/notes/rlvr-feedback-loop.png" alt="RLVR feedback loop diagram: training data provides prompts to an agent (policy pi-theta), which produces completions; a Verifiable Reward block scores the completion (reward = gamma if correct, else 0) and feeds the scalar reward back to the agent for a policy update" />
-  <figcaption>RLVR as an RL feedback loop: a verification function stands in for the reward model.</figcaption>
+  <figcaption>RLVR as an RL feedback loop: a verification function stands in for the reward model. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
 </figure>
 
 See below to see how different it is to score responses for RLHF versus RLVR. In RLHF, a reward
