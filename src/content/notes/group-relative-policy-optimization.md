@@ -91,6 +91,61 @@ $$
 \text{baseline} = \text{mean}(r_1, \ldots, r_G), \qquad A_i = \frac{r_i - \text{baseline}}{\text{std}(r_1, \ldots, r_G)}.
 $$
 
+Completions that score above the group average get a positive advantage and become more likely;
+completions that score below average get a negative advantage and become less likely. The model
+is always learning relative to itself, not some externally defined standard.
+
+<div style="margin: 1.5rem 0;">
+
+<p style="font-weight: 600; margin-bottom: 0.5rem;">Prompt: “What is 17 × 24?” — sample 4 answers</p>
+
+<p style="font-weight: 600; margin: 1rem 0 0.5rem;">① Score each answer</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.75rem;">
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>o₁: 408 <span style="color: var(--venue-workshop);">✓</span></div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">score 1.0</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>o₂: 391 <span style="color: var(--text-muted);">✗</span></div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">score 0.0</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>o₃: 408 <span style="color: var(--venue-workshop);">✓</span></div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">score 1.0</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>o₄: ~400 ≈</div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">score 0.5</div>
+  </div>
+</div>
+
+<p style="font-weight: 600; margin: 1rem 0 0.5rem;">② Group average</p>
+<p style="margin: 0;">(1.0 + 0.0 + 1.0 + 0.5) ÷ 4 = <strong>0.625</strong></p>
+
+<p style="font-weight: 600; margin: 1rem 0 0.5rem;">③ Advantage = score − average</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.75rem;">
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>1.0 − 0.625 = <strong>+0.38</strong></div>
+    <div style="color: var(--venue-workshop); font-size: 0.85rem;">reinforce ↑</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>0.0 − 0.625 = <strong>−0.63</strong></div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">suppress ↓</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>1.0 − 0.625 = <strong>+0.38</strong></div>
+    <div style="color: var(--venue-workshop); font-size: 0.85rem;">reinforce ↑</div>
+  </div>
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; text-align: center;">
+    <div>0.5 − 0.625 = <strong>−0.13</strong></div>
+    <div style="color: var(--text-muted); font-size: 0.85rem;">suppress ↓</div>
+  </div>
+</div>
+
+<p style="margin-top: 1rem;">Update weights: more of <strong>o₁, o₃</strong> · less of <strong>o₂, o₄</strong>.</p>
+
+</div>
+
 The objective (or loss) is then:
 
 $$
