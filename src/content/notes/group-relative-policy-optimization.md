@@ -48,9 +48,14 @@ while reducing PPO's memory footprint.
 
 GRPO shares a very similar surrogate loss to PPO, but avoids learning a value function, which
 would otherwise require keeping another copy of the policy language model in memory just to
-estimate value. GRPO says you don't need a learned critic or a learned reward model: sample a
-group of responses, score them against a rule-based check, and use the spread as your training
-signal. That is the whole algorithm.
+estimate value. That is GRPO's whole idea: drop the critic, sample a group of responses to the
+same prompt, and use the spread of their scores as the training signal instead.
+
+What GRPO drops is the critic, not the reward model. Where the group's scores come from is a
+separate question, and GRPO is perfectly happy to take them from a learned reward model, which
+is what the figure below shows. Replacing that reward model with a rule-based check is a
+different idea, RLVR, covered further down; DeepSeek-R1-Zero is what you get when the two are
+combined.
 
 <figure>
   <img src="/images/notes/ppo-vs-grpo.png" alt="Side-by-side comparison of PPO and GRPO. PPO sends a prompt q through the policy model to one output o, which goes to a reference model, a reward model and a trained value model (the critic), combining through GAE into a single advantage A. GRPO samples a group of outputs o1 to oG from the policy model, scores them with a reward model into rewards r1 to rG, and derives advantages A1 to AG by group computation, with the critic's slot left as an empty dashed box. Annotations read: sample multiple answers, GRPO forgoes the critic (value model), and compute average reward of multiple sampled outputs" />
