@@ -103,20 +103,41 @@ the same baseline to every token in an episode, estimated via a Monte Carlo esti
 multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
 prompt/state ($s$).
 
-The objective (or loss) is then:
+For one prompt $s$, GRPO samples a group of $G$ completions $a_1, \ldots, a_G$ from the old
+policy $\pi_{\theta_{\text{old}}}$. $G$ is the group size, and two indices matter below: $i = 1,
+\ldots, G$ runs over completions in the group, while $t = 1, \ldots, T_i$ runs over the tokens
+inside completion $i$.
+
+The split between those two indices is the thing to hold onto, because the two halves of the
+objective live at different levels. The **importance ratio is per token**: writing $a_{i,t}$ for
+the $t$-th token of completion $i$ and $a_{i,<t}$ for the tokens before it,
 
 $$
-J(\theta) = \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}A_i, \text{clip}\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}, 1-\varepsilon, 1+\varepsilon\right)A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})\right)
+\rho_{i,t}(\theta) = \frac{\pi_\theta(a_{i,t} \mid s,\, a_{i,<t})}{\pi_{\theta_{\text{old}}}(a_{i,t} \mid s,\, a_{i,<t})},
 $$
+
+so a completion of $T_i$ tokens contributes $T_i$ separate ratios.[^ratio-symbol] The **reward and
+the advantage are per sequence**: the verifier scores the finished completion, so there is a
+single $A_i$ for completion $i$ and every token in it is pushed by that same number.
+
+Putting the two levels together, the objective (or loss) is:
+
+$$
+J(\theta) = \frac{1}{G}\sum_{i=1}^{G} \frac{1}{T_i} \sum_{t=1}^{T_i} \min\left(\rho_{i,t} A_i,\ \text{clip}\left(\rho_{i,t}, 1-\varepsilon, 1+\varepsilon\right) A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})
+$$
+
+Concretely, if completion $i$ is “The answer is 12”, tokenized as $a_{i,1} = \text{The}$,
+$a_{i,2} = \text{ answer}$, $a_{i,3} = \text{ is}$, $a_{i,4} = \text{ 12}$, then $T_i = 4$ and
+that completion contributes four ratios $\rho_{i,1}, \ldots, \rho_{i,4}$, each multiplied by the
+same sequence-level advantage $A_i$.
 
 To make an update meaningful, the advantage $A_i$ is computed by subtracting this baseline from
 the reward. A positive advantage means the response was better than expected, so its probability
 should increase; a negative advantage means it was worse than expected, so its probability
 should decrease.
 
-In PPO, the baseline comes from a learned value function. GRPO instead gets the baseline from
-the group itself: given $G$ completions $a_1, \ldots, a_G$ sampled for the same prompt $s$ and
-their rewards $r_1, \ldots, r_G$,
+In PPO, the baseline comes from a learned value function. GRPO instead gets it from the group
+itself, using the rewards $r_1, \ldots, r_G$ of the completions sampled for this prompt:
 
 $$
 \text{baseline} = \text{mean}(r_1, \ldots, r_G), \qquad A_i = \frac{r_i - \text{baseline}}{\text{std}(r_1, \ldots, r_G)}.
@@ -441,9 +462,10 @@ is always learning relative to itself, not some externally defined standard.
 
 ## TODO
 
-1. Talk about token level vs sequence level ([video](https://www.youtube.com/watch?v=pW34NAiXmns)).
-2. Refer to the Castform GRPO website.
-3. [RLHF Book: Reasoning](https://rlhfbook.com/c/07-reasoning)
-4. ["The State of LLM Reasoning Model Training"](https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training), Sebastian Raschka
+1. Refer to the Castform GRPO website.
+2. [RLHF Book: Reasoning](https://rlhfbook.com/c/07-reasoning)
+3. ["The State of LLM Reasoning Model Training"](https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training), Sebastian Raschka
 
 [^rlvr]: See the RLHF Book's [discussion of RLVR](https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr).
+
+[^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_i$ is already the reward of completion $i$ here, so the ratio gets $\rho$ instead.
