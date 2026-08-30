@@ -78,6 +78,13 @@ the same baseline to every token in an episode, estimated via a Monte Carlo esti
 multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
 prompt/state ($s$).
 
+Formally, the objective (or loss) is accumulated over a group of completions
+$\{a_1, a_2, \ldots, a_G\}$ to a given prompt $s$:
+
+$$
+J(\theta) = \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}A_i, \text{clip}\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}, 1-\varepsilon, 1+\varepsilon\right)A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})\right)
+$$
+
 ## TODO
 
 1. Talk about token level vs sequence level ([video](https://www.youtube.com/watch?v=pW34NAiXmns)).
