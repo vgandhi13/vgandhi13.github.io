@@ -58,7 +58,25 @@ return definitive scores.
   <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
 </figure>
 
-As mentioned before, PPO was the original algorithm used in RLHF...
+As mentioned before, PPO was the original algorithm used in RLHF.
+
+## Group Relative Policy Optimization (GRPO)
+
+From a technical standpoint, it works perfectly fine to use PPO in the RL pipeline used to
+develop reasoning models. However, DeepSeek-R1's RL pipeline instead used an algorithm called
+Group Relative Policy Optimization (GRPO), introduced as a variant of Proximal Policy
+Optimization (PPO) that improves mathematical reasoning ability while reducing PPO's memory
+footprint.
+
+GRPO shares a very similar surrogate loss to PPO, but avoids learning a value function, which
+would otherwise require keeping another copy of the policy language model in memory just to
+estimate value. This sidesteps two problems: the difficulty of learning a value function from an
+LM backbone, and the memory cost of storing that extra set of model weights.
+
+GRPO does this by simplifying value estimation: instead of a learned value function, it assigns
+the same baseline to every token in an episode, estimated via a Monte Carlo estimate over
+multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
+prompt/state ($s$).
 
 ## TODO
 
