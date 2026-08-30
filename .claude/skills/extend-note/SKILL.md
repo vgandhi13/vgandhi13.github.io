@@ -57,6 +57,13 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
    content, not the screenshot timestamp. Move the original screenshot out of the project root
    into `Notes/<Topic>/<DescriptiveName>.png` (that folder is the note's source material per
    `publish-content`; don't leave raw screenshots sitting in the repo root).
+
+   **Size the figure yourself, defaulting to narrow.** Wrap it as `<figure class="narrow">`
+   (capped at 34rem, centred) unless shrinking would genuinely cost legibility, i.e. a dense
+   diagram with many small labels, or a wide-and-short screenshot that costs no vertical space
+   at full width. A line chart with two axis labels or a small box-and-arrow flow is always
+   narrow. Do not ship a figure at full 58rem width and wait to be told it is too big: the user
+   has had to ask for this repeatedly. See the figure-width bullet in CLAUDE.md.
 8. **Verify after every single edit**, not batched at the end: `npm run build`, then grep
    `dist/notes/<slug>/index.html` for the new string, the KaTeX markup (confirms `$...$` wasn't
    left as literal text: this happens if content lands inside a raw HTML block without the

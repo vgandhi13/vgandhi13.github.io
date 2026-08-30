@@ -157,6 +157,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   ImageMagick on this machine; use a Pillow venv in the scratchpad, `ImageChops.difference`
   vs white + `getbbox`). Cited figures use `<figure>`/`<figcaption>` (global styles in
   Base.astro); details in the publish-content skill.
+
+- **Figure width is a DEFAULT-NARROW decision, and it is on you to make it without being
+  asked.** The user has repeatedly had to come back and say an image is too big, so treat this
+  as part of adding a figure, not a follow-up. Reach for `<figure class="narrow">` (caps at
+  34rem, centred, global rule in Base.astro) as the default, and only leave a figure at the
+  full 58rem prose column when shrinking it would actually cost legibility: a genuinely dense
+  diagram with many small labels (`deepseek-r1-pipeline.png`, `ppo-vs-grpo.png`), or a wide,
+  short screenshot where full width costs no vertical space anyway. A simple line chart with
+  two axis labels, a three-box flow, or a bar chart with one caption is always `narrow`: at
+  column width it eats a screenful of height for very little ink. Check with the rendered
+  numbers, not the source file's pixels — measure `getBoundingClientRect()` per figure in
+  playwright and look at the height. `narrow`'s `max-width` is `min(34rem, 100%)`, not a bare
+  `34rem`, because a bare value overrides the global `img { max-width: 100% }` and overflows a
+  phone viewport; always re-run the 390px overflow check after touching figure widths.
 - **Wide diagrams**: `<figure class="wide">` breaks out of the 58rem prose column up to 1280px
   and scrolls below ~1024px instead of shrinking (global styles in Base.astro). Shrink-to-fit is
   right for a photo and wrong for a dense diagram: at column width the `train_async` SVG's 11px

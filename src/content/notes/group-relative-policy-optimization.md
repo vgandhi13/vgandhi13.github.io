@@ -568,7 +568,7 @@ problem-solving. It works like this:
 This ability emerged naturally from RL training, without being explicitly programmed,
 demonstrating learning rather than mere memorization of a process from the training data.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/r1-zero-aha-moment.png" alt="An R1-Zero transcript solving an equation with nested square roots. Partway through the working the model writes, in red, 'Wait, wait. Wait. That's an aha moment I can flag here.', then restarts the derivation step by step from the original equation" />
   <figcaption>An interesting aha moment from DeepSeek-R1-Zero.</figcaption>
 </figure>

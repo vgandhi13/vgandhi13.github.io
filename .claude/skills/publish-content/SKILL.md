@@ -83,6 +83,13 @@ character/subscript per line). Reconstruct the intended equation and write it as
    ```
    Recurring source: Stanford CS224R figures → `Source: <a
    href="https://cs224r.stanford.edu/">Stanford CS224R</a>`.
+
+   **Size the figure yourself, defaulting to narrow.** Wrap it as `<figure class="narrow">`
+   (capped at 34rem, centred) unless shrinking would genuinely cost legibility, i.e. a dense
+   diagram with many small labels, or a wide-and-short screenshot that costs no vertical space
+   at full width. A line chart with two axis labels or a small box-and-arrow flow is always
+   narrow. Do not ship a figure at full 58rem width and wait to be told it is too big: the user
+   has had to ask for this repeatedly. See the figure-width bullet in CLAUDE.md.
 5. Verify: `npm run build`, then grep `dist/notes/<slug>/index.html` for a few expected strings
    (katex markup if math, image paths, new paragraphs). The search index picks up new content
    automatically — no action needed.
