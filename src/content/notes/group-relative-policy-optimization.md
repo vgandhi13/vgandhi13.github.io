@@ -87,10 +87,10 @@ reward.
 ## Group Relative Policy Optimization (GRPO)
 
 PPO was the original algorithm used in RLHF, and from a technical standpoint it works perfectly
-fine to use it in the RL pipeline used to develop reasoning models. However, DeepSeek-R1's RL pipeline instead used an algorithm called
-Group Relative Policy Optimization (GRPO), introduced as a variant of Proximal Policy
-Optimization (PPO) that improves mathematical reasoning ability while reducing PPO's memory
-footprint.
+fine to use it in the RL pipeline used to develop reasoning models. However, DeepSeek-R1's RL
+pipeline instead used an algorithm called Group Relative Policy Optimization (GRPO), introduced
+as a variant of Proximal Policy Optimization (PPO) that improves mathematical reasoning ability
+while reducing PPO's memory footprint.
 
 GRPO shares a very similar surrogate loss to PPO, but avoids learning a value function, which
 would otherwise require keeping another copy of the policy language model in memory just to
