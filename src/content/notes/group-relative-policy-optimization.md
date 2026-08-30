@@ -508,6 +508,28 @@ verifier, update the policy on the result, and repeat.
   <figcaption>The RLVR loop R1-Zero trains in: roll out completions, verify them, update the policy, repeat.</figcaption>
 </figure>
 
+Because there is no SFT stage, and training starts from the base pretrained model, the model has
+no idea what a good reasoning trace even looks like. Nobody ever showed it one. All it gets is
+the verifier's verdict on the final answer.
+
+<figure>
+  <img src="/images/notes/r1-zero-response-length.png" alt="Line chart of mean response length against RL steps: the curve rises steeply at first, keeps climbing through the middle of training, then flattens out near the end" />
+  <figcaption>Mean response length over RL steps. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+Nothing in the reward gives credit for length, yet the mean response length climbs on its own:
+longer reasoning chains help the model land on verifiable answers more often, and the verifier
+keeps rewarding that.
+
+So R1-Zero proved reasoning could emerge from pure RL. The catch was that the output was hard to
+read. The model would slip between languages mid-thought, or produce formatting no human reader
+could follow. Nothing in the reward signal cared about readability, only correctness.
+
+<figure>
+  <img src="/images/notes/r1-zero-readability.png" alt="An R1-Zero output solving 2x + 3 = 17: step 1 is in English, step 2 reads 'donc x = 7, entonces la', mixing French and Spanish mid-thought, and step 3 reads '##ANSWER**<x=7>|| ::end'. Callouts label these 'switches language mid-thought' and 'formatting no reader can follow'" />
+  <figcaption>Correct answers, unreadable traces: the reward never asked for readability. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
 ## TODO
 
 1. Refer to the Castform GRPO website.
