@@ -554,6 +554,28 @@ could follow. Nothing in the reward signal cared about readability, only correct
   <figcaption>Correct answers, unreadable traces: the reward never asked for readability. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
 
+### Emergent abilities from RL
+
+One of the most remarkable discoveries in R1-Zero's training was the emergence of a phenomenon
+known as the "Aha Moment", somewhat similar to how humans experience sudden realizations while
+problem-solving. It works like this:
+
+1. The model makes an initial attempt at solving a problem.
+2. It recognizes potential errors or inconsistencies.
+3. It adjusts its approach based on that recognition.
+4. It can explain why the new approach is better.
+
+This ability emerged naturally from RL training, without being explicitly programmed,
+demonstrating learning rather than mere memorization of a process from the training data.
+
+<figure>
+  <img src="/images/notes/r1-zero-aha-moment.png" alt="An R1-Zero transcript solving an equation with nested square roots. Partway through the working the model writes, in red, 'Wait, wait. Wait. That's an aha moment I can flag here.', then restarts the derivation step by step from the original equation" />
+  <figcaption>An interesting aha moment from DeepSeek-R1-Zero.</figcaption>
+</figure>
+
+More detail on all of this is in the Hugging Face LLM course's
+<a href="https://huggingface.co/learn/llm-course/en/chapter12/3#the-breakthrough-aha-moment">chapter on the breakthrough aha moment</a>.
+
 DeepSeek-R1 is the flagship model, the one with the best performance. The difference compared to
 DeepSeek-R1-Zero is that they alternated instruction fine-tuning, RLVR, and RLHF. The paper
 demonstrated clearly that supervised fine-tuning followed by reinforcement learning outperforms
