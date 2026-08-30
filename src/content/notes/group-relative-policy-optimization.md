@@ -20,6 +20,8 @@ LLMs typically go through a three-step training pipeline, following this:
 
 ## Reinforcement Learning from Human Feedback (RLHF)
 
+RLHF is the original alignment method. Its goal is to align LLMs with human preferences.
+
 There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
 gets its signal from people instead. Thousands of human judgements are collected, each one a
 pairwise preference between two candidate answers to the same prompt: A over B, D over C, and so
