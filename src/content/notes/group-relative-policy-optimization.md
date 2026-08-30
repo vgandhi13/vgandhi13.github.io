@@ -78,8 +78,20 @@ the same baseline to every token in an episode, estimated via a Monte Carlo esti
 multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
 prompt/state ($s$).
 
-Formally, the objective (or loss) is accumulated over a group of completions
-$\{a_1, a_2, \ldots, a_G\}$ to a given prompt $s$:
+To make an update meaningful, an advantage is computed by subtracting this baseline from the
+reward. A positive advantage means the response was better than expected, so its probability
+should increase; a negative advantage means it was worse than expected, so its probability
+should decrease.
+
+In PPO, the baseline comes from a learned value function. GRPO instead gets the baseline from
+the group itself: given $G$ completions $a_1, \ldots, a_G$ sampled for the same prompt $s$ and
+their rewards $r_1, \ldots, r_G$,
+
+$$
+\text{baseline} = \text{mean}(r_1, \ldots, r_G), \qquad A_i = \frac{r_i - \text{baseline}}{\text{std}(r_1, \ldots, r_G)}.
+$$
+
+The objective (or loss) is then:
 
 $$
 J(\theta) = \frac{1}{G}\sum_{i=1}^G \left(\min\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}A_i, \text{clip}\left(\frac{\pi_\theta(a_i \mid s)}{\pi_{\theta_{\text{old}}}(a_i \mid s)}, 1-\varepsilon, 1+\varepsilon\right)A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})\right)
