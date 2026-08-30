@@ -62,7 +62,10 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
 
     <footer class="site-footer">
       <p>© {new Date().getFullYear()} Varun Gandhi</p>
-      <a href="/quotes/" class="footer-quiet">excerpts</a>
+      <span class="footer-links">
+        <a href="/interests/" class="footer-quiet">interests</a>
+        <a href="/quotes/" class="footer-quiet">excerpts</a>
+      </span>
     </footer>
 
     <script is:inline>
@@ -399,6 +402,11 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
   }
 
   /* Deliberately understated: reads as footer text until hovered. */
+  .footer-links {
+    display: flex;
+    gap: 1.25rem;
+  }
+
   .footer-quiet {
     color: var(--text-muted);
     text-decoration: none;
