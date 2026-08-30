@@ -246,6 +246,53 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     color: var(--text-muted);
   }
 
+  /* A pair of figures shown side by side for direct comparison (e.g. RLHF vs.
+     RLVR scoring). Breaks out like figure.wide since two columns need more
+     room than half the prose column gives; stacks below ~700px where there
+     isn't room to keep both halves legible. */
+  .figure-row {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1280px, calc(100vw - 2.5rem));
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    margin: 1.5rem 0;
+  }
+
+  .figure-row figure {
+    margin: 0;
+    padding: 0 1.5rem;
+  }
+
+  .figure-row figure:first-child {
+    padding-left: 0;
+    border-right: 1px solid var(--text-muted);
+  }
+
+  .figure-row figure:last-child {
+    padding-right: 0;
+  }
+
+  @media (max-width: 700px) {
+    .figure-row {
+      grid-template-columns: 1fr;
+    }
+
+    .figure-row figure:first-child {
+      padding-right: 0;
+      border-right: none;
+      border-bottom: 1px solid var(--text-muted);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .figure-row figure:last-child {
+      padding-left: 0;
+    }
+  }
+
   /* GFM footnotes: visually secondary to the article body */
   .footnotes {
     margin-top: 3rem;
