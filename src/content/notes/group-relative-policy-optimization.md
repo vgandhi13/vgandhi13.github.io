@@ -460,6 +460,19 @@ is always learning relative to itself, not some externally defined standard.
   })();
 </script>
 
+## How DeepSeek-R1 Models Were Trained Using RL
+
+The DeepSeek-R1 release was three kinds of model, differing in how much RL and SFT each one got:
+
+1. **DeepSeek-R1-Zero**, trained with pure RL.
+2. **DeepSeek-R1**, trained with instruction fine-tuning (SFT) and RL.
+3. **DeepSeek-R1-Distill** variants, created via instruction fine-tuning (SFT) without RL.
+
+<figure>
+  <img src="/images/notes/deepseek-r1-pipeline.png" alt="Training pipeline for the DeepSeek-R1 family: DeepSeek-V3 (671B) is trained with RL using accuracy and format rewards (RLVR) into DeepSeek-R1-Zero, which generates SFT cold-start data; that data plus RL with accuracy, format and consistency rewards produces SFT CoT data, which with rule-based verification and human preference (RLVR plus RLHF) yields DeepSeek-R1; the SFT CoT and knowledge data are then used to fine-tune Llama 3 and Qwen 2.5 into the DeepSeek-R1-Distill-Qwen and DeepSeek-R1-Distill-Llama variants" />
+  <figcaption>Training pipeline for the DeepSeek-R1 family. Source: <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">“The State of LLM Reasoning Model Training”</a>, Sebastian Raschka.</figcaption>
+</figure>
+
 ## TODO
 
 1. Refer to the Castform GRPO website.
