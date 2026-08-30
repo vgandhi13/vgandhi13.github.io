@@ -583,7 +583,7 @@ answer's signal gets diluted across more tokens. The optimizer reads that as "lo
 and starts rewarding length for its own sake. That is not a signal about reasoning, it is an
 artifact of the math.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/grpo-bias-length.png" alt="Diagram of the length divisor 1 over the size of completion i: one problem with two sampled answers, both correct. The short answer's four tokens each carry advantage over 4, while the long answer's twelve tokens each carry advantage over 12, captioned same reward, thinner per-token signal, the long answer gets diluted" />
   <figcaption>Same reward, thinner per-token signal: dividing by length dilutes the longer answer. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
@@ -594,7 +594,7 @@ nearly the same reward, so $\text{std}(r)$ sits near zero and dividing by it inf
 tiny differences are left. The prompts that actually discriminate, where the group genuinely
 disagrees, get weighted down relative to those.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/grpo-bias-std.png" alt="Diagram of the standard-deviation divisor across three prompts: a trivially easy problem where all four samples are correct and std of r is about 0, a real problem where two of four are correct and std of r is 0.5, and an impossibly hard problem where no samples are correct and std of r is about 0. Bars below show the easy and hard prompts weighted large and the real problem weighted small" />
   <figcaption>Near-zero spread on the easy and impossible prompts inflates their weight; the discriminating problem in the middle is weighted down. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
