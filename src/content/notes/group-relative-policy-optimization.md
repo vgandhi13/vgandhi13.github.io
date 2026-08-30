@@ -84,12 +84,10 @@ misalignment to worry about. But this only works when correctness is cleanly ver
 tasks where quality is subjective or multi-dimensional, you are back to needing a learned
 reward.
 
-As mentioned before, PPO was the original algorithm used in RLHF.
-
 ## Group Relative Policy Optimization (GRPO)
 
-From a technical standpoint, it works perfectly fine to use PPO in the RL pipeline used to
-develop reasoning models. However, DeepSeek-R1's RL pipeline instead used an algorithm called
+PPO was the original algorithm used in RLHF, and from a technical standpoint it works perfectly
+fine to use it in the RL pipeline used to develop reasoning models. However, DeepSeek-R1's RL pipeline instead used an algorithm called
 Group Relative Policy Optimization (GRPO), introduced as a variant of Proximal Policy
 Optimization (PPO) that improves mathematical reasoning ability while reducing PPO's memory
 footprint.
