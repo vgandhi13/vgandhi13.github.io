@@ -9,7 +9,7 @@ Yann LeCun has described intelligence with a cake analogy: "If intelligence is a
 of the cake is unsupervised learning, the icing on the cake is supervised learning, and the
 cherry on the cake is reinforcement learning (RL)."
 
-Conventional LLMs typically go through a three-step training pipeline, following this:
+LLMs typically go through a three-step training pipeline, following this:
 
 1. **Pre-training.** Self-supervised learning on vast swaths of internet data makes up the
    majority of the cake, especially when viewed in compute spent (FLOPs).
