@@ -185,6 +185,25 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   first thing to check. Keep multi-part diagrams visually separated with comments or extra
   indentation, never blank lines.
 
+- **Animated/interactive walkthroughs in a note** (the GRPO advantage demo in
+  `group-relative-policy-optimization.md` is the reference): the site's no-client-side-JS rule
+  bends when the user explicitly asks for an animation, but keep it dependency-free and
+  self-contained. Pattern: a `<style>` block, the markup, and a `<script>` block as three
+  *sibling* raw-HTML blocks in the markdown (blank lines **between** them are fine and in fact
+  necessary; the blank-line ban applies only *inside* one block). Astro passes `<style>`/
+  `<script>` in markdown straight through unprocessed, so plain DOM APIs work and nothing gets
+  bundled. Rules that make it degrade well: base CSS state is the *finished* state (so no-JS
+  readers get a static diagram, not an invisible one), animation only fires under a JS-added
+  class, controls ship with the `hidden` attribute and are un-hidden by the script (no dead
+  buttons without JS), the reveal is CSS keyframes staggered by an inline `--i` custom property
+  rather than timers, playback starts on `IntersectionObserver` rather than page load (otherwise
+  it's over before the reader scrolls to it), pause is `animation-play-state` and replay is
+  `classList.remove(...)` + `void el.offsetWidth` + re-add to force a restart, and
+  `prefers-reduced-motion` drops both the animation and the now-pointless pause button. Keep
+  colours on theme tokens (or locally-defined `--gd-*` vars with a
+  `:root[data-theme='dark']` override) so it works in both themes. Styles live in the note, not
+  Base.astro, so a one-off widget's CSS doesn't load on every page.
+
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.
 - **A small logo/icon PNG with an opaque white background** (e.g. `public/logos/arxiv.org.png`,
