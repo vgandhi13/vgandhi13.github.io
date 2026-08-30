@@ -38,52 +38,6 @@ section below contrasts with.
 
 TODO: will update this section later.
 
-## Reinforcement Learning with Verifiable Rewards (RLVR)
-
-The training method for these models, Reinforcement Learning with Verifiable Rewards
-(RLVR)[^rlvr], proceeds very similarly to RLHF, but it makes the reward model optional in lieu
-of a scoring function that returns a positive reward when the answer is correct and 0 otherwise.
-
-RLHF collects human preference data, trains a reward model on it, then optimizes the policy
-against that proxy. RLVR skips all of that when you have a ground truth to check against: the
-reward signal is the ground truth itself, not a learned approximation of it.
-
-This can be seen as an RL feedback loop where, instead of a reward model, a verification
-function scores the agent's completions.
-
-<figure class="narrow">
-  <img src="/images/notes/rlvr-feedback-loop.png" alt="RLVR feedback loop diagram: training data provides prompts to an agent (policy pi-theta), which produces completions; a Verifiable Reward block scores the completion (reward = gamma if correct, else 0) and feeds the scalar reward back to the agent for a policy update" />
-  <figcaption>RLVR as an RL feedback loop: a verification function stands in for the reward model. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-</figure>
-
-See below to see how different it is to score responses for RLHF versus RLVR. In RLHF, a reward
-model must evaluate subjective qualities. In contrast, RLVR uses verification functions that
-return definitive scores.
-
-<div class="figure-row">
-  <div class="figure-col">
-    <figure>
-      <img src="/images/notes/rlhf-scoring-example.png" alt="RLHF example: a prompt asking to explain opportunity cost in economics, with an open-ended prose response and no verification step, since a reward model must judge subjective quality" />
-      <figcaption>RLHF: scoring is a subjective judgment call. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-    </figure>
-  </div>
-  <div class="figure-col">
-    <figure>
-      <img src="/images/notes/rlvr-scoring-example.png" alt="RLVR example: a prompt asking for the sum of primes less than 20, with a response boxing the final answer 77, verified by the check extracted_answer == 77 giving Reward = 1" />
-      <figcaption>RLVR: scoring is a definitive check against the extracted answer. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-    </figure>
-    <figure>
-      <img src="/images/notes/rlvr-code-scoring-example.png" alt="RLVR example for code generation: a prompt asking for a Python Fibonacci function, verified by unit tests (fib(0) == 0, fib(1) == 1, fib(10) == 55), all passing for Reward = 1" />
-      <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
-    </figure>
-  </div>
-</div>
-
-Unlike RLHF, there is no reward model to train, no reward model to overfit, and no proxy
-misalignment to worry about. But this only works when correctness is cleanly verifiable: for
-tasks where quality is subjective or multi-dimensional, you are back to needing a learned
-reward.
-
 ## Group Relative Policy Optimization (GRPO)
 
 PPO was the original algorithm used in RLHF, and from a technical standpoint it works perfectly
@@ -97,6 +51,11 @@ would otherwise require keeping another copy of the policy language model in mem
 estimate value. GRPO says you don't need a learned critic or a learned reward model: sample a
 group of responses, score them against a rule-based check, and use the spread as your training
 signal. That is the whole algorithm.
+
+<figure>
+  <img src="/images/notes/ppo-vs-grpo.png" alt="Side-by-side comparison of PPO and GRPO. PPO sends a prompt q through the policy model to one output o, which goes to a reference model, a reward model and a trained value model (the critic), combining through GAE into a single advantage A. GRPO samples a group of outputs o1 to oG from the policy model, scores them with a reward model into rewards r1 to rG, and derives advantages A1 to AG by group computation, with the critic's slot left as an empty dashed box. Annotations read: sample multiple answers, GRPO forgoes the critic (value model), and compute average reward of multiple sampled outputs" />
+  <figcaption>Annotated figure from <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a>, illustrating the differences between PPO and GRPO.</figcaption>
+</figure>
 
 GRPO does this by simplifying value estimation: instead of a learned value function, it assigns
 the same baseline to every token in an episode, estimated via a Monte Carlo estimate over
@@ -117,7 +76,7 @@ $$
 $$
 
 so a completion of $T_i$ tokens contributes $T_i$ separate ratios.[^ratio-symbol] The **reward and
-the advantage are per sequence**: the verifier scores the finished completion, so there is a
+the advantage are per sequence**: the reward is scored on the finished completion, so there is a
 single $A_i$ for completion $i$ and every token in it is pushed by that same number.
 
 Putting the two levels together, the objective (or loss) is:
@@ -459,6 +418,52 @@ is always learning relative to itself, not some externally defined standard.
     }
   })();
 </script>
+
+## Reinforcement Learning with Verifiable Rewards (RLVR)
+
+The training method for these models, Reinforcement Learning with Verifiable Rewards
+(RLVR)[^rlvr], proceeds very similarly to RLHF, but it makes the reward model optional in lieu
+of a scoring function that returns a positive reward when the answer is correct and 0 otherwise.
+
+RLHF collects human preference data, trains a reward model on it, then optimizes the policy
+against that proxy. RLVR skips all of that when you have a ground truth to check against: the
+reward signal is the ground truth itself, not a learned approximation of it.
+
+This can be seen as an RL feedback loop where, instead of a reward model, a verification
+function scores the agent's completions.
+
+<figure class="narrow">
+  <img src="/images/notes/rlvr-feedback-loop.png" alt="RLVR feedback loop diagram: training data provides prompts to an agent (policy pi-theta), which produces completions; a Verifiable Reward block scores the completion (reward = gamma if correct, else 0) and feeds the scalar reward back to the agent for a policy update" />
+  <figcaption>RLVR as an RL feedback loop: a verification function stands in for the reward model. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+</figure>
+
+See below to see how different it is to score responses for RLHF versus RLVR. In RLHF, a reward
+model must evaluate subjective qualities. In contrast, RLVR uses verification functions that
+return definitive scores.
+
+<div class="figure-row">
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rlhf-scoring-example.png" alt="RLHF example: a prompt asking to explain opportunity cost in economics, with an open-ended prose response and no verification step, since a reward model must judge subjective quality" />
+      <figcaption>RLHF: scoring is a subjective judgment call. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+  </div>
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rlvr-scoring-example.png" alt="RLVR example: a prompt asking for the sum of primes less than 20, with a response boxing the final answer 77, verified by the check extracted_answer == 77 giving Reward = 1" />
+      <figcaption>RLVR: scoring is a definitive check against the extracted answer. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+    <figure>
+      <img src="/images/notes/rlvr-code-scoring-example.png" alt="RLVR example for code generation: a prompt asking for a Python Fibonacci function, verified by unit tests (fib(0) == 0, fib(1) == 1, fib(10) == 55), all passing for Reward = 1" />
+      <figcaption>RLVR for code generation: verification via unit tests. Source: <a href="https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr">RLHF Book</a>.</figcaption>
+    </figure>
+  </div>
+</div>
+
+Unlike RLHF, there is no reward model to train, no reward model to overfit, and no proxy
+misalignment to worry about. But this only works when correctness is cleanly verifiable: for
+tasks where quality is subjective or multi-dimensional, you are back to needing a learned
+reward.
 
 ## How DeepSeek-R1 Models Were Trained Using RL
 
