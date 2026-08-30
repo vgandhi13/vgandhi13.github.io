@@ -530,6 +530,11 @@ could follow. Nothing in the reward signal cared about readability, only correct
   <figcaption>Correct answers, unreadable traces: the reward never asked for readability. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
 
+DeepSeek-R1 is the flagship model, the one with the best performance. The difference compared to
+DeepSeek-R1-Zero is that they alternated instruction fine-tuning, RLVR, and RLHF. The paper
+demonstrated clearly that supervised fine-tuning followed by reinforcement learning outperforms
+RL alone.
+
 ## Issues That Come Up for RL for LLMs
 
 ### 1. Policy entropy collapse
