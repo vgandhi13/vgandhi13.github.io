@@ -569,6 +569,39 @@ exploration is gone there is nothing left to discover.
 The reward curve rises for a while and then goes flat, not because the model solved the task but
 because it stopped trying anything new.
 
+### 2. Objective bias from the normalization terms
+
+The bias here is not in the data, it is sitting inside the objective itself. The clean objective
+built above is not quite neutral. Look again at its two normalization terms, the $\frac{1}{T_i}$
+that divides by response length and the $\text{std}(r_1, \ldots, r_G)$ that divides the
+advantage by the group's spread. Each one quietly bends the gradient in a direction that has
+nothing to do with whether the answer was right.
+
+**Length.** Take two answers to the same problem, both correct, both earning a reward of 1, but
+one short and one long. Because the advantage is divided by the length of the response, the long
+answer's signal gets diluted across more tokens. The optimizer reads that as "longer was better"
+and starts rewarding length for its own sake. That is not a signal about reasoning, it is an
+artifact of the math.
+
+<figure>
+  <img src="/images/notes/grpo-bias-length.png" alt="Diagram of the length divisor 1 over the size of completion i: one problem with two sampled answers, both correct. The short answer's four tokens each carry advantage over 4, while the long answer's twelve tokens each carry advantage over 12, captioned same reward, thinner per-token signal, the long answer gets diluted" />
+  <figcaption>Same reward, thinner per-token signal: dividing by length dilutes the longer answer. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+**Spread.** The standard deviation term does something similar across prompts. It overweights
+problems that are trivially easy or impossibly hard, where every sample in the group earns
+nearly the same reward, so $\text{std}(r)$ sits near zero and dividing by it inflates whatever
+tiny differences are left. The prompts that actually discriminate, where the group genuinely
+disagrees, get weighted down relative to those.
+
+<figure>
+  <img src="/images/notes/grpo-bias-std.png" alt="Diagram of the standard-deviation divisor across three prompts: a trivially easy problem where all four samples are correct and std of r is about 0, a real problem where two of four are correct and std of r is 0.5, and an impossibly hard problem where no samples are correct and std of r is about 0. Bars below show the easy and hard prompts weighted large and the real problem weighted small" />
+  <figcaption>Near-zero spread on the easy and impossible prompts inflates their weight; the discriminating problem in the middle is weighted down. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+The fix from the Dr. GRPO work is to recognize these as objective biases, properties of the loss
+itself rather than bugs in the data, and simply drop both normalization terms.
+
 TODO: more issues to come.
 
 ## TODO
