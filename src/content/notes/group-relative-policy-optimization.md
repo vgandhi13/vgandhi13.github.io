@@ -484,6 +484,20 @@ reward.
   })();
 </script>
 
+The fundamental claim behind DeepSeek-R1 and R1-Zero is that RLVR explicitly induces reasoning
+capabilities. However, recent findings suggest that reasoning behaviors, including the "Aha
+moment" described in the next section, might already be present in base models because of
+pre-training on extensive chain-of-thought data.[^r1zero-critical] A separate line of work found
+that self-reflection and self-correction emerge progressively throughout pre-training, across
+various domains and model sizes.[^reflection] Both further complicate attributing reasoning
+capabilities solely to RL.
+
+Perhaps the conclusion is that RL definitely turns simple base models into reasoning models, but
+it is not the only way to induce or improve reasoning. As the DeepSeek-R1 team showed,
+distillation also improves reasoning. And since distillation in that paper meant instruction
+fine-tuning on chain-of-thought data, it is likely that pre-training on data which already
+includes chain-of-thought induces these abilities too.
+
 ## How DeepSeek-R1 Models Were Trained Using RL
 
 The DeepSeek-R1 release was three kinds of model, differing in how much RL and SFT each one got:
@@ -650,7 +664,7 @@ disagrees, get weighted down relative to those.
   <figcaption>Near-zero spread on the easy and impossible prompts inflates their weight; the discriminating problem in the middle is weighted down. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
 
-The fix from the Dr. GRPO work is to recognize these as objective biases, properties of the loss
+The fix from the [Dr. GRPO](https://arxiv.org/abs/2503.20783) work is to recognize these as objective biases, properties of the loss
 itself rather than bugs in the data, and simply drop both normalization terms.
 
 TODO: more issues to come.
@@ -664,3 +678,7 @@ TODO: more issues to come.
 [^rlvr]: See the RLHF Book's [discussion of RLVR](https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr).
 
 [^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_i$ is already the reward of completion $i$ here, so the ratio gets $\rho$ instead.
+
+[^r1zero-critical]: [Understanding R1-Zero-Like Training: A Critical Perspective](https://arxiv.org/abs/2503.20783), which finds that DeepSeek-V3-Base already exhibits an "Aha moment" before any RL, and attributes the reasoning of some base models to pretraining biases. This is also the paper that introduces Dr. GRPO.
+
+[^reflection]: [Rethinking Reflection in Pre-Training](https://arxiv.org/abs/2504.04022), which plants deliberate errors in reasoning chains and measures whether the model catches them, finding the ability appears early in pre-training and improves steadily.
