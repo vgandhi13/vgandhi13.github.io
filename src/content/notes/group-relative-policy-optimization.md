@@ -80,8 +80,9 @@ footprint.
 
 GRPO shares a very similar surrogate loss to PPO, but avoids learning a value function, which
 would otherwise require keeping another copy of the policy language model in memory just to
-estimate value. This sidesteps two problems: the difficulty of learning a value function from an
-LM backbone, and the memory cost of storing that extra set of model weights.
+estimate value. GRPO says you don't need a learned critic or a learned reward model: sample a
+group of responses, score them against a rule-based check, and use the spread as your training
+signal. That is the whole algorithm.
 
 GRPO does this by simplifying value estimation: instead of a learned value function, it assigns
 the same baseline to every token in an episode, estimated via a Monte Carlo estimate over
