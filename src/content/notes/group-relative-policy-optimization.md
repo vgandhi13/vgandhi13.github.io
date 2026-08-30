@@ -532,21 +532,7 @@ could follow. Nothing in the reward signal cared about readability, only correct
 
 ## Issues That Come Up for RL for LLMs
 
-TODO: will update this section later. Starting list, from problems already surfaced above:
-
-1. **Readability is not in the reward.** R1-Zero optimized for correctness alone, so its traces
-   switched languages mid-thought and used formatting no reader could follow. Anything the
-   reward does not ask for is free to drift.
-2. **It only works where correctness is cleanly verifiable.** For tasks where quality is
-   subjective or multi-dimensional, you are back to needing a learned reward model, with all of
-   the proxy problems that brings.
-3. **Reward models are proxies, and proxies can be gamed.** RLHF optimizes against a learned
-   approximation of human preference rather than the preference itself, so the policy can find
-   ways to score well without being better.
-4. **Cost.** PPO-style setups keep extra networks in memory, which is the pressure GRPO was
-   built to relieve; rollouts are also expensive, since every update needs a fresh group of
-   sampled completions.
-
+TODO: will update this section later.
 
 ## TODO
 
