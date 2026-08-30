@@ -473,6 +473,12 @@ The DeepSeek-R1 release was three kinds of model, differing in how much RL and S
   <figcaption>Training pipeline for the DeepSeek-R1 family. Source: <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">“The State of LLM Reasoning Model Training”</a>, Sebastian Raschka.</figcaption>
 </figure>
 
+DeepSeek-R1-Zero was trained using verifiable rewards (RLVR) with GRPO, starting directly from
+the DeepSeek-V3 base model: no SFT stage and no human-preference reward model were used for it.
+That turned out to be sufficient for the model to exhibit reasoning abilities via
+intermediate-step generation, showing that it is possible to skip the SFT stage altogether. The
+model improves its reasoning abilities through exploration instead of learning from examples.
+
 ## TODO
 
 1. Refer to the Castform GRPO website.
