@@ -157,6 +157,20 @@ return definitive scores.
   </div>
 </div>
 
+One motivation here is to avoid noisy or expensive human or learned rewards by using automatic
+correctness checks as the supervision signal during RL. The other is cost: by using "cheap" tools
+like calculators, we replace both the expensive reward model training and the reward model
+itself. Since the reward model is usually a whole pre-trained model with a regression head on
+top, dropping it makes RLVR much more efficient.
+
+DeepSeek-R1 used RLVR with GRPO, which eliminates two expensive models from the training
+procedure, the reward model and the value model (critic), as illustrated in the figure below.
+
+<figure>
+  <img src="/images/notes/rlvr-grpo-model-count.png" alt="Three panels comparing how many models each setup keeps. RLHF with PPO holds four: original policy, new policy, critic, and reward model. RLHF with GRPO crosses out the critic, leaving three. RLVR with GRPO crosses out both the critic and the reward model, leaving only the original and new policy" />
+  <figcaption>What each setup has to keep in memory: PPO needs a critic and a reward model, GRPO drops the critic, and RLVR drops the reward model too. Source: Sebastian Raschka, <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">“The State of LLM Reasoning Model Training”</a>.</figcaption>
+</figure>
+
 Unlike RLHF, there is no reward model to train, no reward model to overfit, and no proxy
 misalignment to worry about. But this only works when correctness is cleanly verifiable: for
 tasks where quality is subjective or multi-dimensional, you are back to needing a learned
