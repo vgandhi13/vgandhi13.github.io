@@ -2,7 +2,7 @@
 title: Efficient Reinforcement Learning for LLMs
 description: "Why synchronous RL leaves GPUs idle, and how asynchronous Pipeline RL fixes it with in-flight weight updates and per-token importance ratios."
 date: 2026-07-29
-updated: 2026-07-31
+updated: 2026-08-31
 ---
 
 ## Synchronous RL
@@ -180,3 +180,7 @@ There is almost no data reuse. One optimizer step per batch means every update i
   <img src="/images/notes/pipeline-rl-vs-conventional.jpg" alt="Two timeline diagrams. In conventional RL, inference batch size decreases as shorter sequences finish, GPUs go idle waiting, and optimization steps happen in separate gaps. In Pipeline RL, inference runs at constant batch size while optimization steps 0 through 3 run back to back underneath it, with weights shading darker after each step." />
   <figcaption>Conventional RL (top) keeps GPUs idle while the last sequences finish; Pipeline RL (bottom) holds inference at full batch size and updates weights after every optimizer step. Source: <a href="https://arxiv.org/abs/2509.19128">Pipeline RL</a>, Figure 1.</figcaption>
 </figure>
+
+## NemoRL Async GRPO
+
+TODO: write this section.
