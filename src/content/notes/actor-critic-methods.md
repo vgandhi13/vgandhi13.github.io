@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -420,7 +420,7 @@ The last line adds one piece this note hasn't derived. LLM setups usually attach
 
 <span id="what-the-old-policy-means-in-practice"></span>
 
-[Version 1](#version-1-multiple-gradient-steps)'s inner loop is what PPO actually runs, so it's worth being precise about what sits in the denominator. $\pi_\theta$ there is not the model from the previous gradient step; it's a frozen snapshot taken before the batch was collected. Nothing trains that copy, and it does two jobs at once: it generates the rollouts (prompt 1 → response A, prompt 2 → response B, and so on), and it supplies $\pi_\theta(a \mid s)$ for every ratio computed off them. So as the inner loop runs, the numerator moves every step, $\pi_{\theta'}$ after one update, then after two, then after three, while the denominator stays $\pi_\theta$ the whole way through.
+[Version 1](#version-1-multiple-gradient-steps)'s inner loop is what PPO actually runs, so it's worth being precise about what sits in the denominator. $\pi_\theta$ there is not the model from the previous gradient step; it's a frozen snapshot taken before the batch was collected. Nothing trains that copy, and it does two jobs at once: it generates the rollouts (prompt 1 → response A, prompt 2 → response B, and so on), and it supplies $\pi_\theta(a \mid s)$ for every ratio computed off them. So as the inner loop runs, the numerator moves every step, $\pi_{\theta'}$ after one update, then after two, then after three, while the denominator stays $\pi_\theta$ the whole way through. The advantage is frozen alongside it: $\hat{A}^{\pi_\theta}$ is computed once from this batch and reused unchanged by every step, recomputed once per rollout rather than once per optimizer step.
 
 For LLM RL, "several steps" usually means 2 to 10 epochs over the same batch. Then the data is discarded, $\theta \leftarrow \theta'$ makes the latest model the new frozen snapshot (playing both roles again), and the loop restarts from a completely fresh batch. Resetting that often is what bounds the staleness [Version 1](#version-1-multiple-gradient-steps) flagged: every action and reward in the batch came from $\pi_\theta$, so still training on them twenty updates later means optimizing against behavior the model no longer exhibits.
 
