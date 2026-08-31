@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-08-29
+updated: 2026-08-31
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -64,47 +64,57 @@ combined.
 
 GRPO does this by simplifying value estimation: instead of a learned value function, it assigns
 the same baseline to every token in an episode, estimated via a Monte Carlo estimate over
-multiple completions ($a_i$) and their rewards ($r_i$), sampled from the same initial
-prompt/state ($s$).
+multiple completions ($a_{i,j}$) and their rewards ($r_{i,j}$), sampled from the same initial
+prompt/state ($s_i$).
 
-For one prompt $s$, GRPO samples a group of $G$ completions $a_1, \ldots, a_G$ from the old
-policy $\pi_{\theta_{\text{old}}}$. $G$ is the group size, and two indices matter below: $i = 1,
-\ldots, G$ runs over completions in the group, while $t = 1, \ldots, T_i$ runs over the tokens
-inside completion $i$.
+A training step works on a batch of $N$ prompts $s_1, \ldots, s_N$. For each prompt $s_i$, GRPO
+samples a group of $G$ completions $a_{i,1}, \ldots, a_{i,G}$ from the old policy
+$\pi_{\theta_{\text{old}}}$. $G$ is the group size, and three indices matter below: $i = 1,
+\ldots, N$ runs over prompts in the batch, $j = 1, \ldots, G$ runs over completions in that
+prompt's group, and $t = 1, \ldots, T_{i,j}$ runs over the tokens inside completion $j$.
 
-The split between those two indices is the thing to hold onto, because the two halves of the
-objective live at different levels. The **importance ratio is per token**: writing $a_{i,t}$ for
-the $t$-th token of completion $i$ and $a_{i,<t}$ for the tokens before it,
-
-$$
-\rho_{i,t}(\theta) = \frac{\pi_\theta(a_{i,t} \mid s,\, a_{i,<t})}{\pi_{\theta_{\text{old}}}(a_{i,t} \mid s,\, a_{i,<t})},
-$$
-
-so a completion of $T_i$ tokens contributes $T_i$ separate ratios.[^ratio-symbol] The **reward and
-the advantage are per sequence**: the reward is scored on the finished completion, so there is a
-single $A_i$ for completion $i$ and every token in it is pushed by that same number.
-
-Putting the two levels together, the objective (or loss) is:
+The split between the last two is the thing to hold onto, because the two halves of the objective
+live at different levels. The **importance ratio is per token**: writing $a_{i,j,t}$ for the
+$t$-th token of completion $j$ and $a_{i,j,<t}$ for the tokens before it,
 
 $$
-J(\theta) = \frac{1}{G}\sum_{i=1}^{G} \frac{1}{T_i} \sum_{t=1}^{T_i} \min\left(\rho_{i,t} A_i,\ \text{clip}\left(\rho_{i,t}, 1-\varepsilon, 1+\varepsilon\right) A_i\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})
+\rho_{i,j,t}(\theta) = \frac{\pi_\theta(a_{i,j,t} \mid s_i,\, a_{i,j,<t})}{\pi_{\theta_{\text{old}}}(a_{i,j,t} \mid s_i,\, a_{i,j,<t})},
 $$
 
-Concretely, if completion $i$ is “The answer is 12”, tokenized as $a_{i,1} = \text{The}$,
-$a_{i,2} = \text{ answer}$, $a_{i,3} = \text{ is}$, $a_{i,4} = \text{ 12}$, then $T_i = 4$ and
-that completion contributes four ratios $\rho_{i,1}, \ldots, \rho_{i,4}$, each multiplied by the
-same sequence-level advantage $A_i$.
+so a completion of $T_{i,j}$ tokens contributes $T_{i,j}$ separate ratios.[^ratio-symbol] The
+**reward and the advantage are per sequence**: the reward is scored on the finished completion, so
+there is a single $A_{i,j}$[^advantage-index] for completion $j$ and every token in it is pushed by
+that same number.
 
-To make an update meaningful, the advantage $A_i$ is computed by subtracting this baseline from
+Putting the levels together, and estimating the expectations by the batch itself, the objective
+(or loss) is:
+
+$$
+J(\theta) \approx \frac{1}{N}\sum_{i=1}^{N} \frac{1}{G}\sum_{j=1}^{G} \frac{1}{T_{i,j}} \sum_{t=1}^{T_{i,j}} \min\left(\rho_{i,j,t} A_{i,j},\ \text{clip}\left(\rho_{i,j,t}, 1-\varepsilon, 1+\varepsilon\right) A_{i,j}\right) - \beta\, \mathcal{D}_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})
+$$
+
+Both averages are Monte Carlo estimates, which is why this is an $\approx$ and not an $=$. The
+objective is an expectation over two draws: which prompt comes out of the training set, and which
+group of $G$ completions the old policy happens to produce for it. The batch estimates the first
+with $\frac{1}{N}\sum_i$ and the second with $\frac{1}{G}\sum_j$. Everything from here to the end
+of the section happens inside one prompt's group, with $i$ along only to say which prompt's.
+
+Concretely, if completion $j$ of prompt $s_i$ is “The answer is 12”, tokenized as
+$a_{i,j,1} = \text{The}$, $a_{i,j,2} = \text{ answer}$, $a_{i,j,3} = \text{ is}$,
+$a_{i,j,4} = \text{ 12}$, then $T_{i,j} = 4$ and that completion contributes four ratios
+$\rho_{i,j,1}, \ldots, \rho_{i,j,4}$, each multiplied by the same sequence-level advantage
+$A_{i,j}$.
+
+To make an update meaningful, the advantage $A_{i,j}$ is computed by subtracting this baseline from
 the reward. A positive advantage means the response was better than expected, so its probability
 should increase; a negative advantage means it was worse than expected, so its probability
 should decrease.
 
 In PPO, the baseline comes from a learned value function. GRPO instead gets it from the group
-itself, using the rewards $r_1, \ldots, r_G$ of the completions sampled for this prompt:
+itself, using the rewards $r_{i,1}, \ldots, r_{i,G}$ of the completions sampled for prompt $s_i$:
 
 $$
-\text{baseline} = \text{mean}(r_1, \ldots, r_G), \qquad A_i = \frac{r_i - \text{baseline}}{\text{std}(r_1, \ldots, r_G)}.
+\text{baseline}_i = \text{mean}(r_{i,1}, \ldots, r_{i,G}), \qquad A_{i,j} = \frac{r_{i,j} - \text{baseline}_i}{\text{std}(r_{i,1}, \ldots, r_{i,G})}.
 $$
 
 Completions that score above the group average get a positive advantage and become more likely;
@@ -115,6 +125,16 @@ is always learning relative to itself, not some externally defined standard.
   <img src="/images/notes/grpo-group-baseline.png" alt="Diagram titled 'Let the group be its own baseline': a prompt q and a verifier feed K sampled responses, drawn as bars against a dashed horizontal line marking the group mean; bars above the mean carry upward arrows and bars below carry downward arrows, with a note reading 'no value network, no extra model'" />
   <figcaption>The group mean is the baseline: bars above it are reinforced, bars below are suppressed, and no value network is needed to draw the line. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
+
+One thing the notation hides: $\pi_{\theta_{\text{old}}}$ is not the model as of the previous
+gradient step. It is frozen when the group is sampled and left alone while several gradient steps
+run against that group, so on the first of those steps $\rho_{i,j,t} = 1$ exactly, and it drifts
+away from 1 only as $\theta$ moves off the snapshot that produced the completions. $A_{i,j}$ is
+frozen the same way: the mean and standard deviation that define it were computed from the
+rewards of $\pi_{\theta_{\text{old}}}$'s own samples, so every step taken on this group reuses
+the same $A_{i,j}$. Advantages are recomputed once per rollout group, not once per optimizer step.
+PPO's inner loop works the same way, in more detail
+[here](/notes/actor-critic-methods/#what-the-old-policy-means-in-practice).
 
 ## Reinforcement Learning with Verifiable Rewards (RLVR)
 
@@ -637,8 +657,9 @@ because it stopped trying anything new.
 ### 2. Objective bias from the normalization terms
 
 The bias here is not in the data, it is sitting inside the objective itself. The clean objective
-built above is not quite neutral. Look again at its two normalization terms, the $\frac{1}{T_i}$
-that divides by response length and the $\text{std}(r_1, \ldots, r_G)$ that divides the
+built above is not quite neutral. Look again at its two normalization terms, the
+$\frac{1}{T_{i,j}}$ that divides by response length and the $\text{std}(r_{i,1}, \ldots, r_{i,G})$
+that divides the
 advantage by the group's spread. Each one quietly bends the gradient in a direction that has
 nothing to do with whether the answer was right.
 
@@ -677,7 +698,15 @@ TODO: more issues to come.
 
 [^rlvr]: See the RLHF Book's [discussion of RLVR](https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr).
 
-[^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_i$ is already the reward of completion $i$ here, so the ratio gets $\rho$ instead.
+[^advantage-index]: Note which index the advantage does *not* carry. PPO's objective has a per-token advantage, one estimate for every state-action pair, which is what the critic is there to supply. In this note's indexing that would be $\hat{A}_{i,j,t}$, and GRPO collapses it to
+
+    $$
+    \hat{A}_{i,j,t} \longrightarrow A_{i,j}
+    $$
+
+    a single number per completion, multiplying every one of its $T_{i,j}$ ratios. The collapse follows directly from dropping the critic: with no value function, nothing can score an individual token's state, so the signal has to come from comparing whole responses against each other, and a comparison between completions yields one number per completion.
+
+[^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_{i,j}$ is already the reward of completion $j$ here, so the ratio gets $\rho$ instead.
 
 [^r1zero-critical]: [Understanding R1-Zero-Like Training: A Critical Perspective](https://arxiv.org/abs/2503.20783), which finds that DeepSeek-V3-Base already exhibits an "Aha moment" before any RL, and attributes the reasoning of some base models to pretraining biases. This is also the paper that introduces Dr. GRPO.
 
