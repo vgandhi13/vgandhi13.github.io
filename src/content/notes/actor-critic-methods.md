@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-07-30
+updated: 2026-08-30
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -343,28 +343,22 @@ Why take the minimum, instead of just always optimizing $\mathrm{clip}(r(\theta'
 
 Either way, the policy can't change too much in a single update while still improving the objective. This clipping mechanism, simple to implement and no constrained optimization required, is the core idea that makes PPO both stable and simple compared with earlier trust-region methods like TRPO.
 
-### What "the old policy" means in practice
+To see the whole thing in one place, here is a single token's PPO update worked end to end, for an LLM answering "What's 2 + 2?":
 
-The denominator of the ratio is not the model from the previous gradient step; it's a frozen snapshot. Call it $P_0$. That frozen copy does two jobs: it generates the rollouts, and it supplies $\pi_\theta(a \mid s)$ for every ratio computed off them.
+<figure>
+  <img src="/images/notes/ppo-walkthrough.png" alt="A five-step PPO walkthrough for one token: compute the old and new policy's probabilities for the token '4' (0.10 and 0.15) and their ratio 1.5; compute the raw score from the verifier reward and the value head's expected reward, giving advantage +0.6 and raw_score = 1.5 x 0.6 = 0.90; clip the ratio to clamp(1.5, 0.8, 1.2) = 1.2, giving clipped_score = 0.72; take final_score = min(0.90, 0.72) = 0.72; and compute loss = -final_score + beta * KL(new_policy || reference_model)." width="640" />
+  <figcaption>One token's PPO update, end to end. Source: <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">Sebastian Raschka</a>.</figcaption>
+</figure>
 
-One pass of the loop looks like this:
+The last line adds one piece this note hasn't derived. LLM setups usually attach a KL penalty to the clipped objective, weighted by $\beta$, and it's measured against a *reference model*: the model as it was before RL started, frozen for the entire run. That's a different thing from the snapshot in the ratio's denominator, which is refreshed every batch. The ratio keeps a single update from moving too far; the KL term keeps the whole run from drifting far from where it began.
 
-<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.25rem 1.25rem 1rem;">
+<span id="what-the-old-policy-means-in-practice"></span>
 
-1. **Freeze the old policy.** Take a copy of the current model and call it $P_0$. Nothing trains this copy; it only generates rollouts and supplies the denominator $\pi_{P_0}(a \mid s)$.
-2. **Generate a batch with $P_0$.** Prompt 1 → response A, prompt 2 → response B, prompt 3 → response C, and so on.
-3. **Score the batch.** Compute rewards for every response, then advantages for every sampled state-action pair.
-4. **Take a gradient step.** The trainable model moves $P_0 \to P_1$, so the ratio is $\dfrac{\pi_{P_1}}{\pi_{P_0}}$.
-5. **Take another.** $P_1 \to P_2$, ratio $\dfrac{\pi_{P_2}}{\pi_{P_0}}$. And another: $P_2 \to P_3$, ratio $\dfrac{\pi_{P_3}}{\pi_{P_0}}$. The numerator moves every step; the denominator does not move at all.
-6. **Reset.** After enough passes over the batch (typically 2 to 10 epochs), discard the data, set the old policy to the latest one ($P_3$ here, which now plays both roles), and repeat from step 2 with a completely fresh batch.
+[Version 1](#version-1-multiple-gradient-steps)'s inner loop is what PPO actually runs, so it's worth being precise about what sits in the denominator. $\pi_\theta$ there is not the model from the previous gradient step; it's a frozen snapshot taken before the batch was collected. Nothing trains that copy, and it does two jobs at once: it generates the rollouts (prompt 1 → response A, prompt 2 → response B, and so on), and it supplies $\pi_\theta(a \mid s)$ for every ratio computed off them. So as the inner loop runs, the numerator moves every step, $\pi_{\theta'}$ after one update, then after two, then after three, while the denominator stays $\pi_\theta$ the whole way through.
 
-</div>
+For LLM RL, "several steps" usually means 2 to 10 epochs over the same batch. Then the data is discarded, $\theta \leftarrow \theta'$ makes the latest model the new frozen snapshot (playing both roles again), and the loop restarts from a completely fresh batch. Resetting that often is what bounds the staleness [Version 1](#version-1-multiple-gradient-steps) flagged: every action and reward in the batch came from $\pi_\theta$, so still training on them twenty updates later means optimizing against behavior the model no longer exhibits.
 
-That final reset is what keeps the batch honest: the actions and rewards in it came from $P_0$, so training on them long after the policy has moved to, say, $P_{20}$ means optimizing against behavior the current model no longer exhibits, and the gradient estimates get steadily less accurate.
-
-The reason to squeeze several steps out of one batch at all is cost. For LLM RL, generating rollouts dominates: a single batch might mean generating 16,000 completions, scoring each one with a reward model or verifier, and computing advantages, which can take minutes. A gradient step on data already sitting in GPU memory is cheap by comparison. Taking exactly one update per batch would mean paying the expensive part over and over for one cheap step each time.
-
-Despite the importance ratio, PPO is usually called an on-policy algorithm, because the data it trains on always comes from the current policy or one that's only a few optimization steps old.
+The reason to squeeze several steps out of one batch at all is cost. Generating rollouts dominates: a single batch might mean generating 16,000 completions, scoring each one with a reward model or verifier, and computing advantages, which can take minutes. A gradient step on data already sitting in GPU memory is cheap by comparison, so taking exactly one update per batch would mean paying the expensive part over and over for one cheap step each time. Despite the importance ratio, PPO is still usually called an on-policy algorithm, because the data it trains on always comes from the current policy or one that's only a few optimization steps old.
 
 [^walking-inefficiency-example]: Consider a robot walking, where a good start is undone by one bad step:
 
