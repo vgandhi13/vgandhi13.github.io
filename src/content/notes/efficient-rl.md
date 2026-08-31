@@ -1,5 +1,5 @@
 ---
-title: Efficient Reinforcement Learning for LLMs
+title: Synchronous Vs Asynchronous Reinforcement Learning
 description: "Why synchronous RL leaves GPUs idle, and how asynchronous Pipeline RL fixes it with in-flight weight updates and per-token importance ratios."
 date: 2026-07-29
 updated: 2026-08-31
