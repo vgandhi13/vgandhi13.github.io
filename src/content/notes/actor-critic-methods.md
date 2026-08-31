@@ -345,10 +345,76 @@ Either way, the policy can't change too much in a single update while still impr
 
 To see the whole thing in one place, here is a single token's PPO update worked end to end, for an LLM answering "What's 2 + 2?":
 
-<figure>
-  <img src="/images/notes/ppo-walkthrough.png" alt="A five-step PPO walkthrough for one token: compute the old and new policy's probabilities for the token '4' (0.10 and 0.15) and their ratio 1.5; compute the raw score from the verifier reward and the value head's expected reward, giving advantage +0.6 and raw_score = 1.5 x 0.6 = 0.90; clip the ratio to clamp(1.5, 0.8, 1.2) = 1.2, giving clipped_score = 0.72; take final_score = min(0.90, 0.72) = 0.72; and compute loss = -final_score + beta * KL(new_policy || reference_model)." width="640" />
-  <figcaption>One token's PPO update, end to end. Source: <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">Sebastian Raschka</a>.</figcaption>
+<figure class="wide ppo-figure">
+  <div class="ppo-row">
+    <img src="/images/notes/ppo-walkthrough.png" alt="A five-step PPO walkthrough for one token: compute the old and new policy's probabilities for the token '4' (0.10 and 0.15) and their ratio 1.5; compute the raw score from the verifier reward and the value head's expected reward, giving advantage +0.6 and raw_score = 1.5 x 0.6 = 0.90; clip the ratio to clamp(1.5, 0.8, 1.2) = 1.2, giving clipped_score = 0.72; take final_score = min(0.90, 0.72) = 0.72; and compute loss = -final_score + beta * KL(new_policy || reference_model)." />
+    <div class="ppo-side">
+      <pre class="ppo-formulas"><code>ratio         = new_policy_prob / old_policy_prob
+raw_score     = ratio * advantage
+advantage     = actual_reward - expected_reward
+clipped_ratio = clamp(ratio, 0.8, 1.2)
+clipped_score = clipped_ratio * advantage
+final_score   = min(raw_score, clipped_score)
+loss          = -final_score
+              + β * KL(new_policy || reference_policy)</code></pre>
+      <p class="ppo-note">The value head reads the same text the policy did, <code>What's 2 + 2? The answer is</code>, and predicts the reward the verifier will end up handing back. Subtracting that prediction from the reward actually received is what turns a raw reward into the advantage in step 2.</p>
+    </div>
+  </div>
+  <figcaption>One token's PPO update, end to end. Diagram source: <a href="https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training">Sebastian Raschka</a>.</figcaption>
 </figure>
+
+<style>
+  /* One-off layout for the PPO walkthrough: the diagram beside the same steps
+     written symbolically. Needs more than the 58rem prose column, since the
+     diagram's labels stop being legible much below its native 640px.
+     Selectors carry .wide too, to outweigh Base.astro's figure.wide rules. */
+  figure.ppo-figure.wide {
+    width: min(1120px, calc(100vw - 2.5rem));
+  }
+  figure.ppo-figure.wide .ppo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  /* overrides figure.wide img { width: 100%; min-width: 1024px } in Base.astro */
+  figure.ppo-figure.wide .ppo-row img {
+    flex: 0 0 auto;
+    width: 640px;
+    min-width: 0;
+  }
+  figure.ppo-figure.wide .ppo-side {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  figure.ppo-figure.wide .ppo-formulas {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.9;
+  }
+  figure.ppo-figure.wide .ppo-note {
+    margin: 0.85rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+  }
+  /* Stack rather than scroll once the row no longer fits: returns the figure to
+     the prose column so the caption and body text line up again. */
+  @media (max-width: 1160px) {
+    figure.ppo-figure.wide {
+      width: 100%;
+      left: auto;
+      transform: none;
+    }
+    figure.ppo-figure.wide .ppo-row {
+      flex-direction: column;
+    }
+    figure.ppo-figure.wide .ppo-row img,
+    figure.ppo-figure.wide .ppo-side {
+      width: min(640px, 100%);
+    }
+  }
+</style>
 
 The last line adds one piece this note hasn't derived. LLM setups usually attach a KL penalty to the clipped objective, weighted by $\beta$, and it's measured against a *reference model*: the model as it was before RL started, frozen for the entire run. That's a different thing from the snapshot in the ratio's denominator, which is refreshed every batch. The ratio keeps a single update from moving too far; the KL term keeps the whole run from drifting far from where it began.
 
@@ -359,6 +425,8 @@ The last line adds one piece this note hasn't derived. LLM setups usually attach
 For LLM RL, "several steps" usually means 2 to 10 epochs over the same batch. Then the data is discarded, $\theta \leftarrow \theta'$ makes the latest model the new frozen snapshot (playing both roles again), and the loop restarts from a completely fresh batch. Resetting that often is what bounds the staleness [Version 1](#version-1-multiple-gradient-steps) flagged: every action and reward in the batch came from $\pi_\theta$, so still training on them twenty updates later means optimizing against behavior the model no longer exhibits.
 
 The reason to squeeze several steps out of one batch at all is cost. Generating rollouts dominates: a single batch might mean generating 16,000 completions, scoring each one with a reward model or verifier, and computing advantages, which can take minutes. A gradient step on data already sitting in GPU memory is cheap by comparison, so taking exactly one update per batch would mean paying the expensive part over and over for one cheap step each time. Despite the importance ratio, PPO is still usually called an on-policy algorithm, because the data it trains on always comes from the current policy or one that's only a few optimization steps old.
+
+TODO: add Generalized Advantage Estimation (GAE).
 
 [^walking-inefficiency-example]: Consider a robot walking, where a good start is undone by one bad step:
 

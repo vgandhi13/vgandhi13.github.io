@@ -184,6 +184,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   then need retuning per theme — `#4A90CF` is only ~3.3:1 on white. User hasn't decided; the
   white-slab version is consistent with the white-background figures already in the notes.
 
+- **A figure with a companion box beside it** (the PPO walkthrough in `actor-critic-methods.md`):
+  a `<figure class="wide ppo-figure">` holding a flex `.ppo-row` of `<img>` + `<pre>`, with the
+  layout CSS in a sibling `<style>` block in the note, not Base.astro. Two things to know before
+  copying it. (1) **Specificity**: Base.astro's `figure.wide` rules are `0,1,1`, so a plain
+  `.my-figure` override silently loses (the breakout stayed 1280px wide and `figure.wide img`'s
+  `min-width: 1024px` stayed in force). Write the overrides as `figure.my-figure.wide`. (2) The
+  box needs no styling of its own: the global `pre` rule is already `--surface` + 1px `--border`
+  + 6px radius, which is exactly the boxed-code look, so a bare `<pre><code>` matches the theme
+  in both modes for free. Side-by-side is the one case that justifies breaking out of the prose
+  column against the deliberate no-breakout rule on Base.astro's `.figure-row`: 880px cannot
+  hold a legible diagram *and* a second column. Below the width where the row fits, undo the
+  breakout (`width: 100%; left: auto; transform: none`) and stack, rather than inheriting
+  `figure.wide`'s horizontal scroll.
+
 - **Inline `<svg>` diagrams** (hand-drawn box/flow diagrams written directly in the markdown,
   as in the scheduling-RL post): pick plain `<figure>` vs `<figure class="wide">` by comparing
   the diagram's `viewBox` width to the ~880px prose column, not by reflex — three diagrams at
