@@ -2,7 +2,7 @@
 title: Policy Gradients
 description: "RL and MDP preliminaries: states, actions, trajectories, and the expected-reward objective."
 date: 2026-07-12
-updated: 2026-07-14
+updated: 2026-08-30
 ---
 
 Policy gradient methods are a class of reinforcement learning algorithms and a sub-class of policy optimization methods. Unlike value-based methods, which learn a value function to derive a policy, policy optimization methods directly learn a policy function $\pi$ that selects actions without consulting a value function. For policy gradient to apply, the policy function $\pi_\theta$ is parameterized by a differentiable parameter $\theta$.[^wiki]
@@ -178,7 +178,7 @@ Putting it all together, this is the online RL loop from earlier, made concrete.
 
 1. Sample trajectories $\{\tau^i\}$ by running the current policy $\pi_\theta(a_t \mid s_t)$ in the environment.
 2. Estimate the gradient: $\nabla_\theta J(\theta) \approx \sum_i \left( \sum_t \nabla_\theta \log \pi_\theta(a_t^i \mid s_t^i) \right) \left( \sum_t r(s_t^i, a_t^i) \right)$.[^mc-worked-example]
-3. Update the policy: $\theta \leftarrow \theta + \alpha \nabla_\theta J(\theta)$.
+3. Update the policy: $\theta \leftarrow \theta + \alpha \nabla_\theta J(\theta)$.[^param-update]
 
 </div>
 
@@ -481,6 +481,20 @@ Pick a small threshold $\delta$, and reject (or shrink) any update that would pu
     $$
 
     which gives the update $\theta \leftarrow \theta + \alpha (28.3)$.
+
+[^param-update]: Step 3 is just the ordinary neural-network parameter update, with a plus sign because we are *ascending* $J(\theta)$ instead of descending a loss. In standard supervised training the update is
+
+    $$
+    \theta \leftarrow \theta - \alpha \nabla_\theta L
+    $$
+
+    where $\theta$ stands for *all* trainable parameters at once. If the network is $\theta = \{W_1, b_1, W_2, b_2\}$, that one line means
+
+    $$
+    W_1 \leftarrow W_1 - \alpha \frac{\partial L}{\partial W_1}, \quad b_1 \leftarrow b_1 - \alpha \frac{\partial L}{\partial b_1}, \quad W_2 \leftarrow W_2 - \alpha \frac{\partial L}{\partial W_2}, \quad b_2 \leftarrow b_2 - \alpha \frac{\partial L}{\partial b_2}
+    $$
+
+    with every trainable parameter moving along its own gradient. Policy gradient uses exactly the same rule, $\theta \leftarrow \theta - \alpha \nabla_\theta L_{\text{policy}}$; the only special part is how the loss is defined, $L_{\text{policy}} = -\log \pi_\theta(a_t \mid s_t) \, G_t$ (see [the surrogate objective](#implementing-this-efficiently-the-surrogate-objective) below), and minimizing that loss is the same thing as ascending $J(\theta)$. So the pipeline is: RL supplies the objective, backprop computes the gradients, and a standard optimizer updates the network's parameters.
 
 [^high-variance-example]: Take the same 3 episodes, but suppose episode 3 happened to get a lucky return of $1000$ instead of $20$:
 
