@@ -1,8 +1,8 @@
 ---
-title: Instruction Finetuning
+title: Instruction and Supervised Finetuning
 description: "How instruction tuning differs from pretraining: loss masking, data, batch sizes, and learning rates."
 date: 2026-07-06
-updated: 2026-07-12
+updated: 2026-08-31
 ---
 
 Instruction tuning is the next step after pre-training and the foundation of post-training. It teaches the model how humans want it to respond.
@@ -265,6 +265,10 @@ To make the "one to two orders of magnitude below pretraining" guidance concrete
 | 5e-5 | `Paris is the capital of France. It is also the country's most populous city and is located on the river Seine. The city has a population of 2.2 million...`: correct and stops, but pads with unrequested detail |
 
 Lowest loss does not mean best behavior: `5e-5` fits the training distribution's style fastest (hence lowest loss) but shows the first signs of overfitting: earlier checkpoints (steps 100-200) at this lr produced confidently wrong padding (e.g. claiming Paris was "founded in 753 BC," the traditional founding date of Rome). `1e-6` never escapes base-model continuation behavior within the step budget; too low to converge. `5e-6` is the sweet spot in this sweep: it answers and stops cleanly without the padding/hallucination artifacts of the higher lr.
+
+## TODO
+
+1. ["Understanding and Using Supervised Fine-Tuning (SFT) for Language Models"](https://cameronrwolfe.substack.com/p/understanding-and-using-supervised), Cameron R. Wolfe
 
 ---
 

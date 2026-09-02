@@ -695,6 +695,7 @@ TODO: more issues to come.
 1. Refer to the Castform GRPO website.
 2. [RLHF Book: Reasoning](https://rlhfbook.com/c/07-reasoning)
 3. ["The State of LLM Reasoning Model Training"](https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training), Sebastian Raschka
+4. ["Group Relative Policy Optimization (GRPO)"](https://cameronrwolfe.substack.com/p/grpo), Cameron R. Wolfe
 
 [^rlvr]: See the RLHF Book's [discussion of RLVR](https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr).
 
