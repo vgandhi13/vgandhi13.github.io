@@ -54,7 +54,7 @@ GPU 2: 100 prompts → 100 responses
 GPU 8: 100 prompts → 100 responses
 ```
 
-Those 800 rollouts are what the rewards, advantages, and PPO loss are computed from. Then comes not one gradient step but several, often [multiple epochs over the same collected data](/notes/actor-critic-methods/#what-the-old-policy-means-in-practice), with $\pi_t$ held fixed in the denominator of every importance ratio:
+Those 800 rollouts are what the rewards, advantages, and PPO loss are computed from. Then comes not one gradient step but several, often [multiple epochs over the same collected data](/notes/group-relative-policy-optimization/#what-the-old-policy-means-in-practice), with $\pi_t$ held fixed in the denominator of every importance ratio:
 
 ```text
 Collect rollouts using π_t
@@ -152,7 +152,7 @@ PPO normally assumes one rollout maps to one policy. Pipeline RL breaks that: on
 
 ### The importance ratio needs a per-token denominator
 
-Standard PPO assumes every token in a rollout came from the same behavior policy, which is exactly what makes [its importance ratio well defined](/notes/actor-critic-methods/#what-the-old-policy-means-in-practice): the behavior policy is just $\pi_t$, so
+Standard PPO assumes every token in a rollout came from the same behavior policy, which is exactly what makes [its importance ratio well defined](/notes/group-relative-policy-optimization/#what-the-old-policy-means-in-practice): the behavior policy is just $\pi_t$, so
 
 $$
 r = \frac{\pi_\theta(a \mid s)}{\pi_t(a \mid s)}
