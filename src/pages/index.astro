@@ -320,34 +320,34 @@ const news = [
     <h2>Teaching</h2>
     <div class="entry">
       <h3>CS 230: Computer Systems Principles</h3>
-      <p class="entry-meta">Graduate Teaching Assistant · UMass Amherst, Spring 2026</p>
+      <p class="entry-meta">Graduate Teaching Assistant ·&nbsp;UMass Amherst, Spring 2026</p>
     </div>
     <div class="entry">
       <h3>FYS 191MCS24: First Year Seminar on Ethics in AI</h3>
       <p class="entry-meta">
-        Instructor, 2 sections · UMass Amherst, Fall 2025
+        <strong>Lead Instructor (Teaching Associate)</strong>, 2 sections ·&nbsp;UMass Amherst, Fall 2025
         <span class="meta-link">· <a href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home" target="_blank" rel="noopener">Course website<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a></span>
       </p>
     </div>
     <div class="entry">
       <h3>FYS 191MCS22: First Year Seminar on Modern Computing Systems</h3>
       <p class="entry-meta">
-        Instructor, 2 sections · UMass Amherst, Fall 2025
+        <strong>Lead Instructor (Teaching Associate)</strong>, 2 sections ·&nbsp;UMass Amherst, Fall 2025
         <span class="meta-link">· <a href="https://sites.google.com/umass.edu/systems-fys-fall25/home" target="_blank" rel="noopener">Course website<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a></span>
       </p>
     </div>
     <div class="entry">
       <h3>CICS 160: Object-Oriented Programming</h3>
-      <p class="entry-meta">Graduate Teaching Assistant · UMass Amherst, Spring 2025</p>
+      <p class="entry-meta">Graduate Teaching Assistant ·&nbsp;UMass Amherst, Spring 2025</p>
     </div>
     <div class="entry">
       <h3>CS 453: Computer Networks</h3>
-      <p class="entry-meta">Undergraduate Course Assistant · UMass Amherst, Fall 2024</p>
+      <p class="entry-meta">Undergraduate Course Assistant ·&nbsp;UMass Amherst, Fall 2024</p>
     </div>
     <div class="entry">
       <h3>CS 377: Operating Systems</h3>
       <p class="entry-meta">
-        Undergraduate Course Assistant · UMass Amherst, Fall 2023 and Spring 2024
+        Undergraduate Course Assistant ·&nbsp;UMass Amherst, Fall 2023 and Spring 2024
       </p>
     </div>
   </section>
@@ -678,6 +678,13 @@ const news = [
     color: var(--text-muted);
     font-size: 0.9rem;
     margin: 0 0 0.35rem;
+  }
+
+  /* the lead-instructor role carries more ownership than a TA line, so it steps
+     out of the muted meta color to body text; the rest of the line stays muted */
+  .entry-meta strong {
+    color: var(--text);
+    font-weight: 600;
   }
 
   /* the separator is inside the nowrap span, not left behind on the previous

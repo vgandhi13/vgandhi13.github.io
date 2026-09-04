@@ -53,8 +53,17 @@ Usually also warrants a news item — ask or just add both.
 
 Copy an existing `.entry`: **plain (unlinked) course title** in the `h3`, then a meta line
 `<Role> · UMass Amherst, <term>`. Spell the role out (`Graduate Teaching Assistant`,
-`Undergraduate Course Assistant`, `Instructor`); UCA/GTA don't travel outside UMass. Add
-`, N sections` after the role when a course ran more than one.
+`Undergraduate Course Assistant`, `Lead Instructor (Teaching Associate)`); UCA/GTA don't travel
+outside UMass. Add `, N sections` after the role when a course ran more than one.
+
+Wrap a role in `<strong>` when it carried materially more ownership than the others (the lead
+instructor roles do; a TA line doesn't). `.entry-meta strong` steps that role out of the muted
+meta color up to `--text` while the rest of the line stays muted, so the list has a visible
+hierarchy instead of six interchangeable rows. It only works as a signal while it stays rare.
+
+Separators are written `·&nbsp;` (space before the dot, nbsp after), which binds the dot to the
+segment that **follows** it. These lines wrap on a phone, and a `·` left at the end of a line
+reads as truncation. Same reason the link's separator lives inside `.meta-link`.
 
 A course site does **not** go on the title, and does **not** get a `.paper-links`-style button:
 one link on some entries doesn't earn the box a five-link paper does, and a third row breaks the
