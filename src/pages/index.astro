@@ -323,28 +323,18 @@ const news = [
       <p class="entry-meta">Graduate Teaching Assistant · UMass Amherst, Spring 2026</p>
     </div>
     <div class="entry">
-      <h3>
-        <a
-          href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home"
-          target="_blank"
-          rel="noopener"
-        >
-          FYS 191MCS24: First Year Seminar on Ethics in AI
-        </a>
-      </h3>
+      <h3>FYS 191MCS24: First Year Seminar on Ethics in AI</h3>
       <p class="entry-meta">Instructor, 2 sections · UMass Amherst, Fall 2025</p>
+      <div class="entry-links">
+        <a href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home" target="_blank" rel="noopener">Course website</a>
+      </div>
     </div>
     <div class="entry">
-      <h3>
-        <a
-          href="https://sites.google.com/umass.edu/systems-fys-fall25/home"
-          target="_blank"
-          rel="noopener"
-        >
-          FYS 191MCS22: First Year Seminar on Modern Computing Systems
-        </a>
-      </h3>
+      <h3>FYS 191MCS22: First Year Seminar on Modern Computing Systems</h3>
       <p class="entry-meta">Instructor, 2 sections · UMass Amherst, Fall 2025</p>
+      <div class="entry-links">
+        <a href="https://sites.google.com/umass.edu/systems-fys-fall25/home" target="_blank" rel="noopener">Course website</a>
+      </div>
     </div>
     <div class="entry">
       <h3>CICS 160: Object-Oriented Programming</h3>
@@ -623,13 +613,15 @@ const news = [
     font-size: 0.95rem;
   }
 
-  .paper-links {
+  .paper-links,
+  .entry-links {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
   }
 
-  .paper-links a {
+  .paper-links a,
+  .entry-links a {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -652,7 +644,8 @@ const news = [
     flex-shrink: 0;
   }
 
-  .paper-links a:hover {
+  .paper-links a:hover,
+  .entry-links a:hover {
     background: var(--surface);
     text-decoration: none;
   }

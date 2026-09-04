@@ -51,7 +51,22 @@ Usually also warrants a news item — ask or just add both.
 
 ## Teaching
 
-Copy an existing `.entry`: linked course title, meta line `Instructor · UMass Amherst, <term>`.
+Copy an existing `.entry`: **plain (unlinked) course title** in the `h3`, then a meta line
+`<Role> · UMass Amherst, <term>`. Spell the role out (`Graduate Teaching Assistant`,
+`Undergraduate Course Assistant`, `Instructor`); UCA/GTA don't travel outside UMass. Add
+`, N sections` after the role when a course ran more than one.
+
+A course site does **not** go on the title. It gets its own button below the meta line, reusing
+the Research section's button style:
+
+```astro
+<div class="entry-links">
+  <a href="https://..." target="_blank" rel="noopener">Course website</a>
+</div>
+```
+
+`.entry-links` is comma-joined onto the `.paper-links` rules rather than being a second copy of
+them, so the two sections' buttons can't drift apart. Newest term first.
 
 ## Social links
 
