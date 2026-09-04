@@ -56,17 +56,21 @@ Copy an existing `.entry`: **plain (unlinked) course title** in the `h3`, then a
 `Undergraduate Course Assistant`, `Instructor`); UCA/GTA don't travel outside UMass. Add
 `, N sections` after the role when a course ran more than one.
 
-A course site does **not** go on the title. It gets its own button below the meta line, reusing
-the Research section's button style:
+A course site does **not** go on the title, and does **not** get a `.paper-links`-style button:
+one link on some entries doesn't earn the box a five-link paper does, and a third row breaks the
+two-line rhythm the rest of the list has. Fold it into the meta line as another `·` item:
 
 ```astro
-<div class="entry-links">
-  <a href="https://..." target="_blank" rel="noopener">Course website</a>
-</div>
+<p class="entry-meta">
+  Instructor, 2 sections · UMass Amherst, Fall 2025
+  <span class="meta-link">· <a href="https://..." target="_blank" rel="noopener">Course website<svg …/></a></span>
+</p>
 ```
 
-`.entry-links` is comma-joined onto the `.paper-links` rules rather than being a second copy of
-them, so the two sections' buttons can't drift apart. Newest term first.
+The separator lives **inside** `.meta-link` (which is `white-space: nowrap`), so when the line
+wraps on a phone the whole "· Course website ↗" moves down together instead of stranding a
+trailing `·` at the end of the previous line. Copy the 11px arrow `<svg>` from an existing entry.
+Newest term first.
 
 ## Social links
 

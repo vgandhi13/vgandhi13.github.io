@@ -324,17 +324,17 @@ const news = [
     </div>
     <div class="entry">
       <h3>FYS 191MCS24: First Year Seminar on Ethics in AI</h3>
-      <p class="entry-meta">Instructor, 2 sections · UMass Amherst, Fall 2025</p>
-      <div class="entry-links">
-        <a href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home" target="_blank" rel="noopener">Course website</a>
-      </div>
+      <p class="entry-meta">
+        Instructor, 2 sections · UMass Amherst, Fall 2025
+        <span class="meta-link">· <a href="https://sites.google.com/umass.edu/ethicsai-fys-fall25/home" target="_blank" rel="noopener">Course website<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a></span>
+      </p>
     </div>
     <div class="entry">
       <h3>FYS 191MCS22: First Year Seminar on Modern Computing Systems</h3>
-      <p class="entry-meta">Instructor, 2 sections · UMass Amherst, Fall 2025</p>
-      <div class="entry-links">
-        <a href="https://sites.google.com/umass.edu/systems-fys-fall25/home" target="_blank" rel="noopener">Course website</a>
-      </div>
+      <p class="entry-meta">
+        Instructor, 2 sections · UMass Amherst, Fall 2025
+        <span class="meta-link">· <a href="https://sites.google.com/umass.edu/systems-fys-fall25/home" target="_blank" rel="noopener">Course website<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg></a></span>
+      </p>
     </div>
     <div class="entry">
       <h3>CICS 160: Object-Oriented Programming</h3>
@@ -613,15 +613,13 @@ const news = [
     font-size: 0.95rem;
   }
 
-  .paper-links,
-  .entry-links {
+  .paper-links {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
   }
 
-  .paper-links a,
-  .entry-links a {
+  .paper-links a {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -644,8 +642,7 @@ const news = [
     flex-shrink: 0;
   }
 
-  .paper-links a:hover,
-  .entry-links a:hover {
+  .paper-links a:hover {
     background: var(--surface);
     text-decoration: none;
   }
@@ -681,6 +678,19 @@ const news = [
     color: var(--text-muted);
     font-size: 0.9rem;
     margin: 0 0 0.35rem;
+  }
+
+  /* the separator is inside the nowrap span, not left behind on the previous
+     line: on a phone the meta line wraps, and a trailing "·" reads as truncation */
+  .entry-meta .meta-link {
+    white-space: nowrap;
+  }
+
+  .entry-meta svg {
+    width: 11px;
+    height: 11px;
+    vertical-align: -1px;
+    margin-left: 2px;
   }
 
   .entry p {
