@@ -21,8 +21,10 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
   <ul class="note-list" id="browse-list">
     {notes.map((note) => (
       <li>
-        <a href={`/notes/${note.id}/`}>{note.data.title}</a>
-        {note.data.wip && <span class="wip-badge">in progress</span>}
+        <span class="note-title">
+          <a href={`/notes/${note.id}/`}>{note.data.title}</a>
+          {note.data.wip && <span class="wip-badge">in progress</span>}
+        </span>
         <span class="date">
           {note.data.date.toLocaleDateString('en-US', {
             year: 'numeric',
@@ -50,14 +52,23 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
   .note-list li {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     gap: 1rem;
     padding: 0.45rem 0;
     border-bottom: 1px solid var(--border);
   }
 
+  /* title and badge share one flex item so the badge flows after the title text.
+     As a direct flex child it stretched to the row's height, and on a phone, where
+     the title wraps to three lines, border-radius: 999px turned that tall box into
+     a huge oval floating beside the title. */
+  .note-title {
+    min-width: 0;
+  }
+
   .wip-badge {
-    flex-shrink: 0;
-    margin-right: auto;
+    display: inline-block;
+    margin-left: 0.4rem;
     padding: 0.05rem 0.45rem;
     border: 1px solid var(--border);
     border-radius: 999px;

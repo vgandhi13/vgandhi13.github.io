@@ -239,6 +239,17 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `:root[data-theme='dark']` override) so it works in both themes. Styles live in the note, not
   Base.astro, so a one-off widget's CSS doesn't load on every page.
 
+- **A pill-shaped badge must never be a direct flex item** (the `in progress` badge on
+  `src/pages/notes/index.astro`, `wip: true` in a note's frontmatter). The row is
+  `display: flex`, so with default `align-items: stretch` the badge grew to the row's full
+  height; on a phone, where the long title wraps to three lines, `border-radius: 999px` on
+  that ~95px-tall box rendered as a giant oval floating beside the title. Fix is structural,
+  not a height override: wrap link + badge in one `.note-title` flex item so the badge is
+  inline-block *text* that flows after the last word (and reflows for free when the title
+  wraps), with `align-items: baseline` on the `li` so the date sits on the title's first
+  baseline. Entry.astro's copy of the badge was always fine because it lives inside the `h1`.
+  Desktop looks identical either way, so check any badge/pill at 390px, not just 1440px.
+
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.
 - **A small logo/icon PNG with an opaque white background** (e.g. `public/logos/arxiv.org.png`,
