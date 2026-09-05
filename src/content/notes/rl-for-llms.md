@@ -227,9 +227,7 @@ to the prompt $x$.
 
 This modified advantage estimate can be plugged into the same policy gradient expression used by
 REINFORCE. As in REINFORCE, RLOO uses a per-completion (as opposed to per-token) loss, and there is
-no learned value model. However, the leave-one-out baseline lowers variance relative to standard
-REINFORCE by using multiple samples per prompt to derive the policy gradient estimate. Compared to
-a single-sample approach, this benefits training stability, speed, and performance.
+no learned value model.
 
 For each completion we have its advantage $A_i$ and its log probability
 $\log \pi_\theta(y_i \mid x_i)$. Writing $B$ for the number of prompts in the batch and $K$ for the
@@ -246,7 +244,9 @@ $$
 $$
 
 So a batch of 32 prompts with $K = 8$ completions each puts $32 \times 8 = 256$ completion samples
-behind one gradient step.
+behind one gradient step. The leave-one-out baseline lowers variance relative to standard REINFORCE
+by using multiple samples per prompt to derive the policy gradient estimate. Compared to a
+single-sample approach, this benefits training stability, speed, and performance.
 
 ## Proximal Policy Optimization (PPO)
 
