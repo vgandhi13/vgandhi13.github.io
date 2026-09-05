@@ -208,7 +208,7 @@ other completions to the same prompt.
 
 From here, we can compute the advantage estimate in RLOO by (i) computing this baseline for every
 completion for the prompt and (ii) subtracting the baseline from the reward received by that
-completion, as in the first equation below.
+completion, as in the first equation below.[^rloo-example]
 
 <figure class="narrow">
   <img src="/images/notes/rloo-advantage.png" alt="The RLOO advantage: A(x, y_i) equals R(x, y_i) minus the quantity one over K minus 1 times the sum over j from 1 to K with j not equal to i of R(x, y_j). Labels mark A(x, y_i) as the advantage for the i-th sample, R(x, y_i) as the reward for the i-th sample, and the boxed subtracted term as the leave-one-out average reward." />
@@ -1138,6 +1138,26 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     | $x_1$ | 1.0 | $1.0 - 0.667 = +0.333$ |
     | $x_2$ | 1.0 | $1.0 - 0.667 = +0.333$ |
     | $x_3$ | 0.0 | $0.0 - 0.667 = -0.667$ |
+
+[^rloo-example]: Take a single prompt, $x$ = "What is 2 + 2?", and instead of generating one answer generate $K = 4$:
+
+    | Completion | Reward |
+    | --- | --- |
+    | $y_1$: "4" | 1.0 |
+    | $y_2$: "The answer is 4" | 0.9 |
+    | $y_3$: "5" | 0.0 |
+    | $y_4$: "Four" | 1.0 |
+
+    RLOO now evaluates each completion against the *other* completions for the same prompt. For $y_1$ the baseline leaves $y_1$ out and averages the remaining three, and the advantage is that completion's own reward minus it:
+
+    | Completion | Reward | Leave-one-out baseline | Advantage |
+    | --- | --- | --- | --- |
+    | "4" | 1.0 | $\frac{0.9 + 0.0 + 1.0}{3} = 0.633$ | $1.0 - 0.633 = +0.367$ |
+    | "The answer is 4" | 0.9 | $\frac{1.0 + 0.0 + 1.0}{3} = 0.667$ | $0.9 - 0.667 = +0.233$ |
+    | "5" | 0.0 | $\frac{1.0 + 0.9 + 1.0}{3} = 0.967$ | $0.0 - 0.967 = -0.967$ |
+    | "Four" | 1.0 | $\frac{1.0 + 0.9 + 0.0}{3} = 0.633$ | $1.0 - 0.633 = +0.367$ |
+
+    Every completion gets a different baseline, because each one is an average over a different three.
 
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
