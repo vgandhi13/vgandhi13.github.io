@@ -267,8 +267,7 @@ complete trajectory.
 
 As we saw in the [REINFORCE section](#reinforce), we first sample a batch of prompts and generate
 completions to these prompts with our LLM or policy. Then, we compute the rewards for these
-completions (more details to follow in later sections) and use these rewards to derive a policy
-update.
+completions and use these rewards to derive a policy update.
 
 Each training iteration of PPO performs the following sequence of steps:
 
