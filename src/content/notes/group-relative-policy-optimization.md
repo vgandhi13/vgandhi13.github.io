@@ -71,7 +71,7 @@ actions:
 
 In the context of LLMs, we already know how to compute the probability of both individual tokens
 and the full completion for a prompt. Therefore, we have the ability to model RL using either an
-MDP or a bandit formulation. Given that LLMs usually only receive outcome rewards, however, the
+MDP or a bandit formulation.[^bandit-mdp-worked] Given that LLMs usually only receive outcome rewards, however, the
 bandit formulation, despite being very simple, is quite fitting for LLMs.
 [REINFORCE](/notes/policy-gradients/#full-algorithm) and RLOO adopt the bandit formulation, while
 algorithms like PPO use a per-token MDP formulation.[^bandit-mdp]
@@ -890,6 +890,34 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 4. ["Group Relative Policy Optimization (GRPO)"](https://cameronrwolfe.substack.com/p/grpo), Cameron R. Wolfe
 
 [^bandit-mdp]: This framing follows Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce#%C2%A7markov-decision-process-mdp-versus-bandit-formulation).
+
+[^bandit-mdp-worked]: Worked through on one example. Take the prompt $x$ = "What is 2 + 2?", and suppose the model produces "The answer is 4", tokenized as $t_1$ = "The", $t_2$ = " answer", $t_3$ = " is", $t_4$ = " 4". A verifier checks the final answer and returns $r = +1$. Write $s_{k-1} = \{x, t_1, \ldots, t_{k-1}\}$ for the state the $k$-th token was sampled from, so $s_0 = \{x\}$ is the prompt alone.
+
+    Under the **bandit** formulation the whole completion is a single action, and its probability is what an autoregressive model already computes by chaining per-token probabilities:
+
+    $$
+    \pi_\theta(t_1, t_2, t_3, t_4 \mid x) = \pi_\theta(t_1 \mid x) \, \pi_\theta(t_2 \mid x, t_1) \, \pi_\theta(t_3 \mid x, t_1, t_2) \, \pi_\theta(t_4 \mid x, t_1, t_2, t_3)
+    $$
+
+    Taking logs turns that product into a sum, so the update for this one action is
+
+    $$
+    \nabla_\theta \log \pi_\theta(\text{completion} \mid x) \, r = \left[ \sum_{k=1}^{4} \nabla_\theta \log \pi_\theta(t_k \mid s_{k-1}) \right] r
+    $$
+
+    Under the **per-token MDP** formulation there are instead four actions, $a_1$ = "The" through $a_4$ = " 4", and the sum is there from the start rather than arriving by expansion:
+
+    $$
+    \left[ \sum_{k=1}^{4} \nabla_\theta \log \pi_\theta(a_k \mid s_{k-1}) \right] r
+    $$
+
+    The two expressions are algebraically identical, and that is the point worth sitting with: as long as every token is multiplied by the same number, the choice of formulation changes nothing about the gradient. What it changes is what you are able to write next. The bandit view has one scalar for the whole response, so all it can say is "this completion scored $+1$, make it more likely." The MDP view has a per-action slot, which can hold a different number for every token:
+
+    $$
+    \sum_{k} \nabla_\theta \log \pi_\theta(a_k \mid s_{k-1}) \, \hat{A}_k
+    $$
+
+    If the advantages came out as $+0.1$, $+0.2$, $+0.1$, $+0.8$ across the four tokens here, the update would push hardest on " 4", the token that actually carried the answer, rather than reinforcing "The answer is" just as strongly for having been in the same lucky sentence. Filling that slot is exactly what PPO's critic is for, and what GRPO gives up when it drops the critic and falls back to one number per completion.
 
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
