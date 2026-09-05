@@ -183,10 +183,6 @@ average that gradient over a batch of completions.
 
 ### REINFORCE Leave One Out (RLOO)
 
-RLOO keeps everything above and changes only where the baseline comes from: instead of an average
-over the batch or a running average across training, each of the $k$ completions sampled for a
-prompt is scored against the mean reward of the *other* $k - 1$ completions from that same prompt.
-
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
