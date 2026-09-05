@@ -185,7 +185,7 @@ average that gradient over a batch of completions.
 
 In REINFORCE, we generate a single on-policy completion per prompt during training and use the
 rewards from these completions to form our baseline via a moving average or an average of rewards
-in the batch.
+in the batch.[^reinforce-batch-baseline]
 
 The problem with this is that an average reward taken across completely different prompts isn't
 necessarily very meaningful. Different prompts can have very different reward distributions, and
@@ -1110,6 +1110,34 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     $$
 
     The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
+
+[^reinforce-batch-baseline]: For example, take three prompts:
+
+    $$
+    x_1 = \text{"What is 2 + 2?"}, \quad x_2 = \text{"What is 3 + 3?"}, \quad x_3 = \text{"What is 5 + 5?"}
+    $$
+
+    Standard REINFORCE might sample one answer per prompt:
+
+    | Prompt | Completion | Reward |
+    | --- | --- | --- |
+    | $x_1$ | "4" | 1.0 |
+    | $x_2$ | "6" | 1.0 |
+    | $x_3$ | "11" | 0.0 |
+
+    A simple approach is to take the batch average as the baseline:
+
+    $$
+    b = \frac{1 + 1 + 0}{3} = 0.667
+    $$
+
+    which gives:
+
+    | Prompt | Reward | Advantage $= r - b$ |
+    | --- | --- | --- |
+    | $x_1$ | 1.0 | $1.0 - 0.667 = +0.333$ |
+    | $x_2$ | 1.0 | $1.0 - 0.667 = +0.333$ |
+    | $x_3$ | 0.0 | $0.0 - 0.667 = -0.667$ |
 
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
