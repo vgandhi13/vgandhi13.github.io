@@ -131,6 +131,10 @@ over a batch, we perform the following steps:
 6. Compute the sum of log probabilities multiplied by the advantage for each completion, then
    average over the batch to form a Monte Carlo estimate.
 
+Note that this is a bandit formulation: the advantage here is defined at the completion level,
+rather than separately for every token as in the
+[per-token MDP view](#user-content-fn-bandit-mdp-worked).[^bandit-advantage]
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
@@ -947,6 +951,29 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     $$
 
     If the advantages came out as $+0.1$, $+0.2$, $+0.1$, $+0.8$ across the four tokens here, the update would push hardest on " 4", the token that actually carried the answer, rather than reinforcing "The answer is" just as strongly for having been in the same lucky sentence. Filling that slot is exactly what PPO's critic is for, and what GRPO gives up when it drops the critic and falls back to one number per completion.
+
+[^bandit-advantage]: The bandit formulation makes a simplifying choice: the state $s$ is the prompt $x$, the action $a$ is the entire completion, and the reward $r(x, a)$ arrives only once the whole completion has been seen. The advantage is then whatever multiplies the log-probability in the gradient above, which is one number for the completion as a whole:
+
+    $$
+    A(x, a) = r(x, a) - \bar{r}
+    $$
+
+    Suppose the prompt "What is 2 + 2?" is sampled four times, and the baseline $\bar{r} = 0.5$ is the average of the four rewards that come back:
+
+    | Completion | Reward | Advantage |
+    | --- | --- | --- |
+    | "4" | 1.0 | $+0.5$ |
+    | "The answer is 4." | 1.0 | $+0.5$ |
+    | "5" | 0.0 | $-0.5$ |
+    | "It is 3." | 0.0 | $-0.5$ |
+
+    The update increases the probability of the completions with positive advantage and decreases the probability of those with negative advantage. Since the action is the whole sequence $y = (t_1, t_2, t_3, t_4)$, the estimate is
+
+    $$
+    \nabla_\theta J \approx \frac{1}{N} \sum_i \left[ \sum_k \nabla_\theta \log \pi_\theta(t_{i,k} \mid s_{i,k-1}) \right] A_i
+    $$
+
+    and the same $A_i$ multiplies every token in completion $i$. "The answer is 4." and "4" are both reinforced by $+0.5$ across every one of their tokens, with nothing distinguishing the token that carried the answer from the ones that set it up.
 
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
