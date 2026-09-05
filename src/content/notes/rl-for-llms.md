@@ -152,7 +152,7 @@ divergence is directly incorporated into the reward:
   <figcaption>The KL penalty folded into the reward itself, with the penalty coefficient, the policy and reference log-probabilities, and the difference approximating the KL divergence marked. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
 
-Note that unlike [PPO](#proximal-policy-optimization-ppo) and
+Note that unlike [PPO](#proximal-policy-optimization-ppo-for-llms) and
 [GRPO](#group-relative-policy-optimization-grpo), the KL divergence here is not incorporated into
 the loss function, but directly into the reward.
 
@@ -252,12 +252,18 @@ behind one gradient step. The leave-one-out baseline lowers variance relative to
 by using multiple samples per prompt to derive the policy gradient estimate. Compared to a
 single-sample approach, this benefits training stability, speed, and performance.
 
-## Proximal Policy Optimization (PPO)
+## Proximal Policy Optimization (PPO) for LLMs
 
 PPO is what the RLHF pipeline above optimizes with, and relies upon the
 [MDP formulation](#bandit-vs-mdp). The derivation, from the importance ratio through clipping to the surrogate objective, is in
 the [actor-critic note](/notes/actor-critic-methods/#proximal-policy-optimization); this section
 is about what the algorithm looks like in the setup above.
+
+In the context of LLMs, during generation actions are taken by selecting a token from the model's
+next-token distribution: each token is its own action. After a token is predicted, it is added to
+the current state and used by the LLM to predict the next token. Eventually, the LLM predicts a
+stop token (e.g. `<|end_of_text|>` or `<eos>`) to complete the generation process, thus yielding a
+complete trajectory.
 
 Each training iteration of PPO performs the following sequence of steps:
 
