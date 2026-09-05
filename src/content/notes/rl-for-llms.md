@@ -199,7 +199,9 @@ Given $K$ completions $\{y_1, y_2, \ldots, y_K\}$ for the same prompt $x$, RLOO 
 baseline for completion $y_i$ as shown below, which is simply an average over all rewards for
 completions to prompt $x$ excluding the completion itself, $y_i$. We "leave out" the reward of the
 completion for which the policy gradient is being computed and average over the rewards of the
-other completions to the same prompt.
+other completions to the same prompt. The reason is that when evaluating $y_i$, we want the
+baseline to be constructed from independent alternative samples, rather than allowing $y_i$'s own
+reward to influence the baseline it is measured against. Hence: *leave one out*.
 
 <figure class="narrow">
   <img src="/images/notes/rloo-baseline.png" alt="The RLOO baseline: one over K minus 1, times the sum over j from 1 to K with j not equal to i, of R(x, y_j). Labels mark K as the number of samples per prompt, the j not equal to i condition as leaving out the reward from the i-th sample, and R(x, y_j) as the reward for the j-th sample." />
