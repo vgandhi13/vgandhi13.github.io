@@ -187,6 +187,14 @@ In REINFORCE, we generate a single on-policy completion per prompt during traini
 rewards from these completions to form our baseline via a moving average or an average of rewards
 in the batch.
 
+The problem with this is that an average reward taken across completely different prompts isn't
+necessarily very meaningful. Different prompts can have very different reward distributions, and
+ideally we'd like to ask whether a given completion is good compared with other completions for
+the *same* prompt. This is what REINFORCE leave-one-out (RLOO) does. Specifically, it:
+
+1. Samples multiple ($K$) completions per prompt.
+2. Uses those completions to compute the reward average separately for each individual prompt.
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
