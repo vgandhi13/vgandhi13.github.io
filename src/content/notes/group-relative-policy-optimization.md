@@ -911,7 +911,7 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     \sum_{k=1}^{4} \nabla_\theta \log \pi_\theta(a_k \mid s_{k-1}) \, r
     $$
 
-    The two expressions are algebraically identical, and that is the point worth sitting with: as long as every token is multiplied by the same number, the choice of formulation changes nothing about the gradient. What it changes is what you are able to write next. The bandit view has one scalar for the whole response, so all it can say is "this completion scored $+1$, make it more likely." The MDP view has a per-action slot, which can hold a different number for every token:
+    These are algebraically the same if every token gets the same final reward. The bandit view has one scalar for the whole response, so all it can say is "this completion scored $+1$, make it more likely." The MDP view has a per-action slot, which can hold a different number for every token:
 
     $$
     \sum_{k} \nabla_\theta \log \pi_\theta(a_k \mid s_{k-1}) \, \hat{A}_k
