@@ -265,6 +265,11 @@ the current state and used by the LLM to predict the next token. Eventually, the
 stop token (e.g. `<|end_of_text|>` or `<eos>`) to complete the generation process, thus yielding a
 complete trajectory.
 
+As we saw in the [REINFORCE section](#reinforce), we first sample a batch of prompts and generate
+completions to these prompts with our LLM or policy. Then, we compute the rewards for these
+completions (more details to follow in later sections) and use these rewards to derive a policy
+update.
+
 Each training iteration of PPO performs the following sequence of steps:
 
 1. Sample a diverse batch of prompts.
