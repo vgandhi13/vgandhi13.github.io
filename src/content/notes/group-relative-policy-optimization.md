@@ -960,12 +960,12 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
     Suppose the prompt "What is 2 + 2?" is sampled four times, and the baseline $\bar{r} = 0.5$ is the average of the four rewards that come back:
 
-    | Completion | Reward | Advantage |
+    | Completion | Reward | Advantage $= r - \bar{r}$ |
     | --- | --- | --- |
-    | "4" | 1.0 | $+0.5$ |
-    | "The answer is 4." | 1.0 | $+0.5$ |
-    | "5" | 0.0 | $-0.5$ |
-    | "It is 3." | 0.0 | $-0.5$ |
+    | "4" | 1.0 | $1.0 - 0.5 = +0.5$ |
+    | "The answer is 4." | 1.0 | $1.0 - 0.5 = +0.5$ |
+    | "5" | 0.0 | $0.0 - 0.5 = -0.5$ |
+    | "It is 3." | 0.0 | $0.0 - 0.5 = -0.5$ |
 
     The update increases the probability of the completions with positive advantage and decreases the probability of those with negative advantage. Since the action is the whole sequence $y = (t_1, t_2, t_3, t_4)$, the estimate is
 
