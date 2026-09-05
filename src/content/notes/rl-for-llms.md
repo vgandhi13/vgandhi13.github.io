@@ -14,8 +14,8 @@ Following this, LLMs typically go through a three-step training pipeline:
 1. **Pre-training.** Self-supervised learning on vast swaths of internet data makes up the
    majority of the cake, especially when viewed in compute spent (FLOPs).
 2. **Supervised fine-tuning (SFT).** The beginning of post-training.
-3. **Reinforcement learning.** Used for alignment and for creating "reasoning" or "thinking"
-   models, via RLHF (Reinforcement Learning from Human Feedback) or RLVR (Reinforcement Learning
+3. **Reinforcement learning.** Used for alignment, via RLHF (Reinforcement Learning from Human
+   Feedback), and for creating "reasoning" or "thinking" models, via RLVR (Reinforcement Learning
    with Verifiable Rewards).
 
 ## Reinforcement Learning from Human Feedback (RLHF)
