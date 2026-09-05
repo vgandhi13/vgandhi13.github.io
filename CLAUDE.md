@@ -146,6 +146,12 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   scratchpad, not the repo. Capture console errors; that's how the 504 bug below was found.
   (Screenshot artifact: a dark pill-shaped Chrome-extension overlay can appear mid-page in
   headless screenshots — it's not part of the site.)
+- **A literal `<token>` in prose must be backticked.** `<eos>` written bare is parsed as an HTML
+  tag and vanishes from the output: no build error, no warning, the word is simply gone from the
+  rendered page. Same silent-failure family as the blank-line-in-an-HTML-block rule below, and it
+  bites whenever a note discusses special tokens (`<eos>`, `<|im_start|>`, `<think>`). Backticks
+  also render it as code, which is what you want anyway. Check with
+  `grep -c '<eos>' dist/notes/<slug>/index.html` (should be 0; the escaped form is `&#x3C;eos>`).
 - **Math**: remark-math + rehype-katex are configured; `$...$` / `$$...$$` in any markdown.
   GFM footnotes (`[^name]`) work. Footnote sections are styled globally in Base.astro
   (`.footnotes`: divider + smaller muted text) and the auto-generated "Footnotes" h2 is

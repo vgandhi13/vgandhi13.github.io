@@ -22,7 +22,10 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
    at $t=1$, names like $r(\tau)$ for return, $J(\theta)$ for the objective). If the pasted
    source uses different conventions (e.g. $t=0$ indexing, $\rho$/$P$ instead of $p(s_1)$/
    $p(s_{t+1}\mid s_t,a_t)$), silently adapt it to match rather than introducing a second
-   convention mid-note.
+   convention mid-note. A **figure** you cannot edit is the exception: when it carries the source's
+   symbols (a screenshot writing the completion $y$ and its reward $R$ where the note says $a$ and
+   $r$), add one line after it mapping them, rather than silently leaving two names for the same
+   thing a paragraph apart.
 3. **Decide main body vs. footnote**, then act: don't ask permission for a reversible,
    low-stakes formatting call; give a one-sentence recommendation and do it. Rule of thumb:
    - **Main body**: the next step of the forward derivation, a result later steps depend on, or
@@ -31,6 +34,17 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
      proofs/derivations backing a claim just made, illustrative images. This note's convention:
      the reader should be able to follow the main thread top-to-bottom on equations alone, with
      examples one click away.
+   - **Worked numerical examples go in a table, with the arithmetic visible in the cell.** Sources
+     paste these as a table of inputs followed by a run of near-identical display equations
+     ($1.0-0.5=+0.5$, $1.0-0.5=+0.5$, $0.0-0.5=-0.5$, …); fold that run into a column of the table
+     it repeats, headed with the operation (`Advantage $= r - \bar{r}$`). Keep the operands, not
+     just the result: the user has twice asked for the full subtraction back after it was reduced
+     to an answer, because the arithmetic *is* the thing the example demonstrates. Where a value is
+     itself derived, put its derivation in the cell too (`$\frac{0.9 + 0.0 + 1.0}{3} = 0.633$`
+     shows which three of four rewards the leave-one-out baseline averaged). Tables are
+     `display:block; overflow-x:auto` in Base.astro, so a wide one scrolls itself and cannot push
+     the page sideways. Round consistently: if the column shows 3 decimals, the stated total must
+     be the sum of the *displayed* values, so a reader adding the column gets the number you wrote.
    - When the user pastes something clearly meant to justify a sentence that already exists,
      attach it as a footnote reference on that sentence rather than inserting inline and
      breaking the flow.
@@ -41,6 +55,10 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
    already slugs to that id (Astro auto-generates heading ids), don't add a redundant manual
    span, since it produces a duplicate `id` in the HTML. Check with
    `grep -o 'id="the-slug"' dist/notes/<slug>/index.html | wc -l` (should be 1).
+   To point body prose at an **existing footnote** ("as in the per-token MDP view"), link its
+   generated anchor, `#user-content-fn-<name>`, rather than restating the point or stacking a
+   second marker next to the first. Verify the target exists after building:
+   `grep -c 'id="user-content-fn-<name>"' dist/notes/<slug>/index.html`.
 5. **Consolidate when the user points out duplication.** A closing "Intuition" section that
    restates a footnote almost verbatim, or a fact mentioned once inline and again fully in a
    footnote, should collapse into one place, keeping whichever framing is more complete and
@@ -54,7 +72,11 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
    `sips -Z 400 -s format jpeg -s formatOptions 75 <src> --out public/images/notes/<descriptive-name>.jpg`
    (smaller than the usual 640px if it's a small inline/footnote figure; add a `width` attribute
    on the `<img>` too if it should render small). Give the file a name that describes its
-   content, not the screenshot timestamp. Move the original screenshot out of the project root
+   content, not the screenshot timestamp. **Quote-and-glob the source path, don't retype it**:
+   macOS screenshot filenames use a narrow no-break space (U+202F) before AM/PM, so a literal
+   `mv "Screenshot 2026-09-05 at 5.00.22 PM.png"` fails with "No such file or directory" while
+   `ls` shows the file sitting right there. `for f in Screenshot*5.00.22*.png; do mv "$f" …; done`
+   works. Move the original screenshot out of the project root
    into `Notes/<Topic>/<DescriptiveName>.png` (that folder is the note's source material per
    `publish-content`; don't leave raw screenshots sitting in the repo root).
 
