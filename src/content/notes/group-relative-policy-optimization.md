@@ -140,7 +140,7 @@ usually a prior SFT-trained checkpoint of our model, into REINFORCE. Adding the 
 RL regularizes the training process and allows us to ensure that our policy does not deviate
 significantly from the reference policy. There are several different approaches for approximating
 KL divergence. A common approach is to approximate it as the difference in log probabilities
-between the policy and the reference policy. Once we have made this approximation, the KL
+between the policy and the reference policy.[^kl-example] Once we have made this approximation, the KL
 divergence is directly incorporated into the reward:
 
 <figure class="narrow">
@@ -1018,6 +1018,27 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     $$
 
     and the same $A_i$ multiplies every token in completion $i$. "The answer is 4." and "4" are both reinforced by $+0.5$ across every one of their tokens, with nothing distinguishing the token that carried the answer from the ones that set it up.
+
+[^kl-example]: To put numbers on it, take the same prompt "What is 2 + 2?" with the policy generating "The answer is 4", tokenized as $t_1$ = "The", $t_2$ = " answer", $t_3$ = " is", $t_4$ = " 4", $t_5$ = `<eos>`. The answer is correct, so the verifier returns $r = +1$, and in the outcome-reward setting that single number lands on `<eos>`.
+
+    The KL term is computed differently: token by token, against two models, the policy $\pi_\theta$ we are currently training and the reference $\pi_{\text{ref}}$, usually the original SFT checkpoint. For each generated token we compare the probability the two assign to the token that was actually produced:
+
+    | Token | $\pi_\theta$ | $\pi_{\text{ref}}$ | $\log \pi_\theta - \log \pi_{\text{ref}}$ |
+    | --- | --- | --- | --- |
+    | "The" | 0.40 | 0.45 | $-0.118$ |
+    | " answer" | 0.70 | 0.65 | $+0.074$ |
+    | " is" | 0.80 | 0.82 | $-0.025$ |
+    | " 4" | 0.90 | 0.85 | $+0.057$ |
+
+    Summing that last column over the sequence gives the completion-level KL approximation, $-0.012$, and with a penalty coefficient $\beta = 0.1$ the adjusted reward is
+
+    $$
+    \hat{r} = r - \beta \sum_k \left( \log \pi_\theta(t_k \mid s_{k-1}) - \log \pi_{\text{ref}}(t_k \mid s_{k-1}) \right) = 1 - 0.1 \times (-0.012) = 1.0012
+    $$
+
+    The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
+
+    Worth noticing that the per-token quantity is *signed*: two of the four tokens above contribute negative values, and the sum itself comes out negative. A true KL divergence is never negative. This difference of log probabilities equals the KL only in expectation over samples from $\pi_\theta$, which is exactly why the text above calls it an approximation rather than the divergence itself, and why other estimators exist that stay non-negative on every sample.
 
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
