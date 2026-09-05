@@ -1042,8 +1042,6 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
     The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
 
-    Worth noticing that the per-token quantity is *signed*: two of the four tokens above contribute negative values, and the sum itself comes out negative. A true KL divergence is never negative. This difference of log probabilities equals the KL only in expectation over samples from $\pi_\theta$, which is exactly why the text above calls it an approximation rather than the divergence itself, and why other estimators exist that stay non-negative on every sample.
-
 [^pg-loss]: The `loss` line in the walkthrough is a [surrogate](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective): not a meaningful number in itself, but a scalar whose gradient is the estimator above. Ignoring the mask and the averaging for the moment, it is
 
     $$
