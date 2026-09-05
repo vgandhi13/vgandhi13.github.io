@@ -106,6 +106,8 @@ In code, one training step of the basic policy gradient is[^pg-loss]:
 
 Drafted from Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce).
 
+### REINFORCE
+
 The structure of the policy gradient used by REINFORCE is similar to the baselined policy gradient
 estimate [covered earlier](/notes/policy-gradients/#baselines-centering-the-reward). However,
 REINFORCE specifically uses the average of rewards observed during RL training as a baseline. This
@@ -178,6 +180,12 @@ The figure below runs the whole process on an example completion, with numbers a
 
 This computes the policy gradient for a single prompt and completion pair, and we generally
 average that gradient over a batch of completions.
+
+### REINFORCE Leave One Out (RLOO)
+
+RLOO keeps everything above and changes only where the baseline comes from: instead of an average
+over the batch or a running average across training, each of the $k$ completions sampled for a
+prompt is scored against the mean reward of the *other* $k - 1$ completions from that same prompt.
 
 ## Proximal Policy Optimization (PPO)
 
