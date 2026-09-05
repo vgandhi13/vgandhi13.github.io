@@ -171,6 +171,14 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   playwright and look at the height. `narrow`'s `max-width` is `min(34rem, 100%)`, not a bare
   `34rem`, because a bare value overrides the global `img { max-width: 100% }` and overflows a
   phone viewport; always re-run the 390px overflow check after touching figure widths.
+  Two ways the exemptions get over-claimed, both corrected by the user after the fact:
+  **an annotated equation strip is not a "wide, short screenshot"** just because its aspect ratio
+  is wide. The three REINFORCE figures went in at 880/880/1280 and all three were too big; at
+  `narrow` (544px) the equation labels ("KL Penalty Coefficient", "Sample / Completion") are still
+  perfectly legible. And **a dense diagram is only `.wide` if it fails at 880px**, not merely
+  because it is dense: `reinforce-bandit-flow.png` has four token columns of numbers and reads
+  fine in the plain prose column. Settle it by rendering the actual figure at 544 and 880 and
+  looking, which takes one playwright pass, instead of arguing from the source file's pixels.
 - **Wide diagrams**: `<figure class="wide">` breaks out of the 58rem prose column up to 1280px
   and scrolls below ~1024px instead of shrinking (global styles in Base.astro). Shrink-to-fit is
   right for a photo and wrong for a dense diagram: at column width the `train_async` SVG's 11px

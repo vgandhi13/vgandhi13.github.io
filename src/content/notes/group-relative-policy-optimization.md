@@ -112,7 +112,7 @@ REINFORCE specifically uses the average of rewards observed during RL training a
 average can be computed in a few different ways; e.g., a moving average of rewards throughout
 training or an average of rewards present in the current batch.
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/reinforce-policy-gradient.png" alt="The REINFORCE policy gradient, with each part labelled: the gradient of J with respect to theta is an expectation over prompts x drawn from the dataset and completions y sampled from the policy, of the gradient of log pi_theta(y given x) multiplied by the sample reward R(x, y) minus the average reward R-bar. Labels mark x as the prompt, y as the sample or completion, R(x, y) as the sample reward, and R-bar as the average reward serving as the baseline." />
   <figcaption>The REINFORCE policy gradient, with the prompt, completion, sample reward and baseline marked. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
@@ -143,7 +143,7 @@ KL divergence. A common approach is to approximate it as the difference in log p
 between the policy and the reference policy. Once we have made this approximation, the KL
 divergence is directly incorporated into the reward:
 
-<figure>
+<figure class="narrow">
   <img src="/images/notes/reinforce-kl-reward.png" alt="The KL-penalized reward, with each part labelled: R-hat of x and y equals R of x and y minus beta times the quantity log pi_theta of y given x minus log pi_ref of y given x. Labels mark R(x, y) as the reward, beta as the KL penalty coefficient, log pi_theta as the policy log-probabilities, log pi_ref as the reference log-probabilities, and the bracketed difference of the two as the KL divergence approximation." />
   <figcaption>The KL penalty folded into the reward itself, with the penalty coefficient, the policy and reference log-probabilities, and the difference approximating the KL divergence marked. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
@@ -172,7 +172,7 @@ components to compute the policy gradient much as before:
 This computes the policy gradient for a single prompt and completion pair, and we generally
 average that gradient over a batch of completions.
 
-<figure class="wide">
+<figure>
   <img src="/images/notes/reinforce-bandit-flow.png" alt="Diagram of the bandit formulation in REINFORCE. A row of completion tokens (Token 1, Token 2, Token 3, ellipsis, eos) each carry a policy log-probability (-2.1, -0.5, -3.6, -1.2) and a reference log-probability (-2.0, -0.3, -2.8, -1.4); subtracting them gives a per-token KL divergence (-0.1, -0.2, -0.8, 0.2). A reward model assigns 2.0 to the eos token only. To the right of a dashed line marked 'sum over sequence', the log-probabilities sum to -7.4 and the KL divergences sum to -0.9, which added to the 2.0 reward gives a full completion reward of 1.1. Those two numbers feed the policy gradient expression log pi_theta(y given x) times the quantity R(x, y) minus b, which is used to take a gradient and update the model." />
   <figcaption>The bandit formulation in REINFORCE: per-token log-probabilities, KL divergences and the single outcome reward are summed over the sequence into one completion log-probability and one completion-level reward, which are what the policy gradient expression consumes. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
