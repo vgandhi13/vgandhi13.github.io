@@ -170,7 +170,8 @@ components to compute the policy gradient much as before:
 3. Run a backward pass to compute the final policy gradient.
 
 This computes the policy gradient for a single prompt and completion pair, and we generally
-average that gradient over a batch of completions.
+average that gradient over a batch of completions. The figure below runs the whole process on an
+example completion, with numbers at every step.
 
 <figure>
   <img src="/images/notes/reinforce-bandit-flow.png" alt="Diagram of the bandit formulation in REINFORCE. A row of completion tokens (Token 1, Token 2, Token 3, ellipsis, eos) each carry a policy log-probability (-2.1, -0.5, -3.6, -1.2) and a reference log-probability (-2.0, -0.3, -2.8, -1.4); subtracting them gives a per-token KL divergence (-0.1, -0.2, -0.8, 0.2). A reward model assigns 2.0 to the eos token only. To the right of a dashed line marked 'sum over sequence', the log-probabilities sum to -7.4 and the KL divergences sum to -0.9, which added to the 2.0 reward gives a full completion reward of 1.1. Those two numbers feed the policy gradient expression log pi_theta(y given x) times the quantity R(x, y) minus b, which is used to take a gradient and update the model." />
