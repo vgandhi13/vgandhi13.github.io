@@ -195,6 +195,36 @@ the *same* prompt. This is what REINFORCE leave-one-out (RLOO) does. Specificall
 1. Samples multiple ($K$) completions per prompt.
 2. Uses those completions to compute the reward average separately for each individual prompt.
 
+Given $K$ completions $\{y_1, y_2, \ldots, y_K\}$ for the same prompt $x$, RLOO defines the
+baseline for completion $y_i$ as shown below, which is simply an average over all rewards for
+completions to prompt $x$ excluding the completion itself, $y_i$. We "leave out" the reward of the
+completion for which the policy gradient is being computed and average over the rewards of the
+other completions to the same prompt.
+
+<figure class="narrow">
+  <img src="/images/notes/rloo-baseline.png" alt="The RLOO baseline: one over K minus 1, times the sum over j from 1 to K with j not equal to i, of R(x, y_j). Labels mark K as the number of samples per prompt, the j not equal to i condition as leaving out the reward from the i-th sample, and R(x, y_j) as the reward for the j-th sample." />
+  <figcaption>The RLOO baseline for completion <em>i</em>: the mean reward of the other completions to the same prompt. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
+</figure>
+
+From here, we can compute the advantage estimate in RLOO by (i) computing this baseline for every
+completion for the prompt and (ii) subtracting the baseline from the reward received by that
+completion, as in the first equation below.
+
+<figure class="narrow">
+  <img src="/images/notes/rloo-advantage.png" alt="The RLOO advantage: A(x, y_i) equals R(x, y_i) minus the quantity one over K minus 1 times the sum over j from 1 to K with j not equal to i of R(x, y_j). Labels mark A(x, y_i) as the advantage for the i-th sample, R(x, y_i) as the reward for the i-th sample, and the boxed subtracted term as the leave-one-out average reward." />
+  <figcaption>The advantage for completion <em>i</em>: its own reward minus the leave-one-out average. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
+</figure>
+
+To compute the baseline efficiently, we can first compute a fixed average reward over the $K$
+completions and reformulate the advantage as in the second equation below. This lets us compute
+the average reward once and avoid re-computing the leave-one-out average for all $K$ completions
+to the prompt $x$.
+
+<figure class="narrow">
+  <img src="/images/notes/rloo-advantage-efficient.png" alt="The same advantage rewritten as K over K minus 1, times the quantity R(x, y_i) minus one over K times the sum over j from 1 to K of R(x, y_j). The subtracted term is boxed and labelled the fixed average reward, now taken over all K completions including the i-th." />
+  <figcaption>The same quantity rewritten around a single fixed average over all <em>K</em> completions. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
+</figure>
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
