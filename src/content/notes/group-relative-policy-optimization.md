@@ -102,6 +102,35 @@ In code, one training step of the basic policy gradient is[^pg-loss]:
   <figcaption>One training step of the basic policy gradient, with each stage highlighted as it is described. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
 
+## REINFORCE & RLOO for LLMs
+
+Drafted from Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce).
+
+The structure of the policy gradient used by REINFORCE is similar to the baselined policy gradient
+estimate [covered earlier](/notes/policy-gradients/#baselines-centering-the-reward). However,
+REINFORCE specifically uses the average of rewards observed during RL training as a baseline. This
+average can be computed in a few different ways; e.g., a moving average of rewards throughout
+training or an average of rewards present in the current batch.
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{x \sim \mathcal{D},\; a \sim \pi_\theta} \left[ \nabla_\theta \log \pi_\theta(a \mid x) \, \big( r(x, a) - \bar{r} \big) \right]
+$$
+
+Here $x$ is a prompt drawn from the dataset, $a$ is the completion sampled from the current
+policy, $r(x, a)$ is that completion's reward, and $\bar{r}$ is the average reward standing in as
+the baseline.
+
+The expression for the policy gradient in REINFORCE is shown above. To compute a gradient update
+over a batch, we perform the following steps:
+
+1. Generate a completion for each prompt using the current policy.
+2. Store the log probabilities for the tokens in each completion.
+3. Assign a reward to each completion (usually with a reward model).
+4. Obtain a baseline by taking an average of rewards.
+5. Compute the advantage by subtracting the baseline from the reward.
+6. Compute the sum of log probabilities multiplied by the advantage for each completion, then
+   average over the batch to form a Monte Carlo estimate.
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
