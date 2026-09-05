@@ -286,10 +286,13 @@ const entries = quotes.map((q) => {
             </figure>
           )}
           <div class="meta">
-            {/* kept on one line: a line break here renders as a space before the comma */}
-            <p class="attribution">
-              {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
-            </p>
+            <div class="meta-text">
+              {/* kept on one line: a line break here renders as a space before the comma */}
+              <p class="attribution">
+                {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
+              </p>
+              {q.note && <p class="commentary">{q.note}</p>}
+            </div>
             <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={`Copy a link to this excerpt by ${q.author}`}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -298,7 +301,6 @@ const entries = quotes.map((q) => {
               <span class="share-text">Copy link</span>
             </a>
           </div>
-          {q.note && <p class="commentary">{q.note}</p>}
         </li>
       ))}
     </ul>
@@ -431,12 +433,19 @@ const entries = quotes.map((q) => {
     mix-blend-mode: screen;
   }
 
+  /* the share link tracks the BOTTOM of the text block, not the attribution line:
+     with a `note` present the attribution is no longer the card's last row, and
+     baseline-aligning left the link stranded halfway up the card */
   .meta {
     display: flex;
-    align-items: baseline;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 1rem;
     margin-top: 0.9rem;
+  }
+
+  .meta-text {
+    min-width: 0;
   }
 
   .attribution {
