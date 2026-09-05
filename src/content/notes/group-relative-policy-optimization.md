@@ -1021,7 +1021,11 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
 [^kl-example]: To put numbers on it, take the same prompt "What is 2 + 2?" with the policy generating "The answer is 4", tokenized as $t_1$ = "The", $t_2$ = " answer", $t_3$ = " is", $t_4$ = " 4", $t_5$ = `<eos>`. The answer is correct, so the verifier returns $r = +1$, and in the outcome-reward setting that single number lands on `<eos>`.
 
-    The KL term is computed differently: token by token, against two models, the policy $\pi_\theta$ we are currently training and the reference $\pi_{\text{ref}}$, usually the original SFT checkpoint. For each generated token we compare the probability the two assign to the token that was actually produced:
+    The KL term is computed differently: token by token, against two models, the policy $\pi_\theta$ we are currently training and the reference $\pi_{\text{ref}}$, usually the original SFT checkpoint. For each generated token we compare the probability the two assign to the token that was actually produced. The per-token quantity is the log of their ratio, which is the same thing as the difference of the logs:
+
+    $$
+    \log \frac{\pi_\theta(t \mid s)}{\pi_{\text{ref}}(t \mid s)} = \log \pi_\theta(t \mid s) - \log \pi_{\text{ref}}(t \mid s)
+    $$
 
     | Token | $\pi_\theta$ | $\pi_{\text{ref}}$ | $\log \pi_\theta - \log \pi_{\text{ref}}$ |
     | --- | --- | --- | --- |
