@@ -225,6 +225,29 @@ to the prompt $x$.
   <figcaption>The same quantity rewritten around a single fixed average over all <em>K</em> completions. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
 </figure>
 
+This modified advantage estimate can be plugged into the same policy gradient expression used by
+REINFORCE. As in REINFORCE, RLOO uses a per-completion (as opposed to per-token) loss, and there is
+no learned value model. However, the leave-one-out baseline lowers variance relative to standard
+REINFORCE by using multiple samples per prompt to derive the policy gradient estimate. Compared to
+a single-sample approach, this benefits training stability, speed, and performance.
+
+For each completion we have its advantage $A_i$ and its log probability
+$\log \pi_\theta(y_i \mid x_i)$. Writing $B$ for the number of prompts in the batch and $K$ for the
+number of completions sampled per prompt, the loss is
+
+$$
+L = -\frac{1}{BK} \sum_{i=1}^{B} \sum_{k=1}^{K} A_{i,k} \log \pi_\theta(y_{i,k} \mid x_i)
+$$
+
+from which we take $\nabla_\theta L$ and a single optimizer step:
+
+$$
+\theta \leftarrow \theta - \eta \nabla_\theta L
+$$
+
+So a batch of 32 prompts with $K = 8$ completions each puts $32 \times 8 = 256$ completion samples
+behind one gradient step.
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
