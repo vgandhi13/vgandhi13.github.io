@@ -343,7 +343,7 @@ Why take the minimum, instead of just always optimizing $\mathrm{clip}(r(\theta'
 
 Either way, the policy can't change too much in a single update while still improving the objective. This clipping mechanism, simple to implement and no constrained optimization required, is the core idea that makes PPO both stable and simple compared with earlier trust-region methods like TRPO.
 
-For what this algorithm looks like once the environment is an LLM emitting tokens, a single token's update worked end to end, the KL penalty against a reference model, and what "the old policy" means in practice, see [PPO for LLMs](/notes/group-relative-policy-optimization/#proximal-policy-optimization-ppo).
+For what this algorithm looks like once the environment is an LLM emitting tokens, a single token's update worked end to end, the KL penalty against a reference model, and what "the old policy" means in practice, see [PPO for LLMs](/notes/rl-for-llms/#proximal-policy-optimization-ppo).
 
 <figure>
   <img src="/images/notes/ppo-algorithm-1.png" alt="Algorithm 1, PPO, Actor-Critic Style: for iteration = 1, 2, ...: for actor = 1, 2, ..., N: run policy pi-theta-old in environment for T timesteps, compute advantage estimates A-hat_1 through A-hat_T; end for; optimize surrogate L with respect to theta, with K epochs and minibatch size M less than or equal to NT; theta-old is set to theta; end for." width="640" />
