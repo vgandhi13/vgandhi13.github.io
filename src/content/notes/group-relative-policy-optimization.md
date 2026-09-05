@@ -112,13 +112,13 @@ REINFORCE specifically uses the average of rewards observed during RL training a
 average can be computed in a few different ways; e.g., a moving average of rewards throughout
 training or an average of rewards present in the current batch.
 
-$$
-\nabla_\theta J(\theta) = \mathbb{E}_{x \sim \mathcal{D},\; a \sim \pi_\theta} \left[ \nabla_\theta \log \pi_\theta(a \mid x) \, \big( r(x, a) - \bar{r} \big) \right]
-$$
+<figure>
+  <img src="/images/notes/reinforce-policy-gradient.png" alt="The REINFORCE policy gradient, with each part labelled: the gradient of J with respect to theta is an expectation over prompts x drawn from the dataset and completions y sampled from the policy, of the gradient of log pi_theta(y given x) multiplied by the sample reward R(x, y) minus the average reward R-bar. Labels mark x as the prompt, y as the sample or completion, R(x, y) as the sample reward, and R-bar as the average reward serving as the baseline." />
+  <figcaption>The REINFORCE policy gradient, with the prompt, completion, sample reward and baseline marked. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/reinforce">"REINFORCE: Easy Online RL for LLMs"</a>.</figcaption>
+</figure>
 
-Here $x$ is a prompt drawn from the dataset, $a$ is the completion sampled from the current
-policy, $r(x, a)$ is that completion's reward, and $\bar{r}$ is the average reward standing in as
-the baseline.
+The figure follows the source's notation: the completion is $y$ and its reward $R(x, y)$, written
+as the action $a$ and reward $r$ elsewhere in this note.
 
 The expression for the policy gradient in REINFORCE is shown above. To compute a gradient update
 over a batch, we perform the following steps:
