@@ -183,6 +183,10 @@ average that gradient over a batch of completions.
 
 ### REINFORCE Leave One Out (RLOO)
 
+In REINFORCE, we generate a single on-policy completion per prompt during training and use the
+rewards from these completions to form our baseline via a moving average or an average of rewards
+in the batch.
+
 ## Proximal Policy Optimization (PPO)
 
 PPO is what the RLHF pipeline above optimizes with, and what GRPO in the next section is a variant
