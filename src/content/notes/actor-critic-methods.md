@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-09-02
+updated: 2026-09-06
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -284,6 +284,39 @@ After a handful of these inner steps, set $\theta \leftarrow \theta'$ and repeat
 ### Version 2: Replay Buffers
 
 [Update this]
+
+## Kullback-Leibler (KL) Divergence
+
+KL divergence is a concept from information theory that measures how different a probability
+distribution is from some reference distribution. Used as a penalty term, its goal is to avoid our
+policy drifting too far away from a reference policy during training. For a discrete probability
+distribution it has the form
+
+$$
+D_{\mathrm{KL}}(P \,\|\, Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)}
+$$
+
+and for a continuous one,
+
+$$
+D_{\mathrm{KL}}(P \,\|\, Q) = \int p(x) \log \frac{p(x)}{q(x)} \, dx
+$$
+
+Both can also be written as an expectation:
+
+$$
+D_{\mathrm{KL}}(P \,\|\, Q) = \mathbb{E}_{x \sim P} \left[ \log \frac{P(x)}{Q(x)} \right]
+$$
+
+Note that the KL divergence is not symmetric, so the order of the arguments matters:
+
+$$
+D_{\mathrm{KL}}(P \,\|\, Q) \neq D_{\mathrm{KL}}(Q \,\|\, P)
+$$
+
+By Gibbs' inequality both $D_{\mathrm{KL}}(P \,\|\, Q) \geq 0$ and $D_{\mathrm{KL}}(Q \,\|\, P) \geq 0$,
+but the individual terms inside them, $\log \frac{P(x)}{Q(x)}$ and $\log \frac{Q(x)}{P(x)}$, can be
+negative.
 
 ## Proximal Policy Optimization
 
