@@ -290,7 +290,7 @@ After a handful of these inner steps, set $\theta \leftarrow \theta'$ and repeat
 KL divergence is a concept from information theory that measures how different a probability
 distribution is from some reference distribution. Used as a penalty term, its goal is to avoid our
 policy drifting too far away from a reference policy during training. For a discrete probability
-distribution it has the form
+distribution it has the form[^kl-discrete-example]
 
 $$
 D_{\mathrm{KL}}(P \,\|\, Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)}
@@ -553,3 +553,19 @@ TODO: add Generalized Advantage Estimation (GAE).
     - **Bad action, ratio correctly reduced**: $A=-10$, $r=0.2$ (a bad action correctly made much less likely). Unclipped $= 0.2(-10) = -2$; clipped $= 0.8(-10) = -8$. $\min(-2, -8) = -8$: PPO still applies the more conservative, clipped score here, even though this particular change was in the right direction. Once $r$ moves outside the trust region, the objective saturates, whether or not that move happened to be beneficial.
 
     In every case, the $\min$ either matches the clipped objective, when clipping alone already handles the update correctly, or falls back to the true, unclipped score, when clipping alone would have flattered a bad update. That's what stops the clipped objective from ever making an undesirable policy change look better than it is.
+
+[^kl-discrete-example]: Take two distributions over three outcomes:
+
+    | $x$ | $P(x)$ | $Q(x)$ | $\frac{P(x)}{Q(x)}$ | $\log \frac{P(x)}{Q(x)}$ | $P(x) \log \frac{P(x)}{Q(x)}$ |
+    | --- | --- | --- | --- | --- | --- |
+    | A | 0.50 | 0.25 | $2.0$ | $0.693$ | $0.3465$ |
+    | B | 0.30 | 0.25 | $1.2$ | $0.182$ | $0.0546$ |
+    | C | 0.20 | 0.50 | $0.4$ | $-0.916$ | $-0.1832$ |
+
+    The ratio column is the idea in miniature: it compares the two distributions at one particular outcome. $P$ considers A twice as likely as $Q$ does, B slightly more likely, and C less than half as likely. Summing the last column gives
+
+    $$
+    D_{\mathrm{KL}}(P \,\|\, Q) = 0.3465 + 0.0546 - 0.1832 = 0.2179 \approx 0.218
+    $$
+
+    Logs are natural here, so the answer is in nats; base 2 would give the same comparison in bits.
