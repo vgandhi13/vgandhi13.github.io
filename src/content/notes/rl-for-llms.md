@@ -106,7 +106,7 @@ In code, one training step of the basic policy gradient is[^pg-loss]:
 
 ## REINFORCE & RLOO for LLMs
 
-Drafted from Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce).
+Adapted from Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce).
 
 ### REINFORCE
 
@@ -264,24 +264,26 @@ below.
 
 <figure class="narrow">
   <img src="/images/notes/rlhf-kl-objective.png" alt="The standard RLHF objective with a KL constraint: maximize over the policy pi the expectation, over prompts x drawn from the dataset and completions y drawn from pi given x, of r(x, y) minus beta times the KL divergence between pi(y given x) and pi_ref(y given x). Labels mark pi as the LLM or policy, r(x, y) as the reward, and the subtracted beta-weighted term as the penalty term, itself the KL divergence between the current policy and the reference policy." />
-  <figcaption>The standard RLHF objective with a KL constraint: reward on the left, the beta-weighted divergence from the reference policy subtracted on the right.</figcaption>
+  <figcaption>The standard RLHF objective with a KL constraint: reward on the left, the beta-weighted divergence from the reference policy subtracted on the right. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/direct-preference-optimization?open=false#%C2%A7kullback-leibler-kl-divergence">"Direct Preference Optimization (DPO)"</a>.</figcaption>
 </figure>
 
 <figure class="narrow">
   <img src="/images/notes/rlhf-kl-adjusted-reward.png" alt="The adjusted reward r-prime of x and y equals the original reward r of x and y minus beta times the KL divergence between the current policy pi of y given x and the reference policy pi-ref of y given x. The original reward term is labeled red and the KL divergence term is labeled blue." />
-  <figcaption>The KL penalty folded into an adjusted reward: start with the original reward, then subtract the beta-weighted divergence from the reference policy.</figcaption>
+  <figcaption>The KL penalty folded into an adjusted reward: start with the original reward, then subtract the beta-weighted divergence from the reference policy. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/direct-preference-optimization?open=false#%C2%A7kullback-leibler-kl-divergence">"Direct Preference Optimization (DPO)"</a>.</figcaption>
 </figure>
 
 As we can see, we want to maximize rewards while minimizing a penalty term, the KL divergence
-weighted by $\beta$, that is subtracted from these rewards. We usually estimate the KL divergence
-between the completion distributions predicted by our current policy and a fixed reference policy,
-often the original SFT model. Intuitively, adding this constraint to the reward used during RL
-training, as shown above, discourages the policy being trained from drifting too far from the
-reference policy. For a prompt $x$, this KL divergence has the following form:
+weighted by $\beta$, that is subtracted from these rewards. A larger $\beta$ puts more weight on
+staying close to the reference policy. A smaller $\beta$ allows more change in pursuit of reward.
+We usually estimate the KL divergence between the completion distributions predicted by our
+current policy and a fixed reference policy, often the original SFT model. Intuitively, adding this
+constraint to the reward used during RL training, as shown above, discourages the policy being
+trained from drifting too far from the reference policy. For a prompt $x$, this KL divergence has
+the following form:
 
 <figure class="narrow">
   <img src="/images/notes/kl-between-llms.png" alt="KL divergence between two LLMs: D_KL of pi_theta given x against pi_SFT given x equals the expectation, over completions y drawn from pi_theta given x, of the log of pi_theta(y given x) over pi_SFT(y given x). Labels mark pi_theta as the current policy, the LLM being trained, and pi_SFT as the reference policy." />
-  <figcaption>The same divergence with both arguments named: the policy being trained against the SFT checkpoint it started from.</figcaption>
+  <figcaption>The same divergence with both arguments named: the policy being trained against the SFT checkpoint it started from. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/direct-preference-optimization?open=false#%C2%A7kullback-leibler-kl-divergence">"Direct Preference Optimization (DPO)"</a>.</figcaption>
 </figure>
 
 This form of the KL divergence looks at the ratio of probabilities predicted by both the current
@@ -312,10 +314,23 @@ policies for a prompt $x$. We would:
 Once these log-probabilities are available, there are several options for turning their ratio
 into an approximation of the KL divergence.[^kl-log-ratio-example]
 
-The value obtained from one completion is only a single Monte Carlo sample of the expectation.
-In practice, we generate many completions from the current policy, compute the same log ratio for
-each one, and average the results. As the number of samples grows, this empirical average approaches
-the true KL divergence.[^kl-monte-carlo-example]
+The token-by-token sum in that worked example gives the exact log ratio for that particular
+completion. The approximation enters when we try to evaluate the expectation over every possible
+completion. Since we cannot enumerate them all, we instead sample $N$ completions from the current
+policy and estimate
+
+$$
+\widehat{D}_{\mathrm{KL}}
+= \frac{1}{N} \sum_{i=1}^{N} \left[
+\log \pi_\theta(y^{(i)} \mid x)
+- \log \pi_{\mathrm{ref}}(y^{(i)} \mid x)
+\right],
+\qquad y^{(i)} \sim \pi_\theta(\cdot \mid x).
+$$
+
+Each bracketed log ratio is exact for its sampled completion, but their finite average is a Monte
+Carlo estimate of the full expectation. As $N$ grows, this empirical average approaches the true
+KL divergence.[^kl-monte-carlo-example]
 
 ## Proximal Policy Optimization (PPO) for LLMs
 
@@ -1245,6 +1260,31 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
     $$
     y = (\texttt{Paris}, \texttt{<eos>}).
+    $$
+
+    An LLM generates tokens one at a time:
+
+    $$
+    p(y \mid x) = \prod_{t=1}^{T} p(y_t \mid x, y_{<t}).
+    $$
+
+    Each token probability is conditional on the prompt and all preceding tokens. Taking logs turns that product into a sum:
+
+    $$
+    \log p(y \mid x) = \sum_{t=1}^{T} \log p(y_t \mid x, y_{<t}).
+    $$
+
+    So the sequence log ratio becomes a sum of token-level log ratios:
+
+    $$
+    \begin{aligned}
+    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}
+    &= \log \pi_\theta(y \mid x) - \log \pi_{\mathrm{ref}}(y \mid x) \\
+    &= \sum_{t=1}^{T} \left[
+    \log \pi_\theta(y_t \mid x, y_{<t})
+    - \log \pi_{\mathrm{ref}}(y_t \mid x, y_{<t})
+    \right].
+    \end{aligned}
     $$
 
     **I. Generate from the current policy.** The completion is sampled from $\pi_\theta$, not from $\pi_{\mathrm{ref}}$:
