@@ -316,7 +316,7 @@ $$
 
 By Gibbs' inequality both $D_{\mathrm{KL}}(P \,\|\, Q) \geq 0$ and $D_{\mathrm{KL}}(Q \,\|\, P) \geq 0$,
 but the individual terms inside them, $\log \frac{P(x)}{Q(x)}$ and $\log \frac{Q(x)}{P(x)}$, can be
-negative.
+negative.[^kl-negative-terms]
 
 ## Proximal Policy Optimization
 
@@ -568,4 +568,4 @@ TODO: add Generalized Advantage Estimation (GAE).
     D_{\mathrm{KL}}(P \,\|\, Q) = 0.3465 + 0.0546 - 0.1832 = 0.2179 \approx 0.218
     $$
 
-    Logs are natural here, so the answer is in nats; base 2 would give the same comparison in bits.
+[^kl-negative-terms]: $\log \frac{P(x)}{Q(x)}$ can absolutely be negative: for outcome C in the [worked example](#user-content-fn-kl-discrete-example) it is $-0.916$. That is a single term, not yet the KL divergence.
