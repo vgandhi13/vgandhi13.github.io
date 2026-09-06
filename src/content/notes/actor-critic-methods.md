@@ -384,9 +384,11 @@ Either way, the policy can't change too much in a single update while still impr
 
 For what this algorithm looks like once the environment is an LLM emitting tokens, a single token's update worked end to end, the KL penalty against a reference model, and what "the old policy" means in practice, see [PPO for LLMs](/notes/rl-for-llms/#proximal-policy-optimization-ppo-for-llms).
 
+The count behind $N$, $M$, and $K$ is easiest to see in a concrete example.[^ppo-batch-count-example]
+
 <figure>
   <img src="/images/notes/ppo-algorithm-1.png" alt="Algorithm 1, PPO, Actor-Critic Style: for iteration = 1, 2, ...: for actor = 1, 2, ..., N: run policy pi-theta-old in environment for T timesteps, compute advantage estimates A-hat_1 through A-hat_T; end for; optimize surrogate L with respect to theta, with K epochs and minibatch size M less than or equal to NT; theta-old is set to theta; end for." width="640" />
-  <figcaption>PPO's full loop as the paper states it: rollouts collected under the old policy, advantages computed once from them, K epochs of optimization on that batch, and only then is the old policy refreshed. Source: Schulman et al., <a href="https://arxiv.org/abs/1707.06347">"Proximal Policy Optimization Algorithms"</a> (2017), Algorithm 1.</figcaption>
+  <figcaption>PPO's full loop as the paper states it: N actors each collect T timesteps under the old policy, producing NT samples; advantages are computed once from those samples; the batch is divided into minibatches of size M and reused for K complete epochs of optimization; only then is the old policy refreshed. Source: Schulman et al., <a href="https://arxiv.org/abs/1707.06347">"Proximal Policy Optimization Algorithms"</a> (2017), Algorithm 1.</figcaption>
 </figure>
 
 TODO: add Generalized Advantage Estimation (GAE).
@@ -559,6 +561,8 @@ TODO: add Generalized Advantage Estimation (GAE).
     - **Bad action, ratio correctly reduced**: $A=-10$, $r=0.2$ (a bad action correctly made much less likely). Unclipped $= 0.2(-10) = -2$; clipped $= 0.8(-10) = -8$. $\min(-2, -8) = -8$: PPO still applies the more conservative, clipped score here, even though this particular change was in the right direction. Once $r$ moves outside the trust region, the objective saturates, whether or not that move happened to be beneficial.
 
     In every case, the $\min$ either matches the clipped objective, when clipping alone already handles the update correctly, or falls back to the true, unclipped score, when clipping alone would have flattered a bad update. That's what stops the clipped objective from ever making an undesirable policy change look better than it is.
+
+[^ppo-batch-count-example]: Suppose $N = 100$ actors each contribute one rollout, and the implementation groups 10 whole rollouts into each minibatch. One optimizer step processes 10 rollouts, so one epoch contains $100 / 10 = 10$ optimizer steps and processes all 100 rollouts once. With $K = 4$, optimization takes $4 \times 10 = 40$ steps and accounts for $4 \times 100 = 400$ rollout-usages. These are not 400 unique rollouts: the same 100 are reused once in each of the four epochs. Only after all four epochs does PPO discard that batch, refresh the old policy, and collect new rollouts.
 
 [^kl-discrete-example]: Take two distributions over three outcomes:
 

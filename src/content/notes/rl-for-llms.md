@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -284,7 +284,7 @@ This form of the KL divergence looks at the ratio of probabilities predicted by 
 and reference model for a completion $y$ given a prompt $x$ as input. The probability of a
 completion $y$ is simply the product of next token probabilities predicted by the LLM for each
 token within a completion. By computing the KL divergence over these completion probabilities, we
-capture the similarity between the token distributions predicted by the two models.
+capture the similarity between the token distributions predicted by the two models.[^completion-kl-example]
 
 ## Proximal Policy Optimization (PPO) for LLMs
 
@@ -1158,6 +1158,72 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     $$
 
     The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
+
+[^completion-kl-example]: Suppose the prompt is
+
+    $$
+    x = \text{"The capital of France is"}
+    $$
+
+    and the sampled completion is
+
+    $$
+    y = (\texttt{Paris}, \texttt{<eos>}).
+    $$
+
+    The two models assign these next-token probabilities:
+
+    | Token | Current policy | Reference policy |
+    | --- | --- | --- |
+    | `Paris` | $0.70$ | $0.50$ |
+    | `<eos>` after `Paris` | $0.80$ | $0.90$ |
+
+    The probability of the entire completion is the product of its token probabilities:
+
+    $$
+    \pi_\theta(y \mid x) = 0.70 \times 0.80 = 0.56,
+    $$
+
+    $$
+    \pi_{\mathrm{ref}}(y \mid x) = 0.50 \times 0.90 = 0.45.
+    $$
+
+    The completion-level probability ratio is therefore
+
+    $$
+    \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}
+    = \frac{0.56}{0.45}
+    \approx 1.244.
+    $$
+
+    Its log ratio is
+
+    $$
+    \log \frac{0.56}{0.45} \approx 0.219.
+    $$
+
+    The same calculation can be decomposed token by token:
+
+    $$
+    \log \frac{0.70}{0.50}
+    + \log \frac{0.80}{0.90}
+    \approx 0.336 - 0.118
+    = 0.218.
+    $$
+
+    The tiny discrepancy is rounding. This shows that the current model considers this entire completion more likely than the reference model does. The value $0.219$ is one sampled completion's KL estimate.
+
+    To estimate the KL divergence, sample many completions $y$ from the current policy and average their log ratios:
+
+    $$
+    D_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}})
+    = \mathbb{E}_{y \sim \pi_\theta}
+    \left[
+    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}
+    \right].
+    $$
+
+    A larger average means the current model's completion distribution has moved farther from the reference model.
 
 [^reinforce-batch-baseline]: For example, take three prompts:
 
