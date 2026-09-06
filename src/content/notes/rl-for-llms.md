@@ -252,6 +252,40 @@ behind one gradient step. The leave-one-out baseline lowers variance relative to
 by using multiple samples per prompt to derive the policy gradient estimate. Compared to a
 single-sample approach, this benefits training stability, speed, and performance.
 
+## KL Divergence for LLMs
+
+The definition, its discrete and continuous forms, and why it is not symmetric are in the
+[actor-critic note](/notes/actor-critic-methods/#kullback-leibler-kl-divergence). This section is
+about what it is doing once the two distributions are language models.
+
+Throughout LLM post-training, there are many cases where we optimize our model subject to a KL
+divergence constraint. The canonical optimization objective used within RLHF has the form shown
+below.
+
+<figure class="narrow">
+  <img src="/images/notes/rlhf-kl-objective.png" alt="The standard RLHF objective with a KL constraint: maximize over the policy pi the expectation, over prompts x drawn from the dataset and completions y drawn from pi given x, of r(x, y) minus beta times the KL divergence between pi(y given x) and pi_ref(y given x). Labels mark pi as the LLM or policy, r(x, y) as the reward, and the subtracted beta-weighted term as the penalty term, itself the KL divergence between the current policy and the reference policy." />
+  <figcaption>The standard RLHF objective with a KL constraint: reward on the left, the beta-weighted divergence from the reference policy subtracted on the right.</figcaption>
+</figure>
+
+As we can see, we want to maximize rewards while minimizing a penalty term, the KL divergence
+weighted by $\beta$, that is subtracted from these rewards. In the LLM domain, KL divergence is
+commonly used to compare two LLMs or policies. Typically, we will compare the policy that we are
+currently trying to train to a reference policy. For example, in the case of DPO, we begin with an
+SFT policy (i.e. an LLM that has already undergone both pretraining and SFT), then optimize the
+standard RLHF objective, where the KL divergence is computed between this SFT (reference) policy
+and the policy that we are training. Specifically, the form of this KL divergence would be:
+
+<figure class="narrow">
+  <img src="/images/notes/kl-between-llms.png" alt="KL divergence between two LLMs: D_KL of pi_theta given x against pi_SFT given x equals the expectation, over completions y drawn from pi_theta given x, of the log of pi_theta(y given x) over pi_SFT(y given x). Labels mark pi_theta as the current policy, the LLM being trained, and pi_SFT as the reference policy." />
+  <figcaption>The same divergence with both arguments named: the policy being trained against the SFT checkpoint it started from.</figcaption>
+</figure>
+
+This form of the KL divergence looks at the ratio of probabilities predicted by both the current
+and reference model for a completion $y$ given a prompt $x$ as input. The probability of a
+completion $y$ is simply the product of next token probabilities predicted by the LLM for each
+token within a completion. By computing the KL divergence over these completion probabilities, we
+capture the similarity between the token distributions predicted by the two models.
+
 ## Proximal Policy Optimization (PPO) for LLMs
 
 PPO is what the RLHF pipeline above optimizes with, and relies upon the
