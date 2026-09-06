@@ -267,13 +267,17 @@ below.
   <figcaption>The standard RLHF objective with a KL constraint: reward on the left, the beta-weighted divergence from the reference policy subtracted on the right.</figcaption>
 </figure>
 
+<figure class="narrow">
+  <img src="/images/notes/rlhf-kl-adjusted-reward.png" alt="The adjusted reward r-prime of x and y equals the original reward r of x and y minus beta times the KL divergence between the current policy pi of y given x and the reference policy pi-ref of y given x. The original reward term is labeled red and the KL divergence term is labeled blue." />
+  <figcaption>The KL penalty folded into an adjusted reward: start with the original reward, then subtract the beta-weighted divergence from the reference policy.</figcaption>
+</figure>
+
 As we can see, we want to maximize rewards while minimizing a penalty term, the KL divergence
-weighted by $\beta$, that is subtracted from these rewards. In the LLM domain, KL divergence is
-commonly used to compare two LLMs or policies. Typically, we will compare the policy that we are
-currently trying to train to a reference policy. For example, in the case of DPO, we begin with an
-SFT policy (i.e. an LLM that has already undergone both pretraining and SFT), then optimize the
-standard RLHF objective, where the KL divergence is computed between this SFT (reference) policy
-and the policy that we are training. Specifically, the form of this KL divergence would be:
+weighted by $\beta$, that is subtracted from these rewards. We usually estimate the KL divergence
+between the completion distributions predicted by our current policy and a fixed reference policy,
+often the original SFT model. Intuitively, adding this constraint to the reward used during RL
+training, as shown above, discourages the policy being trained from drifting too far from the
+reference policy. For a prompt $x$, this KL divergence has the following form:
 
 <figure class="narrow">
   <img src="/images/notes/kl-between-llms.png" alt="KL divergence between two LLMs: D_KL of pi_theta given x against pi_SFT given x equals the expectation, over completions y drawn from pi_theta given x, of the log of pi_theta(y given x) over pi_SFT(y given x). Labels mark pi_theta as the current policy, the LLM being trained, and pi_SFT as the reference policy." />
@@ -285,6 +289,33 @@ and reference model for a completion $y$ given a prompt $x$ as input. The probab
 completion $y$ is simply the product of next token probabilities predicted by the LLM for each
 token within a completion. By computing the KL divergence over these completion probabilities, we
 capture the similarity between the token distributions predicted by the two models.[^completion-kl-example]
+
+In practice, we usually approximate this KL divergence, and there are
+[several estimators](http://joschu.net/blog/kl-approx.html) for doing so. These estimators start
+from the expectation form of KL divergence. As described in the
+[actor-critic note](/notes/actor-critic-methods/#kullback-leibler-kl-divergence), the log ratio
+inside that expectation is simply the current policy's log-probability minus the reference
+policy's log-probability.
+
+Specifically, suppose we want to estimate the KL divergence between the current and reference
+policies for a prompt $x$. We would:
+
+1. Generate a completion $y$ from the current policy, not the reference policy, because the
+   expectation is taken over completions sampled from the current policy.
+2. Evaluate that same completion under both models, recording the conditional log-probability
+   that each model assigns to every sampled token.
+3. Sum each model's token log-probabilities to obtain its log-probability for the complete
+   sequence.
+4. Subtract the reference policy's sequence log-probability from the current policy's sequence
+   log-probability. This difference is the sampled log ratio inside the KL expectation.
+
+Once these log-probabilities are available, there are several options for turning their ratio
+into an approximation of the KL divergence.[^kl-log-ratio-example]
+
+The value obtained from one completion is only a single Monte Carlo sample of the expectation.
+In practice, we generate many completions from the current policy, compute the same log ratio for
+each one, and average the results. As the number of samples grows, this empirical average approaches
+the true KL divergence.[^kl-monte-carlo-example]
 
 ## Proximal Policy Optimization (PPO) for LLMs
 
@@ -1202,28 +1233,123 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     \log \frac{0.56}{0.45} \approx 0.219.
     $$
 
-    The same calculation can be decomposed token by token:
+    This shows that the current model considers the entire completion about $1.244$ times as likely as the reference model does.
+
+[^kl-log-ratio-example]: Continuing the [earlier completion-probability example](#user-content-fn-completion-kl-example), use the simplest log-ratio estimator. Suppose
 
     $$
-    \log \frac{0.70}{0.50}
-    + \log \frac{0.80}{0.90}
-    \approx 0.336 - 0.118
-    = 0.218.
+    x = \text{"The capital of France is"}
     $$
 
-    The tiny discrepancy is rounding. This shows that the current model considers this entire completion more likely than the reference model does. The value $0.219$ is one sampled completion's KL estimate.
+    and the current policy samples
 
-    To estimate the KL divergence, sample many completions $y$ from the current policy and average their log ratios:
+    $$
+    y = (\texttt{Paris}, \texttt{<eos>}).
+    $$
+
+    **I. Generate from the current policy.** The completion is sampled from $\pi_\theta$, not from $\pi_{\mathrm{ref}}$:
+
+    $$
+    y \sim \pi_\theta(\cdot \mid x).
+    $$
+
+    **II. Obtain each token's log-probability.**
+
+    | Token | Current policy | Current log-probability | Reference policy | Reference log-probability |
+    | --- | --- | --- | --- | --- |
+    | `Paris` | $0.70$ | $\log 0.70 = -0.357$ | $0.50$ | $\log 0.50 = -0.693$ |
+    | `<eos>` | $0.80$ | $\log 0.80 = -0.223$ | $0.90$ | $\log 0.90 = -0.105$ |
+
+    Both models evaluate the same sampled tokens.
+
+    **III. Sum the token log-probabilities.** For the current policy,
+
+    $$
+    \log \pi_\theta(y \mid x) = -0.357 - 0.223 = -0.580.
+    $$
+
+    For the reference policy,
+
+    $$
+    \log \pi_{\mathrm{ref}}(y \mid x) = -0.693 - 0.105 = -0.798.
+    $$
+
+    **IV. Subtract the sequence log-probabilities.**
+
+    $$
+    \log \pi_\theta(y \mid x)
+    - \log \pi_{\mathrm{ref}}(y \mid x)
+    = -0.580 - (-0.798)
+    = 0.218 \approx 0.219.
+    $$
+
+    This is equivalent to the completion-level calculation:
+
+    $$
+    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}
+    = \log \frac{0.56}{0.45}
+    \approx 0.219.
+    $$
+
+[^kl-monte-carlo-example]: The expectation averages the log ratio over many completions sampled from the current policy. Continue with
+
+    $$
+    x = \text{"The capital of France is"}.
+    $$
+
+    For simplicity, suppose the models assign probability only to four possible completions:
+
+    | Completion $y$ | Current $\pi_\theta(y \mid x)$ | Reference $\pi_{\mathrm{ref}}(y \mid x)$ | Log ratio |
+    | --- | --- | --- | --- |
+    | `Paris <eos>` | $0.56$ | $0.45$ | $\log(0.56 / 0.45) = 0.219$ |
+    | `Paris. <eos>` | $0.20$ | $0.25$ | $\log(0.20 / 0.25) = -0.223$ |
+    | `Lyon <eos>` | $0.14$ | $0.15$ | $\log(0.14 / 0.15) = -0.069$ |
+    | `Marseille <eos>` | $0.10$ | $0.15$ | $\log(0.10 / 0.15) = -0.405$ |
+
+    The exact expectation is
 
     $$
     D_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}})
-    = \mathbb{E}_{y \sim \pi_\theta}
-    \left[
-    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}
-    \right].
+    = \sum_y \pi_\theta(y \mid x)
+    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}.
     $$
 
-    A larger average means the current model's completion distribution has moved farther from the reference model.
+    Substituting the four completions:
+
+    $$
+    \begin{aligned}
+    D_{\mathrm{KL}}
+    ={}& 0.56(0.219) + 0.20(-0.223) \\
+       &+ 0.14(-0.069) + 0.10(-0.405) \\
+    \approx{}& 0.028.
+    \end{aligned}
+    $$
+
+    The current policy's probability appears twice:
+
+    - It determines how often each completion is sampled.
+    - It appears inside the log ratio.
+
+    In practice, we approximate this expectation by sampling. Suppose 10 rollouts from the current policy contain:
+
+    | Completion | Number sampled | Log ratio |
+    | --- | --- | --- |
+    | `Paris <eos>` | 6 | $0.219$ |
+    | `Paris. <eos>` | 2 | $-0.223$ |
+    | `Lyon <eos>` | 1 | $-0.069$ |
+    | `Marseille <eos>` | 1 | $-0.405$ |
+
+    The Monte Carlo estimate is the average across those 10 samples:
+
+    $$
+    \widehat{D}_{\mathrm{KL}}
+    = \frac{6(0.219) + 2(-0.223) - 0.069 - 0.405}{10}
+    \approx 0.039.
+    $$
+
+    It differs from the exact value $0.028$ because only 10 completions were sampled. With more samples, the empirical frequencies approach the current policy's probabilities, and the average approaches the true KL divergence.
+
+    Individual log ratios can be negative. Their exact expectation under the current policy is guaranteed to be nonnegative by Gibbs' inequality. A finite-sample Monte Carlo estimate can still be negative because of sampling noise.
 
 [^reinforce-batch-baseline]: For example, take three prompts:
 
