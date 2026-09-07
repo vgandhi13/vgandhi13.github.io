@@ -424,7 +424,7 @@ Each training iteration of PPO performs the following sequence of steps:
 
 To see the whole thing in one place, here is a single token's PPO update worked end to end, for an LLM answering "What's 2 + 2?":
 
-<figure class="wide ppo-figure">
+<figure class="wide ppo-figure" id="ppo-walkthrough">
   <div class="ppo-row">
     <img src="/images/notes/ppo-walkthrough.png" alt="A five-step PPO walkthrough for one token: compute the old and new policy's probabilities for the token '4' (0.10 and 0.15) and their ratio 1.5; compute the raw score from the verifier reward and the value head's expected reward, giving advantage +0.6 and raw_score = 1.5 x 0.6 = 0.90; clip the ratio to clamp(1.5, 0.8, 1.2) = 1.2, giving clipped_score = 0.72; take final_score = min(0.90, 0.72) = 0.72; and compute loss = -final_score + beta * KL(new_policy || reference_model)." />
     <div class="ppo-side">
@@ -1314,7 +1314,7 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
     The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
 
-[^ppo-kl-rollout-example]: Suppose a PPO batch contains two prompts, each with a two-token completion, and let $\beta = 0.1$. The reward model assigns reward only to `<eos>`. For each sampled token, subtract the reference log-probability from the rollout policy's log-probability, then subtract the scaled result from the token reward:
+[^ppo-kl-rollout-example]: Suppose a PPO batch contains two prompts, each with a two-token completion, and let $\beta = 0.1$. The reward model assigns reward only to `<eos>`. For each sampled token, apply $k_1$: subtract the reference log-probability from the rollout policy's log-probability, then subtract the scaled result from the token reward:
 
     | Prompt | Token | Original reward $r_t$ | $\log \pi_{\theta_{\text{old}}}$ | $\log \pi_{\mathrm{ref}}$ | Sampled KL term | Adjusted reward $r_t - \beta k_t$ |
     | --- | --- | --- | --- | --- | --- | --- |
@@ -1344,6 +1344,36 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     \qquad
     0.8 - 0.1(0.406) = 0.7594.
     $$
+
+    In the alternative formulation, nothing touches the reward. The token rewards keep their
+    original values, so returns and advantages are computed from completion totals of $1.0$ and
+    $0.8$, and the same $\overline{k}$ enters as an extra term in the loss. Reusing the naming
+    from the [walkthrough above](#ppo-walkthrough):
+
+    $$
+    \text{loss} = -\text{final score} + \beta \overline{k}
+    = -\text{final score} + 0.1(0.312)
+    = -\text{final score} + 0.0312.
+    $$
+
+    Implementations that average the KL per token rather than per completion use
+    $(0.336 - 0.118 + 0.288 + 0.118)/4 = 0.156$ and add $0.0156$ instead.
+
+    "Final score" is that walkthrough's clipped surrogate,
+    $\min(\rho_t \hat{A}_t, \operatorname{clip}(\rho_t) \hat{A}_t)$, and it is the one quantity
+    here that stays symbolic. Numbering it would need two things this example does not carry: the
+    current policy's log-probabilities, since the table holds only the frozen
+    $\pi_{\theta_{\text{old}}}$ and $\pi_{\mathrm{ref}}$, and a value estimate to turn rewards
+    into advantages. Its formula is the same on both routes, but the term itself is not: the
+    reward route feeds it advantages built from the adjusted rewards $0.9782$ and $0.7594$, while
+    the loss route feeds it advantages built from $1.0$ and $0.8$.
+
+    So the same $0.312$ shows up on both routes, but it enters at a different place. On the
+    reward route it is folded into the advantages before any gradient is taken, and since the log
+    ratio is measured against the frozen $\pi_{\theta_{\text{old}}}$ and $\pi_{\mathrm{ref}}$,
+    it is a constant that only shifts those advantage numbers. On the loss route the penalty is
+    recomputed from the current $\pi_\theta$ at every inner step, so it carries a gradient of its
+    own that pulls $\pi_\theta$ back toward $\pi_{\mathrm{ref}}$ directly.
 
 [^completion-kl-example]: Suppose the prompt is
 
