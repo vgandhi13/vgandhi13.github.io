@@ -22,6 +22,11 @@ Following this, LLMs typically go through a three-step training pipeline:
 
 RLHF is the original alignment method. Its goal is to align LLMs with human preferences.
 
+<figure class="narrow">
+  <img src="/images/notes/chatgpt-safety-training-shoggoth.jpg" alt="Editorial illustration of a giant green tentacled Shoggoth model covered in circuit traces and chips while a person paints a smiling AI mask over its face." style="max-width: min(26rem, 100%);" />
+  <figcaption style="max-width: min(26rem, 100%);">Alignment represented as a friendly AI face painted over the underlying Shoggoth model. Source: Cameron Berg and Judd Rosenblatt, <a href="https://www.wsj.com/opinion/the-monster-inside-chatgpt-safety-training-ai-alignment-796ac9d3">"The Monster Inside ChatGPT"</a>, <em>The Wall Street Journal</em>.</figcaption>
+</figure>
+
 There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
 gets its signal from people instead. Thousands of human judgements are collected, each one a
 pairwise preference between two candidate answers to the same prompt: A over B, D over C, and so
@@ -292,9 +297,8 @@ completion $y$ is simply the product of next token probabilities predicted by th
 token within a completion. By computing the KL divergence over these completion probabilities, we
 capture the similarity between the token distributions predicted by the two models.[^completion-kl-example]
 
-In practice, we usually approximate this KL divergence, and there are
-[several estimators](http://joschu.net/blog/kl-approx.html) for doing so. These estimators start
-from the expectation form of KL divergence. As described in the
+In practice, we usually approximate this KL divergence. These estimators start from the
+expectation form of KL divergence. As described in the
 [actor-critic note](/notes/actor-critic-methods/#kullback-leibler-kl-divergence), the log ratio
 inside that expectation is simply the current policy's log-probability minus the reference
 policy's log-probability.
@@ -315,22 +319,84 @@ Once these log-probabilities are available, there are several options for turnin
 into an approximation of the KL divergence.[^kl-log-ratio-example]
 
 The token-by-token sum in that worked example gives the exact log ratio for that particular
-completion. The approximation enters when we try to evaluate the expectation over every possible
-completion. Since we cannot enumerate them all, we instead sample $N$ completions from the current
-policy and estimate
+completion. KL, however, compares two entire completion distributions, so its exact definition
+includes every possible completion:
+
+$$
+D_{\mathrm{KL}}\!\left(\pi_\theta(\cdot \mid x) \,\|\, \pi_{\mathrm{ref}}(\cdot \mid x)\right)
+= \sum_y \pi_\theta(y \mid x)
+\log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}.
+$$
+
+This is the conditional KL for one prompt. During training, we typically average this quantity
+over prompts drawn from a prompt distribution $\mathcal{D}$.
+
+We don't compute KL exactly and instead estimate it because of the large number of possible
+completions. Even with a vocabulary of only 100 tokens and completions that are exactly 10 tokens
+long, there are
+
+$$
+100^{10} = 10^{20}
+$$
+
+possible completions. Computing and adding one term for each is impractical. Another practical
+reason is that during training we generally do not retain the full distribution (all token
+probabilities) at every position. To save GPU memory and I/O, we keep only the log-probabilities
+of the tokens actually generated along each trajectory.
+
+A good estimator should ideally be unbiased, so it has the right mean, and low-variance, so a
+finite batch gives a stable answer. For each sampled prompt-completion pair, define the inverse
+likelihood ratio
+
+$$
+w_i = \frac{\pi_{\mathrm{ref}}(y^{(i)} \mid x^{(i)})}
+{\pi_\theta(y^{(i)} \mid x^{(i)})}.
+$$
+
+Three common choices are
+
+$$
+k_1(w_i) = -\log w_i,
+\qquad
+k_2(w_i) = \frac{1}{2}(\log w_i)^2,
+\qquad
+k_3(w_i) = (w_i - 1) - \log w_i.
+$$
+
+For samples from the current policy, $k_1$ is unbiased but can have high variance. $k_2$ can
+reduce variance when the two policies are close, but it is biased. $k_3$ is unbiased,
+nonnegative, and typically lower-variance. The standard PPO-style log-ratio penalty described
+above uses $k_1$, while the [original DeepSeekMath formulation of
+GRPO](https://arxiv.org/abs/2402.03300) uses $k_3$ at each token. Implementations can vary; see
+[John Schulman's note on KL approximation](http://joschu.net/blog/kl-approx.html) for the
+derivations.
+
+Whichever estimator we choose, the computation follows the same pattern:
+
+1. **Sample.** Draw $N$ prompt-completion pairs, with $x^{(i)} \sim \mathcal{D}$ and
+   $y^{(i)} \sim \pi_\theta(\cdot \mid x^{(i)})$.
+2. **Compute log-probabilities.** Evaluate each completion under both models to obtain
+   $\log \pi_\theta(y^{(i)} \mid x^{(i)})$ and
+   $\log \pi_{\mathrm{ref}}(y^{(i)} \mid x^{(i)})$, then form
+   $\log w_i = \log \pi_{\mathrm{ref}} - \log \pi_\theta$.
+3. **Apply the estimator.** Compute $k_1(w_i)$, $k_2(w_i)$, or $k_3(w_i)$ for each pair.
+4. **Average.** Average those values over the batch.
+
+Using $k_1$ gives the estimator already developed above:
 
 $$
 \widehat{D}_{\mathrm{KL}}
 = \frac{1}{N} \sum_{i=1}^{N} \left[
-\log \pi_\theta(y^{(i)} \mid x)
-- \log \pi_{\mathrm{ref}}(y^{(i)} \mid x)
+\log \pi_\theta(y^{(i)} \mid x^{(i)})
+- \log \pi_{\mathrm{ref}}(y^{(i)} \mid x^{(i)})
 \right],
-\qquad y^{(i)} \sim \pi_\theta(\cdot \mid x).
+\qquad x^{(i)} \sim \mathcal{D},
+\quad y^{(i)} \sim \pi_\theta(\cdot \mid x^{(i)}).
 $$
 
-Each bracketed log ratio is exact for its sampled completion, but their finite average is a Monte
-Carlo estimate of the full expectation. As $N$ grows, this empirical average approaches the true
-KL divergence.[^kl-monte-carlo-example]
+Each bracketed log ratio is exact for its sampled prompt-completion pair, but their finite average
+is a Monte Carlo estimate of the KL averaged over the prompt distribution. As $N$ grows, this
+empirical average approaches the true prompt-averaged KL divergence.[^kl-monte-carlo-example]
 
 ## Proximal Policy Optimization (PPO) for LLMs
 
@@ -1331,65 +1397,26 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     \approx 0.219.
     $$
 
-[^kl-monte-carlo-example]: The expectation averages the log ratio over many completions sampled from the current policy. Continue with
+[^kl-monte-carlo-example]: Using $k_1$, the prompts in a Monte Carlo batch do not have to match. Suppose we sample four prompts from $\mathcal{D}$ and one completion from the current policy for each:
 
-    $$
-    x = \text{"The capital of France is"}.
-    $$
+    | $i$ | Prompt $x^{(i)}$ | Sampled completion $y^{(i)}$ | Current $\pi_\theta(y^{(i)} \mid x^{(i)})$ | Reference $\pi_{\mathrm{ref}}(y^{(i)} \mid x^{(i)})$ | Log ratio |
+    | --- | --- | --- | --- | --- | --- |
+    | 1 | "The capital of France is" | `Paris <eos>` | $0.56$ | $0.45$ | $\log(0.56 / 0.45) = 0.219$ |
+    | 2 | "What is 2 + 2?" | `4 <eos>` | $0.72$ | $0.60$ | $\log(0.72 / 0.60) = 0.182$ |
+    | 3 | "The daytime sky is" | `blue <eos>` | $0.40$ | $0.50$ | $\log(0.40 / 0.50) = -0.223$ |
+    | 4 | "The opposite of hot is" | `cold <eos>` | $0.30$ | $0.25$ | $\log(0.30 / 0.25) = 0.182$ |
 
-    For simplicity, suppose the models assign probability only to four possible completions:
-
-    | Completion $y$ | Current $\pi_\theta(y \mid x)$ | Reference $\pi_{\mathrm{ref}}(y \mid x)$ | Log ratio |
-    | --- | --- | --- | --- |
-    | `Paris <eos>` | $0.56$ | $0.45$ | $\log(0.56 / 0.45) = 0.219$ |
-    | `Paris. <eos>` | $0.20$ | $0.25$ | $\log(0.20 / 0.25) = -0.223$ |
-    | `Lyon <eos>` | $0.14$ | $0.15$ | $\log(0.14 / 0.15) = -0.069$ |
-    | `Marseille <eos>` | $0.10$ | $0.15$ | $\log(0.10 / 0.15) = -0.405$ |
-
-    The exact expectation is
-
-    $$
-    D_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}})
-    = \sum_y \pi_\theta(y \mid x)
-    \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}.
-    $$
-
-    Substituting the four completions:
-
-    $$
-    \begin{aligned}
-    D_{\mathrm{KL}}
-    ={}& 0.56(0.219) + 0.20(-0.223) \\
-       &+ 0.14(-0.069) + 0.10(-0.405) \\
-    \approx{}& 0.028.
-    \end{aligned}
-    $$
-
-    The current policy's probability appears twice:
-
-    - It determines how often each completion is sampled.
-    - It appears inside the log ratio.
-
-    In practice, we approximate this expectation by sampling. Suppose 10 rollouts from the current policy contain:
-
-    | Completion | Number sampled | Log ratio |
-    | --- | --- | --- |
-    | `Paris <eos>` | 6 | $0.219$ |
-    | `Paris. <eos>` | 2 | $-0.223$ |
-    | `Lyon <eos>` | 1 | $-0.069$ |
-    | `Marseille <eos>` | 1 | $-0.405$ |
-
-    The Monte Carlo estimate is the average across those 10 samples:
+    The Monte Carlo estimate is the average across the four prompt-completion pairs:
 
     $$
     \widehat{D}_{\mathrm{KL}}
-    = \frac{6(0.219) + 2(-0.223) - 0.069 - 0.405}{10}
-    \approx 0.039.
+    = \frac{0.219 + 0.182 - 0.223 + 0.182}{4}
+    = 0.090.
     $$
 
-    It differs from the exact value $0.028$ because only 10 completions were sampled. With more samples, the empirical frequencies approach the current policy's probabilities, and the average approaches the true KL divergence.
+    Each row's log ratio is exact for that sampled completion conditioned on its own prompt. What is approximated is the expectation over prompts and completions. With more independently sampled pairs, the empirical average approaches the true prompt-averaged KL divergence.
 
-    Individual log ratios can be negative. Their exact expectation under the current policy is guaranteed to be nonnegative by Gibbs' inequality. A finite-sample Monte Carlo estimate can still be negative because of sampling noise.
+    Individual log ratios can be negative. Their exact expectation over the prompt and current-policy completion distributions is guaranteed to be nonnegative by Gibbs' inequality. A finite-sample Monte Carlo estimate can still be negative because of sampling noise.
 
 [^reinforce-batch-baseline]: For example, take three prompts:
 
