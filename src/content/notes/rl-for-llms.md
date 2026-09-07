@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -267,12 +267,12 @@ Throughout LLM post-training, there are many cases where we optimize our model s
 divergence constraint. The canonical optimization objective used within RLHF has the form shown
 below.
 
-<figure class="narrow">
+<figure class="narrow" id="rlhf-kl-objective">
   <img src="/images/notes/rlhf-kl-objective.png" alt="The standard RLHF objective with a KL constraint: maximize over the policy pi the expectation, over prompts x drawn from the dataset and completions y drawn from pi given x, of r(x, y) minus beta times the KL divergence between pi(y given x) and pi_ref(y given x). Labels mark pi as the LLM or policy, r(x, y) as the reward, and the subtracted beta-weighted term as the penalty term, itself the KL divergence between the current policy and the reference policy." />
   <figcaption>The standard RLHF objective with a KL constraint: reward on the left, the beta-weighted divergence from the reference policy subtracted on the right. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/direct-preference-optimization?open=false#%C2%A7kullback-leibler-kl-divergence">"Direct Preference Optimization (DPO)"</a>.</figcaption>
 </figure>
 
-<figure class="narrow">
+<figure class="narrow" id="rlhf-kl-adjusted-reward">
   <img src="/images/notes/rlhf-kl-adjusted-reward.png" alt="The adjusted reward r-prime of x and y equals the original reward r of x and y minus beta times the KL divergence between the current policy pi of y given x and the reference policy pi-ref of y given x. The original reward term is labeled red and the KL divergence term is labeled blue." />
   <figcaption>The KL penalty folded into an adjusted reward: start with the original reward, then subtract the beta-weighted divergence from the reference policy. Source: Cameron R. Wolfe, <a href="https://cameronrwolfe.substack.com/p/direct-preference-optimization?open=false#%C2%A7kullback-leibler-kl-divergence">"Direct Preference Optimization (DPO)"</a>.</figcaption>
 </figure>
@@ -504,6 +504,48 @@ PPO's inner loop takes several gradient steps on one collected batch, and what s
 For LLM RL, "several steps" usually means 2 to 10 epochs over the same batch. Then the data is discarded, $\theta_{\text{old}} \leftarrow \theta$ makes the latest model the new frozen snapshot (playing both roles again), and the loop restarts from a completely fresh batch. Resetting that often is what bounds the staleness that [several gradient steps on one batch](/notes/actor-critic-methods/#version-1-multiple-gradient-steps) introduce: every action and reward in the batch came from $\pi_{\theta_{\text{old}}}$, so still training on them twenty updates later means optimizing against behavior the model no longer exhibits.
 
 The reason to squeeze several steps out of one batch at all is cost. Generating rollouts dominates: a single batch might mean generating 16,000 completions, scoring each one with a reward model or verifier, and computing advantages, which can take minutes. A gradient step on data already sitting in GPU memory is cheap by comparison, so taking exactly one update per batch would mean paying the expensive part over and over for one cheap step each time. Despite the importance ratio, PPO is still usually called an on-policy algorithm, because the data it trains on always comes from the current policy or one that's only a few optimization steps old.
+
+**KL Divergence for PPO:** There are two common ways to incorporate KL divergence into PPO
+training. The first is to subtract it from the reward, as in the [KL-adjusted
+reward](#rlhf-kl-adjusted-reward) shown earlier. The second is to add it directly as a penalty term
+in the training objective, as in the [RLHF objective with a KL
+constraint](#rlhf-kl-objective). In both cases, the aim is to maximize reward without allowing the
+current policy to drift too far from the reference policy.
+
+Both approaches have been used successfully and represent two views of essentially the same
+regularized objective. Papers commonly write KL divergence as a penalty in the objective, while
+PPO implementations often incorporate its sampled token-level contribution into the reward
+because this integrates naturally with return and advantage computation.
+
+For the reward-penalty implementation, a typical PPO rollout proceeds as follows:
+
+1. Sample a batch of prompts.
+2. Freeze a snapshot of the current policy as $\pi_{\theta_{\text{old}}}$ and use it to generate
+   completions for those prompts.
+3. For every generated token, record the log-probability assigned to that token by both
+   $\pi_{\theta_{\text{old}}}$ and the frozen reference policy $\pi_{\mathrm{ref}}$, usually the
+   original SFT model $\pi_{\mathrm{SFT}}$. Computing the exact categorical KL at each position
+   would instead require both models' full probability distributions over the vocabulary.
+4. Compute a sampled per-token KL term from the log ratio
+   $\log \pi_{\theta_{\text{old}}}(a_t \mid s_t) - \log \pi_{\mathrm{ref}}(a_t \mid s_t)$, or use
+   another KL estimator.
+5. Multiply each token's KL term by $\beta$ and subtract it from that token's reward. In the
+   alternative formulation, add the corresponding penalty directly to the training loss.
+6. Aggregate the token-level terms for monitoring, commonly by summing over each completion and
+   averaging across the batch.[^ppo-kl-rollout-example]
+
+The reference policy remains fixed throughout PPO training, so it serves as a stable anchor for
+the behavior learned during SFT. A low $\beta$ creates a weak penalty, giving the current policy
+more freedom to pursue reward but increasing the risk of excessive drift. A high $\beta$ creates
+a strong penalty, preserving behavior closer to the reference policy but potentially limiting
+reward improvement.
+
+Choosing $\beta$ often requires experimentation. An adaptive KL controller can adjust it using
+the KL observed in each batch: when KL exceeds a target, the controller increases $\beta$ to
+strengthen the constraint; when KL falls below the target, it decreases $\beta$ to permit more
+optimization. See ApX's ["The Role of the KL Divergence
+Penalty"](https://apxml.com/courses/rlhf-reinforcement-learning-human-feedback/chapter-4-rl-ppo-fine-tuning/kl-divergence-penalty-role)
+for a broader overview.
 
 ## Group Relative Policy Optimization (GRPO)
 
@@ -1194,6 +1236,7 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 2. [RLHF Book: Reasoning](https://rlhfbook.com/c/07-reasoning)
 3. ["The State of LLM Reasoning Model Training"](https://magazine.sebastianraschka.com/p/the-state-of-llm-reasoning-model-training), Sebastian Raschka
 4. ["Group Relative Policy Optimization (GRPO)"](https://cameronrwolfe.substack.com/p/grpo), Cameron R. Wolfe
+5. ["Direct Preference Optimization (DPO)"](https://cameronrwolfe.substack.com/p/direct-preference-optimization), Cameron R. Wolfe
 
 [^bandit-mdp]: This framing follows Cameron R. Wolfe, ["REINFORCE: Easy Online RL for LLMs"](https://cameronrwolfe.substack.com/p/reinforce#%C2%A7markov-decision-process-mdp-versus-bandit-formulation).
 
@@ -1270,6 +1313,37 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     $$
 
     The policy has barely moved from the reference on this completion, so the penalty is almost nothing. It only bites once the two distributions separate, which is the whole point of the term: it is a leash on how far training can drag the model, not a second reward signal.
+
+[^ppo-kl-rollout-example]: Suppose a PPO batch contains two prompts, each with a two-token completion, and let $\beta = 0.1$. The reward model assigns reward only to `<eos>`. For each sampled token, subtract the reference log-probability from the rollout policy's log-probability, then subtract the scaled result from the token reward:
+
+    | Prompt | Token | Original reward $r_t$ | $\log \pi_{\theta_{\text{old}}}$ | $\log \pi_{\mathrm{ref}}$ | Sampled KL term | Adjusted reward $r_t - \beta k_t$ |
+    | --- | --- | --- | --- | --- | --- | --- |
+    | "The capital of France is" | `Paris` | $0$ | $-0.357$ | $-0.693$ | $-0.357 - (-0.693) = +0.336$ | $0 - 0.1(0.336) = -0.0336$ |
+    | "The capital of France is" | `<eos>` | $1.0$ | $-0.223$ | $-0.105$ | $-0.223 - (-0.105) = -0.118$ | $1.0 - 0.1(-0.118) = 1.0118$ |
+    | "What is 2 + 2?" | `4` | $0$ | $-0.223$ | $-0.511$ | $-0.223 - (-0.511) = +0.288$ | $0 - 0.1(0.288) = -0.0288$ |
+    | "What is 2 + 2?" | `<eos>` | $0.8$ | $-0.105$ | $-0.223$ | $-0.105 - (-0.223) = +0.118$ | $0.8 - 0.1(0.118) = 0.7882$ |
+
+    The sampled sequence-level KL terms are
+
+    $$
+    k^{(1)} = 0.336 - 0.118 = 0.218,
+    \qquad
+    k^{(2)} = 0.288 + 0.118 = 0.406.
+    $$
+
+    Their batch average, which can be logged or supplied to an adaptive KL controller, is
+
+    $$
+    \overline{k} = \frac{0.218 + 0.406}{2} = 0.312.
+    $$
+
+    Meanwhile, the KL-adjusted total rewards used to compute returns and advantages are $0.9782$ for the first completion and $0.7594$ for the second:
+
+    $$
+    1.0 - 0.1(0.218) = 0.9782,
+    \qquad
+    0.8 - 0.1(0.406) = 0.7594.
+    $$
 
 [^completion-kl-example]: Suppose the prompt is
 
