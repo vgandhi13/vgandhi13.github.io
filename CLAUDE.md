@@ -22,6 +22,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Layout of the repo
 
+- use plain language, short sentences, and avoid dense or overly compressed phrasing.
 - `src/pages/index.astro` — the entire homepage: hero (profile pic, bio, social icon links),
   jump-nav (News · Research · Teaching), Karpathy-style experience **timeline**, scrollable
   **News** box, Research (papers), Teaching. All homepage edits happen here.

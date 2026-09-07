@@ -23,8 +23,8 @@ Following this, LLMs typically go through a three-step training pipeline:
 RLHF is the original alignment method. Its goal is to align LLMs with human preferences.
 
 <figure class="narrow">
-  <img src="/images/notes/chatgpt-safety-training-shoggoth.jpg" alt="Editorial illustration of a giant green tentacled Shoggoth model covered in circuit traces and chips while a person paints a smiling AI mask over its face." style="max-width: min(26rem, 100%);" />
-  <figcaption style="max-width: min(26rem, 100%);">Alignment represented as a friendly AI face painted over the underlying Shoggoth model. Source: Cameron Berg and Judd Rosenblatt, <a href="https://www.wsj.com/opinion/the-monster-inside-chatgpt-safety-training-ai-alignment-796ac9d3">"The Monster Inside ChatGPT"</a>, <em>The Wall Street Journal</em>.</figcaption>
+  <img src="/images/notes/shoggoth-rlhf-mask.png" alt="Line drawing of a huge many-eyed tentacled Shoggoth, labelled Unsupervised Learning. A small pink human-like face on one tentacle is labelled Supervised Fine-tuning, and the yellow smiley face it holds up in front of itself is labelled RLHF (cherry on top)." />
+  <figcaption>The Shoggoth meme drawn as the training pipeline: pretraining grows the creature, supervised fine-tuning gives it a human face, and RLHF is the smiley mask held up in front. Source: Dan Smith, <a href="https://www.lesswrong.com/posts/yjzW7gxk2h7bBs2qr/the-meaning-of-shoggoth-ai-memes">"The Meaning of Shoggoth AI Memes"</a>, LessWrong.</figcaption>
 </figure>
 
 There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
@@ -40,6 +40,12 @@ score responses the way the annotators would have.
 
 That reward model is what the policy is then optimized against, which is the proxy the RLVR
 section below contrasts with.
+
+It is worth being precise about what this buys. RLHF makes a model safer with respect to the
+behaviors and situations that its training and evaluation data represent. It does not guarantee
+safety under distribution shift. A prompt unlike anything the annotators considered can still
+pull out the behavior the training was meant to suppress, which is the point the painted-on face
+above is making.
 
 TODO: will update this section later.
 
