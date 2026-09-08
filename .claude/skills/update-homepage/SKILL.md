@@ -84,7 +84,7 @@ Newest term first.
 ## Social links
 
 The `socials` array in the frontmatter — each entry is a label, URL, and inline SVG stroke-icon
-path (feather/lucide style, 24×24 viewBox). GitHub and LeetCode are still `YOUR_*` placeholders.
+path (feather/lucide style, 24×24 viewBox). All entries point at real profiles; no placeholders left.
 
 ## Verify
 

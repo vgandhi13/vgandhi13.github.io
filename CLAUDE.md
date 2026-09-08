@@ -287,8 +287,6 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Current state / open TODOs
 
-- **LeetCode URL is a placeholder** in `src/pages/index.astro` (`YOUR_LEETCODE`) —
-  ask the user for the real username. (GitHub is set: vgandhi13.)
 - **Analytics undecided**: user wants per-page views + referrers; GoatCounter was
   recommended (free, no-cookie, one script tag in Base.astro). Wire it in when they decide.
 - Blog is intentionally empty (`draft: true` template at `src/content/blog/example-post.md`).
