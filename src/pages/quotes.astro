@@ -50,7 +50,7 @@ const aiSingularityChart = `<svg viewBox="0 0 460 250" role="img" aria-labelledb
 
 const quotes: {
   text: string | string[];
-  author: string;
+  author?: string;
   source?: string;
   url?: string;
   paraphrased?: boolean;
@@ -279,11 +279,9 @@ const quotes: {
       'Since we don’t understand them, we can’t be sure we can control them. The cheerful smiley ' +
       'face stuck on top of the shoggoth represents what we see after reinforcement learning ' +
       'from human feedback (RLHF): a polite, aligned chatbot. Underneath, it is still a Shoggoth.',
-    author: 'Dan Smith',
-    source: '“The Meaning of Shoggoth AI Memes”',
-    url: 'https://www.lesswrong.com/posts/yjzW7gxk2h7bBs2qr/the-meaning-of-shoggoth-ai-memes',
-    // a gloss on the meme rather than a sentence from the post
-    paraphrased: true,
+    // no author: this is a definition of the meme, not a quotation, so there is no
+    // name to slug from and the anchor is pinned instead
+    id: 'shoggoth',
     image: {
       src: '/images/quotes/shoggoth-rlhf-mask.png',
       alt: 'Cartoon drawing of a green many-eyed tentacled Shoggoth with a small yellow smiley ' +
@@ -345,17 +343,25 @@ const slugify = (value: string) =>
 // on the NEW one, which leaves the already-shared link on the old one untouched.
 const seen = new Map<string, string>();
 const entries = quotes.map((q) => {
-  const slug = q.id ?? slugify(q.author);
+  if (!q.id && !q.author) {
+    throw new Error(
+      `An excerpt with no author has no name to slug from, so it needs an explicit id. ` +
+        `Add one, e.g. id: '${slugify(
+          (Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' ')
+        )}'.`
+    );
+  }
+  const slug = q.id ?? slugify(q.author!);
   const clash = seen.get(slug);
   if (clash) {
     throw new Error(
-      `Duplicate excerpt anchor "#${slug}" (${clash} and ${q.author}). Add an explicit ` +
+      `Duplicate excerpt anchor "#${slug}" (${clash} and ${q.author ?? `#${slug}`}). Add an explicit ` +
         `id to the newer quote, e.g. id: '${slug}-${slugify(
           (Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' ')
         )}'. Do not renumber the existing one: its link is already out in the world.`
     );
   }
-  seen.set(slug, q.author);
+  seen.set(slug, q.author ?? `#${slug}`);
   return { ...q, slug };
 });
 ---
@@ -402,13 +408,17 @@ const entries = quotes.map((q) => {
           )}
           <div class="meta">
             <div class="meta-text">
-              {/* kept on one line: a line break here renders as a space before the comma */}
-              <p class="attribution">
-                {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
-              </p>
+              {/* an excerpt with no author renders no attribution line, and the em dash
+                  goes with it since it lives on .attribution::before */}
+              {q.author && (
+                /* kept on one line: a line break here renders as a space before the comma */
+                <p class="attribution">
+                  {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
+                </p>
+              )}
               {q.note && <p class="commentary">{q.note}</p>}
             </div>
-            <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={`Copy a link to this excerpt by ${q.author}`}>
+            <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this excerpt by ${q.author}` : 'Copy a link to this excerpt'}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
