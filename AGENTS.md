@@ -94,15 +94,41 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
   the element the browser already jumped to, landing a shared link at the wrong offset.
 
-- **Excerpt figures** (`image: { src, alt }` on a quote): attaches a diagram from the same
-  source under the quote, stored in `public/images/quotes/` (path kept after the rename). A trimmed screenshot is still a
-  rectangle of paper, and on the excerpt card that rectangle reads as a slab, so the flat
-  background is blended away rather than shown: `mix-blend-mode: multiply` drops white onto
-  `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black. Both are
-  lossless **only for grayscale line art** — convert with Pillow's `.convert('L')` when adding
-  one; a colored diagram would come out hue-flipped and needs the plain white-figure treatment
-  instead. (This is the same white-slab problem as the `train_async` SVG, solved for the case
-  where the art has no color to lose.)
+- **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
+  `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
+  after the rename). The per-field contract is in the comment block at the top of
+  `ideas.astro`; the load-bearing parts:
+  - **Default treatment assumes grayscale line art on white.** A trimmed screenshot reads as a
+    slab on the card, so the flat background is blended away: `mix-blend-mode: multiply` drops
+    white onto `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black.
+    Lossless only for black-on-white (same white-slab problem as the `train_async` SVG).
+  - **`plain` turns both off**, for art that is colored. The invert would hue-flip it (salmon to
+    teal, a green shoggoth to magenta, a blue room to orange). Costs a white panel in dark mode,
+    the same trade the note figures make, and costs *nothing* when the PNG has transparency,
+    since the card shows through. Prefer this to `.convert('L')` whenever the color carries
+    meaning, e.g. two series in one diagram.
+  - **`svg` is for art that is neither** grayscale nor on white: the singularity chart's source
+    was a dark-navy branded card, so it is redrawn on the `--diagram-*-border` tokens and is
+    theme-aware instead. Injected with `set:html`, so Astro's scoped styles never reach it: its
+    sizing and colors go inline on the element, and `var()` needs `style=`, not a presentation
+    attribute, or it silently falls back to black.
+  - **`credit`/`creditUrl` render a figcaption**, for when the figure and the quote come from
+    different places, which is common: the jagged-frontier diagram is Mollick's while the term is
+    Karpathy's, and "Image generated using ChatGPT" has no URL at all (plain text, no link).
+  - **`width` caps one figure below the shared 460px**, for art that is tall or square and would
+    otherwise be the tallest thing on the page. Keeps the `min(100%, …)` form so a phone still
+    wins on the 100% side. The user has asked for smaller more than once: default low.
+
+- **`text` and `note` on an idea go through `set:html`**, so an entry can bold the term it defines
+  or link a citation inline. Safe only because every value is authored in `ideas.astro` and never
+  user input; nothing there contains a bare `&` or `<`. `note` also takes an array of paragraphs,
+  and only the first draws the introducing rule.
+
+- **The "Copy link" label carries a hidden sizer.** `.share-text` is an `inline-grid` stacking a
+  `visibility: hidden` span reading "Copy link" with the live label. Without it, swapping to the
+  narrower "Copied" shrank the control, `.meta` (space-between) handed the freed width to
+  `.meta-text`, the commentary re-wrapped, and the card jumped 306px to 261px on click. Don't
+  replace it with a px `min-width`: that drifts if the font or the wording changes.
 
 - **Search**: `/search-index.json` is generated at build from both collections. Each doc has
   `text` (stop-word-stripped, for Fuse.js fuzzy matching), `plain` (readable, for sentence
