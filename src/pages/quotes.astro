@@ -10,7 +10,9 @@ import Base from '../layouts/Base.astro';
 // rather than transcribed, so the page never passes it off as verbatim.
 // `note` is your own commentary on the excerpt. It renders below the attribution,
 // under a rule and in a lighter register, so it reads as annotation and never as
-// something the speaker said. Keep it to a line.
+// something the speaker said. A line is the usual size; pass an array when it needs
+// more than one paragraph, and only the first gets the rule. Like `text` it goes
+// through set:html, so it can carry an inline link.
 // `image` hangs a figure from the same source under the quote. Keep it grayscale
 // line art: dark mode inverts the image rather than punching a white slab into the
 // card, which is lossless for black-on-white and wrong for anything colored.
@@ -54,7 +56,7 @@ const quotes: {
   source?: string;
   url?: string;
   paraphrased?: boolean;
-  note?: string;
+  note?: string | string[];
   image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string };
   svg?: { markup: string; credit?: string; creditUrl?: string };
   id?: string;
@@ -208,6 +210,27 @@ const quotes: {
     text: 'The first principle is that you must not fool yourself—and you are the easiest person ' +
       'to fool.',
     author: 'Richard Feynman',
+  },
+  {
+    text: 'The book of nature is written in the language of mathematics.',
+    author: 'Galileo Galilei',
+    source: '“Il Saggiatore” (1623)',
+    // The passage itself is longer: philosophy is written in "this grand book, the
+    // universe", which "is written in the language of mathematics, and its characters are
+    // triangles, circles, and other geometrical figures, without which it is humanly
+    // impossible to understand a single word of it". This is the condensed rendering that
+    // circulates, and it is a translation either way, hence the flag.
+    paraphrased: true,
+    note: [
+      'LLMs are increasingly solving unsolved open math problems at the moment ' +
+        '(<a href="https://www.anthropic.com/research/riemann-zeta" target="_blank" ' +
+        'rel="noopener">Riemann zeta</a>, <a href="https://openai.com/index/navier-stokes-solution/" ' +
+        'target="_blank" rel="noopener">Navier-Stokes</a>). The secrets of the universe are ' +
+        'encoded in mathematics. That ability to decode it is where all of this is ultimately heading.',
+      'The goal isn’t to develop LLMs just to write emails or generate images. The goal is to ' +
+        'decode the mathematical structure of reality. Everything else (the chat, the creativity, ' +
+        'the analysis) is just a byproduct of that deeper process.',
+    ],
   },
   {
     text: [
@@ -416,7 +439,7 @@ const entries = quotes.map((q) => {
                   {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
                 </p>
               )}
-              {q.note && <p class="commentary">{q.note}</p>}
+              {q.note && (Array.isArray(q.note) ? q.note : [q.note]).map((n) => <p class="commentary" set:html={n} />)}
             </div>
             <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this excerpt by ${q.author}` : 'Copy a link to this excerpt'}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -638,6 +661,15 @@ const entries = quotes.map((q) => {
     margin-bottom: 0.55rem;
     border-top: 2px solid var(--text-muted);
     opacity: 0.45;
+  }
+
+  /* the rule introduces the commentary block, so only the first paragraph draws it */
+  .commentary + .commentary {
+    margin-top: 0.6rem;
+  }
+
+  .commentary + .commentary::before {
+    display: none;
   }
 
   .attribution::before {
