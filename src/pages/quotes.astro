@@ -14,9 +14,40 @@ import Base from '../layouts/Base.astro';
 // `image` hangs a figure from the same source under the quote. Keep it grayscale
 // line art: dark mode inverts the image rather than punching a white slab into the
 // card, which is lossless for black-on-white and wrong for anything colored.
+// Set `plain` when the figure is colored but on a white background: it keeps the
+// multiply/invert off so the art renders as-is, which costs a white slab in dark mode
+// but is the same trade the white-background note figures already make, and is much
+// better than an invert that hue-flips salmon to teal. `credit`/`creditUrl` add a
+// figcaption, for when the figure comes from somewhere other than the quote itself.
+// `svg` is the escape hatch for a source figure that is neither: a colored or
+// dark-background diagram would come out hue-flipped under that invert, so redraw it
+// as inline SVG on the --diagram-*-border tokens instead. It is injected with
+// `set:html`, which means Astro's scoped styles never reach it, so its sizing and
+// colors live inline on the element (and `var()` needs `style=`, not a presentation
+// attribute, to resolve).
 // Each excerpt gets a shareable #anchor, slugged from `author`. A second quote by the
 // same author fails the build; give that one an explicit `id` (short and memorable,
 // e.g. id: 'karpathy-understanding') so the first one's shared link keeps working.
+// Redrawn from the chart in the HubSpot post credited on the figure: that original is
+// a dark-navy branded card, which the .quote-figure invert would turn cream-on-pink.
+const aiSingularityChart = `<svg viewBox="0 0 460 250" role="img" aria-labelledby="ai-sing-title" style="display:block;width:min(100%,460px);height:auto;margin:0 auto">
+  <title id="ai-sing-title">Intelligence plotted against time: a gently rising human curve, and an AI curve that starts lower, crosses it, and then climbs steeply.</title>
+  <defs>
+    <marker id="ai-sing-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" style="fill: var(--diagram-orange-border)" />
+    </marker>
+  </defs>
+  <path d="M 70 26 L 70 200 L 392 200" fill="none" stroke-width="1.5" stroke-linecap="round" style="stroke: var(--text-muted)" />
+  <path d="M 70 185 Q 230 162 380 128" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: currentColor" />
+  <path d="M 70 196 C 190 194 265 180 305 144 C 340 104 365 58 380 32" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: var(--diagram-blue-border)" />
+  <path d="M 196 78 Q 250 96 285 126" fill="none" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ai-sing-arrow)" style="stroke: var(--diagram-orange-border)" />
+  <circle cx="305" cy="144" r="5.5" style="fill: var(--diagram-orange-border)" />
+  <text x="388" y="36" font-size="13" style="fill: var(--diagram-blue-border)">AI</text>
+  <text x="388" y="132" font-size="13" style="fill: currentColor">Human</text>
+  <text x="231" y="230" font-size="13" text-anchor="middle" style="fill: var(--text-muted)">Time</text>
+  <text x="50" y="113" font-size="13" text-anchor="middle" transform="rotate(-90 50 113)" style="fill: var(--text-muted)">Intelligence</text>
+</svg>`;
+
 const quotes: {
   text: string | string[];
   author: string;
@@ -24,7 +55,8 @@ const quotes: {
   url?: string;
   paraphrased?: boolean;
   note?: string;
-  image?: { src: string; alt: string };
+  image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string };
+  svg?: { markup: string; credit?: string; creditUrl?: string };
   id?: string;
 }[] = [
   {
@@ -200,6 +232,68 @@ const quotes: {
     },
   },
   {
+    text: '<strong>Singularity</strong> refers to a future point in time where artificial ' +
+      'intelligence (AI) could potentially surpass human intelligence. This occurrence would ' +
+      'arise from the exponential self-improvement of AI, leading to an unpredictable and rapid ' +
+      'change in the technological landscape.',
+    author: 'Ray Kurzweil',
+    source: 'who popularized the idea in “The Singularity Is Near”',
+    // the wording is a general definition of the term, not Kurzweil's own sentence
+    paraphrased: true,
+    svg: {
+      markup: aiSingularityChart,
+      credit: 'Chart redrawn from Tristen Taylor, “How Far Are We from AI Singularity?”',
+      creditUrl: 'https://blog.hubspot.com/marketing/ai-singularity',
+    },
+  },
+  {
+    text: '<strong>Jagged intelligence</strong> describes the strange, unintuitive fact that ' +
+      'state-of-the-art LLMs can perform extremely impressive tasks, like solving a complex ' +
+      'math problem, while ' +
+      'simultaneously struggling with some very dumb ones.',
+    author: 'Andrej Karpathy',
+    source: 'who coined “jagged intelligence”',
+    url: 'https://x.com/karpathy/status/1816531576228053133',
+    // the wording is a definition of the term, not a transcription of the post
+    paraphrased: true,
+    // #andrej-karpathy belongs to the earlier excerpt; pinning keeps that link valid
+    id: 'karpathy-jagged-intelligence',
+    image: {
+      src: '/images/quotes/jagged-frontier.jpg',
+      alt: 'Five stages of a growing, jagged salmon shape overlapping a pale blue circle of ' +
+        'tasks in a human job. The shape starts as a small squiggle inside the circle labelled ' +
+        '“the AI is a fun toy”, then fills more of it, then grows spikes that reach outside it ' +
+        '(“the AI has a jagged frontier, sometimes it’s amazing, sometimes it’s dumb”), with a ' +
+        'star marking “we are here”. In the fourth stage the spikes dwarf the circle but leave ' +
+        'gaps inside it (“the AI is unbelievably intelligent but for some reason it fails at X”), ' +
+        'and the final stage is a solid shape covering the circle entirely, labelled AGI.',
+      plain: true,
+      credit: 'Diagram via Ethan Mollick, “The Shape of AI: Jaggedness, Bottlenecks and Salients”',
+      creditUrl: 'https://www.oneusefulthing.org/p/the-shape-of-ai-jaggedness-bottlenecks',
+    },
+  },
+  {
+    text: '<strong>Shoggoths</strong> are formless, powerful, and not entirely controllable ' +
+      'creatures from Lovecraft’s stories. Large Language Models are analogous: they are almost ' +
+      'an alien technology, and we don’t entirely understand how or why they do what they do. ' +
+      'Since we don’t understand them, we can’t be sure we can control them. The cheerful smiley ' +
+      'face stuck on top of the shoggoth represents what we see after reinforcement learning ' +
+      'from human feedback (RLHF): a polite, aligned chatbot. Underneath, it is still a Shoggoth.',
+    author: 'Dan Smith',
+    source: '“The Meaning of Shoggoth AI Memes”',
+    url: 'https://www.lesswrong.com/posts/yjzW7gxk2h7bBs2qr/the-meaning-of-shoggoth-ai-memes',
+    // a gloss on the meme rather than a sentence from the post
+    paraphrased: true,
+    image: {
+      src: '/images/quotes/shoggoth-rlhf-mask.png',
+      alt: 'Cartoon drawing of a green many-eyed tentacled Shoggoth with a small yellow smiley ' +
+        'face mask held over one end of it, far too small to cover the creature behind it.',
+      // green and yellow on a transparent background: the dark-mode invert would turn the
+      // creature magenta, and transparency means plain needs no white panel either
+      plain: true,
+    },
+  },
+  {
     text: 'AI accelerates the generalist and polymath - you can become a one-human business. ' +
       'Content on social media to attract an audience around your life’s work, code to build ' +
       'the product, funnel, and digital real estate, and domain specific knowledge that makes ' +
@@ -278,11 +372,32 @@ const entries = quotes.map((q) => {
       {entries.map((q) => (
         <li id={q.slug}>
           <blockquote>
-            {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p>{para}</p>)}
+            {/* set:html so a quote can bold the term it defines. Safe because every
+                `text` value is authored in this file, never user input. */}
+            {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
           </blockquote>
           {q.image && (
             <figure class="quote-figure">
-              <img src={q.image.src} alt={q.image.alt} loading="lazy" />
+              <img src={q.image.src} alt={q.image.alt} class={q.image.plain ? 'plain' : undefined} loading="lazy" />
+              {q.image.credit && (
+                <figcaption>
+                  {q.image.creditUrl
+                    ? <a href={q.image.creditUrl} target="_blank" rel="noopener">{q.image.credit}</a>
+                    : q.image.credit}
+                </figcaption>
+              )}
+            </figure>
+          )}
+          {q.svg && (
+            <figure class="quote-figure">
+              <Fragment set:html={q.svg.markup} />
+              {q.svg.credit && (
+                <figcaption>
+                  {q.svg.creditUrl
+                    ? <a href={q.svg.creditUrl} target="_blank" rel="noopener">{q.svg.credit}</a>
+                    : q.svg.credit}
+                </figcaption>
+              )}
             </figure>
           )}
           <div class="meta">
@@ -431,6 +546,18 @@ const entries = quotes.map((q) => {
   :global(:root[data-theme='dark']) .quote-figure img {
     filter: invert(1);
     mix-blend-mode: screen;
+  }
+
+  /* colored art on white: inverting it would hue-flip every fill, so it renders
+     plainly and accepts the white panel in dark mode */
+  .quote-figure img.plain,
+  :global(:root[data-theme='dark']) .quote-figure img.plain {
+    mix-blend-mode: normal;
+    filter: none;
+  }
+
+  .quote-figure figcaption {
+    text-align: center;
   }
 
   /* the share link tracks the BOTTOM of the text block, not the attribution line:
