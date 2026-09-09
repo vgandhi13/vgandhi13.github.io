@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-07
+updated: 2026-09-08
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -552,6 +552,35 @@ strengthen the constraint; when KL falls below the target, it decreases $\beta$ 
 optimization. See ApX's ["The Role of the KL Divergence
 Penalty"](https://apxml.com/courses/rlhf-reinforcement-learning-human-feedback/chapter-4-rl-ppo-fine-tuning/kl-divergence-penalty-role)
 for a broader overview.
+
+**Advantage in PPO:** The advantage function is defined as the difference between the
+[state-action value function and the value function](/notes/actor-critic-methods/#q-still-depends-on-the-state-not-just-the-action),
+$A(s_t, a_t) = Q(s_t, a_t) - V(s_t)$. In PPO, we estimate the state-action value function using
+the actual reward observed for a trajectory. The value function, in contrast, is estimated using
+a learned model, the critic.
+
+The critic that supplies $V(s_t)$ is usually built by copying the policy and swapping its
+language modeling head, which outputs one logit per vocabulary token, for a value head: a small
+linear layer that maps each position's hidden state to a single scalar. That copy is initialized
+from the policy's weights, but it trains on its own objective from then on, so the two networks
+drift apart as PPO proceeds.
+
+Taking a partial response as input, the critic predicts the expected final reward for every
+token position in the sequence. Most LLMs are trained with outcome supervision, meaning a reward
+is only assigned once the model has generated a complete response, after the `<eos>` token has
+been emitted. The critic and the reward model are similar in that both are learned models that
+predict rewards. The difference is what each one is given: the critic predicts an expected reward
+from a partial completion, while the reward model scores an entire finished response.
+
+<figure class="narrow">
+  <img src="/images/notes/value-model-vs-reward-model.png" alt="Value model versus reward model. A prompt feeds a row of generated tokens, Token 1, Token 2, through Token t, Token T-1, and Token T, the end-of-sequence token. A single wide box labelled Value Model or Critic spans every token and emits one value estimate per position, V of s_1, V of s_2, V of s_t, V of s_T-1 and V of s_T. A separate small box labelled RM sits over the final token only and emits a single reward r_T, braced and labelled the outcome reward setting." />
+  <figcaption>The critic scores every token position, while the reward model fires once, on the finished response. Under outcome supervision the only real reward arrives at the final token.</figcaption>
+</figure>
+
+**The value function is on-policy.** Unlike the reward model, which is fixed at the start of RL
+training, the critic is trained alongside the LLM at every policy update so its predictions stay
+on-policy. This is done by adding an extra mean-squared error (MSE) loss, as in [training the
+value network](/notes/actor-critic-methods/#training-the-value-network), to the surrogate loss.
 
 ## Group Relative Policy Optimization (GRPO)
 
