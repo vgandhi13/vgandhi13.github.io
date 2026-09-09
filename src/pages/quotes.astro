@@ -21,6 +21,9 @@ import Base from '../layouts/Base.astro';
 // but is the same trade the white-background note figures already make, and is much
 // better than an invert that hue-flips salmon to teal. `credit`/`creditUrl` add a
 // figcaption, for when the figure comes from somewhere other than the quote itself.
+// `width` caps one figure below the shared 460px, for art that is tall or square and
+// would otherwise eat the whole card. It keeps the min(100%, …) form so a phone still
+// wins on the 100% side.
 // `svg` is the escape hatch for a source figure that is neither: a colored or
 // dark-background diagram would come out hue-flipped under that invert, so redraw it
 // as inline SVG on the --diagram-*-border tokens instead. It is injected with
@@ -57,7 +60,7 @@ const quotes: {
   url?: string;
   paraphrased?: boolean;
   note?: string | string[];
-  image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string };
+  image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string; width?: number };
   svg?: { markup: string; credit?: string; creditUrl?: string };
   id?: string;
 }[] = [
@@ -231,6 +234,28 @@ const quotes: {
         'decode the mathematical structure of reality. Everything else (the chat, the creativity, ' +
         'the analysis) is just a byproduct of that deeper process.',
     ],
+  },
+  {
+    text: 'The way a computer and a keyboard are to a cat, the intricacies of the universe are ' +
+      'to a human. We will probably never understand it. But it is good once in a while to ' +
+      'discover something new.',
+    // attributed to the channel rather than a host: the specific video is not known, and
+    // Vsauce1/2/3 have different presenters
+    author: 'Vsauce',
+    paraphrased: true,
+    image: {
+      src: '/images/quotes/cat-keyboard-cosmos.jpg',
+      alt: 'Cartoon panel split down the middle. On the left a cat sits in an office chair at a ' +
+        'desk, one paw on a keyboard, in front of a monitor showing a lightbulb, with surprise ' +
+        'marks above its head. On the right an astronaut floats in starry space among spiral ' +
+        'galaxies, reaching with the same surprise marks toward an enormous dark console studded ' +
+        'with planets, one of them Earth.',
+      // full-colour illustration: the dark-mode invert would turn the blue room orange and the
+      // night sky white
+      plain: true,
+      // square, so the shared 460px made it the tallest thing on the page
+      width: 320,
+    },
   },
   {
     text: [
@@ -407,7 +432,13 @@ const entries = quotes.map((q) => {
           </blockquote>
           {q.image && (
             <figure class="quote-figure">
-              <img src={q.image.src} alt={q.image.alt} class={q.image.plain ? 'plain' : undefined} loading="lazy" />
+              <img
+                src={q.image.src}
+                alt={q.image.alt}
+                class={q.image.plain ? 'plain' : undefined}
+                style={q.image.width ? `width: min(100%, ${q.image.width}px)` : undefined}
+                loading="lazy"
+              />
               {q.image.credit && (
                 <figcaption>
                   {q.image.creditUrl
