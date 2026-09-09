@@ -494,7 +494,10 @@ const entries = quotes.map((q) => {
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
               </svg>
-              <span class="share-text">Copy link</span>
+              <span class="share-text">
+                <span class="share-sizer" aria-hidden="true">Copy link</span>
+                <span class="share-live">Copy link</span>
+              </span>
             </a>
           </div>
         </li>
@@ -537,7 +540,7 @@ const entries = quotes.map((q) => {
             location.hash = slug;
             return;
           }
-          const label = btn.querySelector('.share-text');
+          const label = btn.querySelector('.share-live');
           btn.classList.add('copied');
           label.textContent = 'Copied';
           clearTimeout(btn.resetTimer);
@@ -689,6 +692,22 @@ const entries = quotes.map((q) => {
 
   .share svg {
     flex-shrink: 0;
+  }
+
+  /* Both labels occupy one grid cell, so the control stays as wide as the longer
+     one when the text swaps to "Copied". Without this the label narrows, .meta
+     (space-between) hands the freed width to .meta-text, and the commentary
+     re-wraps to fewer lines: the whole card visibly shrinks on click. */
+  .share-text {
+    display: inline-grid;
+  }
+
+  .share-text > * {
+    grid-area: 1 / 1;
+  }
+
+  .share-sizer {
+    visibility: hidden;
   }
 
   /* my own commentary, not the speaker's: the rule and the lighter register are
