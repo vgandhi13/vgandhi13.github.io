@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Personal academic website for Varun Gandhi (MS CS @ UMass Amherst, AI research / LLM post-training).
 Static Astro site. Design goal: **minimal and easy to maintain** — resist adding dependencies,
@@ -22,7 +22,6 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Layout of the repo
 
-- use plain language, short sentences, and avoid dense or overly compressed phrasing.
 - `src/pages/index.astro` — the entire homepage: hero (profile pic, bio, social icon links),
   jump-nav (News · Research · Teaching), Karpathy-style experience **timeline**, scrollable
   **News** box, Research (papers), Teaching. All homepage edits happen here.
@@ -44,9 +43,9 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 ## Conventions & gotchas
 
 - **After adding any new feature or convention**, check whether it should be recorded for
-  future sessions: update an existing skill (`.claude/skills/`), create a new one if it's a
+  future sessions: update an existing skill (`.agents/skills/`), create a new one if it's a
   repeatable workflow, or add a line here — so the next agent can pick up where this one left
-  off. Prefer one home per fact (skill for authoring workflows, CLAUDE.md for site-wide
+  off. Prefer one home per fact (skill for authoring workflows, AGENTS.md for site-wide
   facts/gotchas) to avoid drift.
 
 - **Never use em dashes (—)** in notes, blog posts, or any prose on this site. Use a comma,
@@ -290,6 +289,8 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Current state / open TODOs
 
+- **LeetCode URL is a placeholder** in `src/pages/index.astro` (`YOUR_LEETCODE`) —
+  ask the user for the real username. (GitHub is set: vgandhi13.)
 - **Analytics undecided**: user wants per-page views + referrers; GoatCounter was
   recommended (free, no-cookie, one script tag in Base.astro). Wire it in when they decide.
 - Blog is intentionally empty (`draft: true` template at `src/content/blog/example-post.md`).
