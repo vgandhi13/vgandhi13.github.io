@@ -20,3 +20,4 @@ properly.
 - ["On Policy Distillation - How the big AI labs actually train their LLMs"](https://www.youtube.com/watch?v=ARRD9itTMgw)
 - ["On-Policy Distillation in 20 Min"](https://www.youtube.com/watch?v=4l39C6-MZsE), Zachary Huang
 - ["How On Policy Self Distillation Works"](https://www.youtube.com/watch?v=wxOZWD6wYVY&pp=ugUEEgJlbg%3D%3D), Sasha Rush
+- ["Knowledge Distillation: How LLMs train each other"](https://www.youtube.com/watch?v=jrJKRYAdh7I&pp=ugUHEgVlbi1VUw%3D%3D), Julia Turc

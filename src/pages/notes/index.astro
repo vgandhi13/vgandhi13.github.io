@@ -3,8 +3,10 @@ import Base from '../../layouts/Base.astro';
 import Search from '../../components/Search.astro';
 import { getCollection } from 'astro:content';
 
+const modifiedDate = (note) => note.data.updated ?? note.data.date;
+
 const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+  (a, b) => modifiedDate(b).valueOf() - modifiedDate(a).valueOf()
 );
 ---
 
@@ -26,7 +28,8 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
           {note.data.wip && <span class="wip-badge">in progress</span>}
         </span>
         <span class="date">
-          {note.data.date.toLocaleDateString('en-US', {
+          {note.data.updated ? 'Updated ' : 'Added '}
+          {modifiedDate(note).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -79,8 +82,22 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
   }
 
   .date {
+    flex-shrink: 0;
     color: var(--text-muted);
     font-size: 0.9rem;
     white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    .note-list li {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+      padding: 0.6rem 0;
+    }
+
+    .date {
+      font-size: 0.8rem;
+    }
   }
 </style>

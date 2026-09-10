@@ -3,8 +3,10 @@ import Base from '../../layouts/Base.astro';
 import Search from '../../components/Search.astro';
 import { getCollection } from 'astro:content';
 
+const modifiedDate = (post) => post.data.updated ?? post.data.date;
+
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+  (a, b) => modifiedDate(b).valueOf() - modifiedDate(a).valueOf()
 );
 ---
 
@@ -21,7 +23,8 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
             <li>
               <a href={`/blog/${post.id}/`}>{post.data.title}</a>
               <span class="date">
-                {post.data.date.toLocaleDateString('en-US', {
+                {post.data.updated ? 'Updated ' : 'Published '}
+                {modifiedDate(post).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'short',
                   day: 'numeric',
@@ -56,8 +59,22 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   }
 
   .date {
+    flex-shrink: 0;
     color: var(--text-muted);
     font-size: 0.9rem;
     white-space: nowrap;
+  }
+
+  @media (max-width: 600px) {
+    .post-list li {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+      padding: 0.6rem 0;
+    }
+
+    .date {
+      font-size: 0.8rem;
+    }
   }
 </style>
