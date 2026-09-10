@@ -404,6 +404,12 @@ Each bracketed log ratio is exact for its sampled prompt-completion pair, but th
 is a Monte Carlo estimate of the KL averaged over the prompt distribution. As $N$ grows, this
 empirical average approaches the true prompt-averaged KL divergence.[^kl-monte-carlo-example]
 
+In PPO, the token-level penalty and the batch-level Monte Carlo estimate use the same samples.
+With $k_1$, each completion's log ratio is the sum of its sampled token log ratios. PPO can apply
+those sampled per-token log ratios directly to the corresponding token rewards, while summing
+them within each completion and averaging across the batch gives the scalar KL estimate used for
+monitoring or adapting $\beta$.
+
 ## Proximal Policy Optimization (PPO) for LLMs
 
 PPO is what the RLHF pipeline above optimizes with, and relies upon the
