@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -581,6 +581,542 @@ from a partial completion, while the reward model scores an entire finished resp
 training, the critic is trained alongside the LLM at every policy update so its predictions stay
 on-policy. This is done by adding an extra mean-squared error (MSE) loss, as in [training the
 value network](/notes/actor-critic-methods/#training-the-value-network), to the surrogate loss.
+
+### The update in code
+
+Here is the whole thing as code, in two files. `ppo.py` holds the algorithm: it caches the
+rollout targets once, then takes several gradient steps against that frozen snapshot.
+`ppo_llm_example.py` is the harness around it, wiring up a small pretrained model, a frozen
+reference copy, and a critic with a value head, then running one update on a batch of three
+prompts. That batch is small enough to follow by hand, so it is worth walking the tensors
+through `ppo_update` once: every shape, every mask, and the numbers that come out at each
+step are traced in a footnote.[^ppo-code-trace]
+
+<div class="code-tabs" id="ppo-code">
+<div class="code-tabs-bar" role="tablist" aria-label="PPO reference implementation" hidden>
+<button type="button" class="code-tabs-tab" role="tab" id="ppo-code-tab-core" aria-controls="ppo-code-core" aria-selected="true" data-target="ppo-code-core">ppo.py</button>
+<button type="button" class="code-tabs-tab" role="tab" id="ppo-code-tab-example" aria-controls="ppo-code-example" aria-selected="false" tabindex="-1" data-target="ppo-code-example">ppo_llm_example.py</button>
+</div>
+<div class="code-tabs-pane" id="ppo-code-core" role="tabpanel" aria-labelledby="ppo-code-tab-core">
+<p class="code-tabs-label">ppo.py</p>
+
+```python
+import torch
+import torch.nn.functional as F
+
+
+def token_log_probs(model, input_ids, attention_mask):
+    # Position t predicts token t + 1.
+    logits = model(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+    ).logits[:, :-1]
+
+    logps = F.log_softmax(logits.float(), dim=-1)
+
+    return logps.gather(
+        dim=-1,
+        index=input_ids[:, 1:].unsqueeze(-1),
+    ).squeeze(-1)
+
+
+def critic_values(critic, input_ids, attention_mask):
+    # Assumes CRITIC returns [B, L] or [B, L, 1].
+    values = critic(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+    )
+
+    if values.ndim == 3:
+        values = values.squeeze(-1)
+
+    # Value before each target token is generated.
+    return values[:, :-1].float()
+
+
+def response_mean(x, mask):
+    # Equal weight per response.
+    x = x.masked_fill(~mask, 0.0)
+    return (
+        x.sum(dim=-1)
+        / mask.sum(dim=-1).clamp_min(1)
+    ).mean()
+
+
+def ppo_update(
+    LLM,
+    REF,
+    CRITIC,
+    optimizer,
+    completions,       # [B, L]: prompt + response + padding
+    attention_mask,    # [B, L]: valid prompt and response positions
+    completion_mask,   # [B, L - 1]: response target positions only
+    outcome_rewards,   # [B]: frozen reward-model scores
+    num_ppo_steps=4,
+    kl_beta=0.1,
+    critic_weight=0.5,
+    ppo_eps=0.2,
+    gamma=1.0,
+    max_grad_norm=1.0,
+):
+    mask = completion_mask.bool()
+
+    if mask.shape != completions[:, 1:].shape:
+        raise ValueError("completion_mask must have shape [B, L - 1].")
+
+    if not mask.any(dim=-1).all().item():
+        raise ValueError("Every example must contain a response token.")
+
+    # Disable dropout. eval() still allows gradients.
+    LLM.eval()
+    REF.eval()
+    CRITIC.eval()
+
+    # LLM must still be the policy that generated this rollout.
+    # Cache all rollout targets BEFORE any optimizer updates.
+    with torch.no_grad():
+        old_token_logps = token_log_probs(
+            LLM, completions, attention_mask
+        )
+        ref_token_logps = token_log_probs(
+            REF, completions, attention_mask
+        )
+        old_values = critic_values(
+            CRITIC, completions, attention_mask
+        )
+
+        # Fixed KL-shaped rollout rewards.
+        sampled_kl = old_token_logps - ref_token_logps
+        token_rewards = (-kl_beta * sampled_kl).masked_fill(
+            ~mask, 0.0
+        )
+
+        # Actual final response position, including the prompt offset.
+        positions = torch.arange(
+            mask.size(1), device=mask.device
+        ).unsqueeze(0).expand_as(mask)
+
+        last_indices = positions.masked_fill(
+            ~mask, -1
+        ).amax(dim=-1)
+
+        rows = torch.arange(mask.size(0), device=mask.device)
+
+        token_rewards[rows, last_indices] += outcome_rewards.to(
+            device=token_rewards.device,
+            dtype=token_rewards.dtype,
+        )
+
+        # Monte Carlo return-to-go.
+        # Assumes contiguous responses and terminal episode endings.
+        returns = torch.zeros_like(token_rewards)
+        running_return = torch.zeros_like(token_rewards[:, 0])
+
+        for t in reversed(range(token_rewards.size(1))):
+            running_return = (
+                token_rewards[:, t] + gamma * running_return
+            )
+            running_return = running_return.masked_fill(
+                ~mask[:, t], 0.0
+            )
+            returns[:, t] = running_return
+
+        # Fixed advantages: do NOT recompute after critic updates.
+        advantages = (returns - old_values).masked_fill(
+            ~mask, 0.0
+        )
+
+    trainable_params = [
+        parameter
+        for group in optimizer.param_groups
+        for parameter in group["params"]
+        if parameter.requires_grad
+    ]
+
+    metrics = []
+
+    # Reuse this rollout for multiple full-batch gradient steps.
+    for step in range(num_ppo_steps):
+        token_logps = token_log_probs(
+            LLM, completions, attention_mask
+        )
+        values = critic_values(
+            CRITIC, completions, attention_mask
+        )
+
+        log_ratio = (token_logps - old_token_logps).masked_fill(
+            ~mask, 0.0
+        )
+        ratio = log_ratio.exp()
+
+        clipped_ratio = ratio.clamp(
+            1.0 - ppo_eps,
+            1.0 + ppo_eps,
+        )
+
+        actor_loss = -response_mean(
+            torch.minimum(
+                ratio * advantages,
+                clipped_ratio * advantages,
+            ),
+            mask,
+        )
+
+        critic_loss = response_mean(
+            (values - returns).square(),
+            mask,
+        )
+
+        loss = actor_loss + critic_weight * critic_loss
+
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(
+            trainable_params, max_grad_norm
+        )
+
+        optimizer.step()
+
+        metrics.append({
+            "step": step + 1,
+            "loss": loss.detach().item(),
+            "actor_loss": actor_loss.detach().item(),
+            "critic_loss": critic_loss.detach().item(),
+        })
+
+    return metrics
+```
+
+</div>
+<div class="code-tabs-pane" id="ppo-code-example" role="tabpanel" aria-labelledby="ppo-code-tab-example">
+<p class="code-tabs-label">ppo_llm_example.py</p>
+
+```python
+"""Run the PPO update on a batch using a pretrained causal language model."""
+
+from copy import deepcopy
+
+import torch
+import torch.nn as nn
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
+
+from ppo import ppo_update
+
+
+MODEL_NAME = "sshleifer/tiny-gpt2"
+
+
+class TransformerCritic(nn.Module):
+    """A pretrained transformer backbone with a token-level value head."""
+
+    def __init__(self, model_name):
+        super().__init__()
+        self.backbone = AutoModel.from_pretrained(
+            model_name,
+            local_files_only=True,
+        )
+        self.value_head = nn.Linear(
+            self.backbone.config.hidden_size,
+            1,
+        )
+
+    def forward(self, input_ids, attention_mask):
+        hidden_states = self.backbone(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        ).last_hidden_state
+        return self.value_head(hidden_states).squeeze(-1)
+
+
+def make_completion_batch(tokenizer, prompts, responses):
+    """Tokenize prompt/response pairs and mark response target positions."""
+    sequences = []
+    prompt_lengths = []
+
+    for prompt, response in zip(prompts, responses, strict=True):
+        prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
+        response_ids = tokenizer.encode(response, add_special_tokens=False)
+        sequences.append(
+            prompt_ids + response_ids + [tokenizer.eos_token_id]
+        )
+        prompt_lengths.append(len(prompt_ids))
+
+    max_length = max(map(len, sequences))
+    batch_size = len(sequences)
+    completions = torch.full(
+        (batch_size, max_length),
+        tokenizer.pad_token_id,
+        dtype=torch.long,
+    )
+    attention_mask = torch.zeros(
+        (batch_size, max_length),
+        dtype=torch.long,
+    )
+    completion_mask = torch.zeros(
+        (batch_size, max_length - 1),
+        dtype=torch.bool,
+    )
+
+    for row, (sequence, prompt_length) in enumerate(
+        zip(sequences, prompt_lengths, strict=True)
+    ):
+        sequence_length = len(sequence)
+        completions[row, :sequence_length] = torch.tensor(sequence)
+        attention_mask[row, :sequence_length] = 1
+
+        # Shifted index prompt_length - 1 predicts the first response token.
+        completion_mask[
+            row,
+            prompt_length - 1 : sequence_length - 1,
+        ] = True
+
+    return completions, attention_mask, completion_mask
+
+
+def main():
+    torch.manual_seed(7)
+
+    print(f"Loading cached model: {MODEL_NAME}", flush=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME,
+        local_files_only=True,
+    )
+    tokenizer.pad_token = tokenizer.eos_token
+
+    policy = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        local_files_only=True,
+    )
+    policy.config.pad_token_id = tokenizer.pad_token_id
+
+    reference = deepcopy(policy)
+    reference.requires_grad_(False)
+    critic = TransformerCritic(MODEL_NAME)
+
+    prompts = [
+        "The capital of France is",
+        "Two plus two equals",
+        "Water freezes at",
+    ]
+    responses = [
+        " Paris.",
+        " four.",
+        " zero degrees Celsius.",
+    ]
+    completions, attention_mask, completion_mask = (
+        make_completion_batch(tokenizer, prompts, responses)
+    )
+
+    # In a real run, these fixed scores come from a reward model or evaluator.
+    outcome_rewards = torch.tensor([1.0, 0.7, 0.9])
+
+    optimizer = torch.optim.AdamW(
+        [*policy.parameters(), *critic.parameters()],
+        lr=5e-5,
+    )
+
+    print("Running PPO update...", flush=True)
+    metrics = ppo_update(
+        LLM=policy,
+        REF=reference,
+        CRITIC=critic,
+        optimizer=optimizer,
+        completions=completions,
+        attention_mask=attention_mask,
+        completion_mask=completion_mask,
+        outcome_rewards=outcome_rewards,
+        num_ppo_steps=4,
+    )
+
+    print(f"model={MODEL_NAME} batch_size={len(prompts)}")
+    for prompt, response, reward in zip(
+        prompts,
+        responses,
+        outcome_rewards.tolist(),
+        strict=True,
+    ):
+        print(f"reward={reward:.1f} | {prompt}{response}")
+
+    for metric in metrics:
+        print(
+            "step={step} loss={loss:.6f} actor_loss={actor_loss:.6f} "
+            "critic_loss={critic_loss:.6f}".format(**metric)
+        )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</div>
+</div>
+
+<style>
+  /* Two files in one block, switched by tabs. Base state is both panes shown
+     with their filename above them, so it still reads without JS; the script
+     adds .is-interactive, which reveals the bar and collapses it to one pane.
+     Colours match Shiki's github-dark, which is what the code blocks on this
+     site render as in both themes, so the bar sits flush on the <pre>. */
+  .code-tabs {
+    --ct-code-bg: #24292e;
+    --ct-bar-bg: #1b1f23;
+    --ct-tab: #99a2ab;
+    --ct-tab-active: #e1e4e8;
+    --ct-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin: 1.75rem 0;
+  }
+  /* display: flex would otherwise beat the browser's [hidden] rule, leaving a
+     dead tab bar on the page for readers without JS. */
+  .code-tabs-bar[hidden] {
+    display: none;
+  }
+  .code-tabs-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.35rem 0.4rem 0;
+    background: var(--ct-bar-bg);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+  }
+  .code-tabs-tab {
+    font-family: var(--ct-mono);
+    font-size: 0.78rem;
+    color: var(--ct-tab);
+    background: none;
+    border: none;
+    border-radius: 5px 5px 0 0;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+  }
+  .code-tabs-tab:hover {
+    color: var(--ct-tab-active);
+  }
+  .code-tabs-tab[aria-selected='true'] {
+    background: var(--ct-code-bg);
+    color: var(--ct-tab-active);
+  }
+  .code-tabs-tab:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: -2px;
+  }
+  .code-tabs-label {
+    margin: 0 0 0.35rem;
+    font-family: var(--ct-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .code-tabs.is-interactive .code-tabs-label {
+    display: none;
+  }
+  /* Long listings get capped rather than adding 3000px of page. .code-scroll is
+     the same cap for a standalone fence outside the tabbed widget. */
+  .code-tabs-pane pre,
+  .code-scroll pre {
+    max-height: 32rem;
+    overflow-y: auto;
+  }
+  /* Only for the stacked no-JS case. Unscoped, this also hits the second pane
+     when it is the selected tab, since the hidden first pane is still its
+     previous sibling, and detaches the code block from the bar by 24px. */
+  .code-tabs:not(.is-interactive) .code-tabs-pane + .code-tabs-pane {
+    margin-top: 1.5rem;
+  }
+  /* Only square off the top once the bar is actually there to sit on. */
+  .code-tabs.is-interactive .code-tabs-pane pre {
+    margin-top: 0;
+    border-radius: 0 0 6px 6px;
+  }
+</style>
+
+<script>
+  (() => {
+    const group = document.getElementById('ppo-code');
+    if (!group) return;
+    const bar = group.querySelector('.code-tabs-bar');
+    const tabs = [...group.querySelectorAll('.code-tabs-tab')];
+    const panes = [...group.querySelectorAll('.code-tabs-pane')];
+    if (!bar || tabs.length < 2) return;
+
+    const select = (id, focus) => {
+      for (const tab of tabs) {
+        const on = tab.dataset.target === id;
+        tab.setAttribute('aria-selected', String(on));
+        tab.tabIndex = on ? 0 : -1;
+        if (on && focus) tab.focus();
+      }
+      for (const pane of panes) pane.hidden = pane.id !== id;
+    };
+
+    for (const [index, tab] of tabs.entries()) {
+      tab.addEventListener('click', () => select(tab.dataset.target));
+      tab.addEventListener('keydown', (event) => {
+        const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        event.preventDefault();
+        const next = tabs[(index + step + tabs.length) % tabs.length];
+        select(next.dataset.target, true);
+      });
+    }
+
+    group.classList.add('is-interactive');
+    bar.hidden = false;
+    select(tabs[0].dataset.target);
+  })();
+</script>
+
+TODO: add Generalized Advantage Estimation (GAE). The code above takes the simplest route to an
+advantage: a Monte Carlo return-to-go, then one subtraction, $\hat{A}_t = G_t - V_{\text{old}}(s_t)$.
+That is unbiased but noisy, since $G_t$ is a single sampled trajectory. GAE interpolates toward
+the low-variance end instead, by discounting a backward sum of one-step TD residuals
+$\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ with a factor $\gamma\lambda$, so $\lambda = 1$
+recovers the Monte Carlo estimate and $\lambda = 0$ leaves the single residual. Dropped into
+`ppo_update` in place of the return-to-go loop, it looks like this:
+
+<div class="code-scroll">
+
+```python
+gae_lambda = 0.95
+
+advantages = torch.zeros_like(token_rewards)
+running_advantage = torch.zeros_like(token_rewards[:, 0])
+
+for t in reversed(range(token_rewards.size(1))):
+    if t + 1 < token_rewards.size(1):
+        # Bootstrap only if the next position is in the response.
+        next_valid = mask[:, t + 1]
+        next_value = old_values[:, t + 1].masked_fill(
+            ~next_valid, 0.0
+        )
+    else:
+        next_valid = torch.zeros_like(mask[:, t])
+        next_value = torch.zeros_like(running_advantage)
+
+    delta = (
+        token_rewards[:, t]
+        + gamma * next_value
+        - old_values[:, t]
+    )
+
+    running_advantage = (
+        delta
+        + gamma * gae_lambda
+        * running_advantage.masked_fill(~next_valid, 0.0)
+    )
+
+    running_advantage = running_advantage.masked_fill(
+        ~mask[:, t], 0.0
+    )
+
+    advantages[:, t] = running_advantage
+
+# Fixed critic targets derived from GAE.
+returns = (advantages + old_values).masked_fill(~mask, 0.0)
+```
+
+</div>
 
 ## Group Relative Policy Optimization (GRPO)
 
@@ -1409,6 +1945,209 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     it is a constant that only shifts those advantage numbers. On the loss route the penalty is
     recomputed from the current $\pi_\theta$ at every inner step, so it carries a gradient of its
     own that pulls $\pi_\theta$ back toward $\pi_{\mathrm{ref}}$ directly.
+
+[^ppo-code-trace]: The batch in `ppo_llm_example.py` is three prompts, so `ppo_update` can be followed all the way through by hand. Here it is, tensor by tensor.
+
+    The batch is $B = 3$ samples padded out to $L = 8$ token positions, and `ppo_update` takes
+    four tensors built from it:
+
+    ```text
+    completions      [3, 8]   prompt + response + padding
+    attention_mask   [3, 8]   which positions hold a real token
+    completion_mask  [3, 7]   which next-token predictions are the response
+    outcome_rewards  [3]      one score per sample
+    ```
+
+    The padding is only there to make the batch rectangular, which is what GPUs want. The three
+    examples have different lengths on their own:
+
+    ```text
+    completions[0]:  The capital of France is Paris . <eos>
+    completions[1]:  Two plus two equals four . <eos> PAD
+    completions[2]:  Water freezes at zero degrees Celsius . <eos>
+    ```
+
+    `attention_mask` marks the real tokens, so the models ignore the pad:
+
+    ```text
+    sample 1:  1 1 1 1 1 1 1 1
+    sample 2:  1 1 1 1 1 1 1 0
+    sample 3:  1 1 1 1 1 1 1 1
+    ```
+
+    `completion_mask` is one position shorter, because it lines up with next-token predictions
+    rather than with tokens, and it marks only the predictions that belong to the response:
+
+    ```text
+    sample 1:  0 0 0 0 1 1 1    prompt is 5 tokens, so the response starts at prediction 4
+    sample 2:  0 0 0 1 1 1 0    prompt is 4 tokens; the last slot predicts padding
+    sample 3:  0 0 1 1 1 1 1    prompt is 3 tokens
+    ```
+
+    And `outcome_rewards` is `[1.0, 0.7, 0.9]`, one frozen reward-model score per completion.
+
+    **The rollout targets.** Everything up to the inner loop happens inside `torch.no_grad()`
+    and is computed exactly once. First the log-probabilities under the policy that generated
+    this batch:
+
+    ```python
+    old_token_logps = token_log_probs(LLM, completions, attention_mask)
+    ```
+
+    `token_log_probs` runs the whole batch through the model and drops the final position, since
+    nothing follows it. Before that slice the logits are `[3, 8, vocabulary_size]`. The seven
+    prediction tasks left in the first row are:
+
+    ```text
+    The      → capital
+    capital  → of
+    of       → France
+    France   → is
+    is       → Paris
+    Paris    → .
+    .        → <eos>
+    ```
+
+    `log_softmax` turns each position's vocabulary scores into log-probabilities, one for every
+    token that could have come next. PPO only needs the one that actually did, which is what
+    `gather` pulls out, indexing with `input_ids[:, 1:]`: `capital, of, France, is, Paris, .,
+    <eos>`. The result is `[3, 7]`, and the first row holds
+
+    ```text
+    [ log P(capital | The),
+      log P(of      | The capital),
+      log P(France  | The capital of),
+      log P(is      | The capital of France),
+      log P(Paris   | The capital of France is),
+      log P(.       | ... Paris),
+      log P(<eos>   | ... Paris.) ]
+    ```
+
+    The same call against the frozen `REF` gives `ref_token_logps`, also `[3, 7]`. Every observed
+    token now carries two log-probabilities: one under the policy being trained, one under the
+    reference.
+
+    Then the critic, which emits one scalar per position rather than a distribution. For the
+    first sequence those values read as the reward it expects to end up with, given what it has
+    seen so far:
+
+    ```text
+    after "The"    → expected future reward before choosing "capital"
+    ...
+    after "is"     → expected future reward before choosing "Paris"
+    after "Paris"  → expected future reward before choosing "."
+    after "."      → expected future reward before choosing <eos>
+    ```
+
+    That leaves three aligned `[3, 7]` tensors, `old_token_logps`, `ref_token_logps` and
+    `old_values`, plus the mask. At every next-token decision PPO now knows how likely the policy
+    considered the chosen token, how likely the reference considered it, and how much future
+    reward the critic expected.
+
+    **KL-shaped token rewards.** The KL term is the gap between those first two:
+
+    ```python
+    sampled_kl = old_token_logps - ref_token_logps
+    token_rewards = (-kl_beta * sampled_kl).masked_fill(~mask, 0.0)
+    ```
+
+    Say the policy gives "Paris" probability $0.20$ where the reference gives it $0.10$. The
+    sampled KL is $\log 0.20 - \log 0.10 = \log 2 \approx 0.693$, and with $\beta = 0.1$ that
+    token's reward becomes $-0.1 \times 0.693 = -0.0693$. The mask then zeroes the prompt
+    positions, so only divergence during the response is charged for:
+
+    ```text
+    prediction   mask   KL reward
+    capital       0     zeroed
+    of            0     zeroed
+    France        0     zeroed
+    is            0     zeroed
+    Paris         1     kept
+    .             1     kept
+    <eos>         1     kept
+    ```
+
+    **The outcome reward.** Only one number per completion arrives from the reward model, and it
+    belongs on the last response token. Since the responses end at different places, the code
+    finds that position instead of assuming it:
+
+    ```python
+    last_indices = positions.masked_fill(~mask, -1).amax(dim=-1)
+    token_rewards[rows, last_indices] += outcome_rewards
+    ```
+
+    Masking to $-1$ and taking the maximum picks the last position the mask kept:
+
+    ```text
+    mask:        0   0   0   0   1   1   1
+    positions:  -1  -1  -1  -1   4   5   6    → amax = 6
+    ```
+
+    Across the batch that is index 6 for "Paris.", 5 for "four." (whose last slot is padding),
+    and 6 for "zero degrees Celsius.". Suppose the KL penalties on the first response came out as
+    $-0.05$, $-0.02$ and $-0.01$. Adding its outcome reward of $1.0$ at index 6 gives
+
+    ```text
+    Paris  → -0.05
+    .      → -0.02
+    <eos>  →  0.99      (-0.01 + 1.0)
+    ```
+
+    **Returns.** With `gamma = 1.0` the backward loop is a running sum:
+
+    ```text
+    <eos> return  =  0.99
+    "." return    = -0.02 + 0.99 = 0.97
+    Paris return  = -0.05 + 0.97 = 0.92
+    ```
+
+    The `masked_fill` inside that loop is what stops a return leaking backwards into prompt or
+    padding positions.
+
+    **Advantages.** Subtract what the critic had predicted, $A_t = G_t - V_{\text{old}}(s_t)$,
+    where $G_t$ is the KL-adjusted return that actually resulted. If the critic predicted $0.40$,
+    $0.60$ and $0.80$ at those three positions:
+
+    ```text
+    Paris advantage = 0.92 - 0.40 = +0.52
+    "." advantage   = 0.97 - 0.60 = +0.37
+    <eos> advantage = 0.99 - 0.80 = +0.19
+    ```
+
+    `advantages` and `returns` are now frozen alongside `old_token_logps`, and none of the three
+    is recomputed again during this update, even as the critic changes underneath them.
+
+    **The inner loop.** Each of the `num_ppo_steps` steps re-runs both models, this time tracking
+    gradients, so `token_logps` and `values` move after every optimizer step while the cached
+    quantities stay put. The ratio is measured against that fixed snapshot:
+
+    ```python
+    log_ratio = (token_logps - old_token_logps).masked_fill(~mask, 0.0)
+    ratio = log_ratio.exp()
+    ```
+
+    which is $\rho_t = \pi_{\text{current}}(a_t \mid s_t) / \pi_{\text{old}}(a_t \mid s_t)$
+    at every response token. Clipping and the elementwise `minimum` then give the surrogate,
+    negated because optimizers minimize while PPO wants to maximize. The critic loss is the
+    squared error against the fixed return: predict $0.4$ where the return was $0.9$ and that
+    position contributes $(0.4 - 0.9)^2 = 0.25$.
+
+    **Why `response_mean` and not a plain mean.** Counting `<eos>`, the three responses here are
+    3, 3 and 5 tokens long. `response_mean` averages within each response before averaging across
+    them:
+
+    ```text
+    response 1 mean = sum of its 3 token losses / 3
+    response 2 mean = sum of its 3 token losses / 3
+    response 3 mean = sum of its 5 token losses / 5
+    batch loss      = (response 1 + response 2 + response 3) / 3
+    ```
+
+    so all three count equally. A single mean over every unmasked token would give the longer
+    third response more influence purely for being longer. Note that this is the same
+    per-response length normalization that turns out to have a
+    [bias of its own](#2-objective-bias-from-the-normalization-terms): dividing by length is
+    fairer across responses, and it is also what teaches the model that longer was better.
 
 [^completion-kl-example]: Suppose the prompt is
 

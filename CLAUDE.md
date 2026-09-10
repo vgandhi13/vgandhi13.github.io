@@ -283,6 +283,30 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `:root[data-theme='dark']` override) so it works in both themes. Styles live in the note, not
   Base.astro, so a one-off widget's CSS doesn't load on every page.
 
+- **Tabbed code blocks** (two files in one widget, `.code-tabs` at the end of the PPO section in
+  `rl-for-llms.md`): the point is to keep Astro's Shiki highlighting, so the code must stay in a
+  real ```` ```python ```` fence rather than a hand-written `<pre>`. That means deliberately
+  *breaking* the HTML block around it: `<div class="code-tabs-pane">` on its own line, blank line,
+  the fence, blank line, `</div>`. Each raw-HTML line is its own CommonMark block and the output
+  concatenates into correct nesting. This is the one place the never-a-blank-line-in-an-HTML-block
+  rule above is inverted, and it only works because nothing needs to survive *inside* one block.
+  Base state is every pane visible with a filename label above it; the script adds
+  `.is-interactive`, which reveals the bar, hides the labels, and collapses to one pane. Long
+  listings get `max-height: 32rem` on the pre instead of adding 3000px of page, and
+  `<div class="code-scroll">` wrapped round a lone fence (same blank-line-block trick) shares that
+  cap outside the widget. Three gotchas, all found the hard way:
+  1. **`display: flex` beats the browser's `[hidden]` rule**, so a bar that ships with `hidden`
+     and is un-hidden by the script still renders for no-JS readers unless you also write
+     `.code-tabs-bar[hidden] { display: none }`.
+  2. Shiki renders `github-dark` in *both* themes with the background inline on the `<pre>`, so
+     match the bar to `#24292e` (locally-defined `--ct-*` vars) rather than to a theme token, or
+     it won't sit flush.
+  3. A **hidden pane is still a previous sibling**, so a `+` rule meant for the stacked no-JS
+     layout leaks into the interactive one: `.code-tabs-pane + .code-tabs-pane { margin-top }`
+     put 24px of page background between the bar and the code on the *second* tab only. Scope
+     such rules with `.code-tabs:not(.is-interactive)`, and check every tab, not just the one
+     that loads first.
+
 - **A pill-shaped badge must never be a direct flex item** (the `in progress` badge on
   `src/pages/notes/index.astro`, `wip: true` in a note's frontmatter). The row is
   `display: flex`, so with default `align-items: stretch` the badge grew to the row's full
