@@ -82,23 +82,41 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Ideas share links** (`src/pages/ideas.astro`, served at `/ideas/`): every idea renders as
-  `<li id={slug}>` with a "Copy link" control that copies an absolute `…/ideas/#slug`. The page
-  was renamed from Excerpts (`/quotes/`); `src/pages/quotes.astro` is a stub that redirects and
-  carries the `#fragment` across, which a config redirect would drop. Entries take an `added`
-  ISO date, shown as "Added Sep 9, 2026"; give every new one a date. Slugs come from the
-  author (`slugify`). Slugs are deliberately **not** position-derived: a second quote by the same
-  author throws at build time rather than silently taking `#author` and pushing the existing one
-  to `-2`, which would repoint links already shared. Resolve a clash by adding an explicit `id`
-  to the *newer* quote and leaving the older slug alone. Two things that look redundant are not: the control is a real `<a href="#slug">` so it
-  still works without JS or clipboard access (the address bar becomes the shareable thing), and
-  the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
-  the element the browser already jumped to, landing a shared link at the wrong offset.
-
+- **Collections** (`src/pages/collections.astro`, served at `/collections/`): one page holding
+  two collections, picked with a tab bar. **Ideas** are quotes (`author` set, body renders as a
+  `<blockquote>`, attribution below with an em dash from `.attribution::before`, list shuffled
+  pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
+  `.story` prose at body size, subject line *above* it, never shuffled, since these are dated
+  and read in order). One `Entry` type and one `<li>` template serve both; the page maps over
+  `collections` so the card markup exists once. The picker follows the same contract as the
+  tabbed code blocks below: bar ships `hidden` and is revealed by the script, base state is both
+  panels stacked under `<h2>`s so it reads without JS, `.is-interactive` on `#collections`
+  collapses to one panel, and `.collection-tabs[hidden]` is written explicitly because
+  `display: flex` beats the browser's `[hidden]` rule. The selected tab is marked with colour
+  plus a rule and **never `font-weight`**, which would change its width and reflow the bar on
+  every switch.
+- **Collection share links**: every entry renders as `<li id={slug}>` with a "Copy link" control
+  that copies an absolute `…/collections/#slug`. Renamed twice (Excerpts `/quotes/` → Ideas
+  `/ideas/` → Collections); `src/pages/quotes.astro` and `src/pages/ideas.astro` are stubs that
+  redirect and carry the `#fragment` across, which a config redirect would drop, and both point
+  straight at `/collections/` rather than hopping through each other. Entries take an `added`
+  ISO date, shown as "Added Sep 10, 2026"; give every new one a date. Slugs come from `author`
+  or `subject` (`slugify`) and are deliberately **not** position-derived: a second entry under
+  the same name throws at build time rather than silently taking `#name` and pushing the
+  existing one to `-2`, which would repoint links already shared. Resolve a clash by adding an
+  explicit `id` to the *newer* entry and leaving the older slug alone. The `seen` map spans
+  **both** collections and is seeded with the collection keys, so moving an entry between
+  panels keeps its link and no entry can be slugged `ideas` or `history` (the script treats
+  those as "open that panel"). Three things that look redundant are not: the control is a real
+  `<a href="#slug">` so it still works without JS or clipboard access (the address bar becomes
+  the shareable thing); the script re-runs `scrollIntoView` on `DOMContentLoaded` because the
+  pre-paint shuffle moves the element the browser already jumped to, landing a shared link at
+  the wrong offset; and the picker resolves the hash to its panel *before* that jump, or a link
+  to a History entry would land on a hidden element.
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
   after the rename). The per-field contract is in the comment block at the top of
-  `ideas.astro`; the load-bearing parts:
+  `collections.astro`; the load-bearing parts:
   - **Default treatment assumes grayscale line art on white.** A trimmed screenshot reads as a
     slab on the card, so the flat background is blended away: `mix-blend-mode: multiply` drops
     white onto `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black.
@@ -121,7 +139,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
     wins on the 100% side. The user has asked for smaller more than once: default low.
 
 - **`text` and `note` on an idea go through `set:html`**, so an entry can bold the term it defines
-  or link a citation inline. Safe only because every value is authored in `ideas.astro` and never
+  or link a citation inline. Safe only because every value is authored in `collections.astro` and never
   user input; nothing there contains a bare `&` or `<`. `note` also takes an array of paragraphs,
   and only the first draws the introducing rule.
 

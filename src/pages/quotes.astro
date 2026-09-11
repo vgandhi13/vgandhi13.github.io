@@ -1,22 +1,23 @@
 ---
-// /quotes/ was renamed to /ideas/. This stub keeps links already shared alive.
+// /quotes/ was renamed to /ideas/ and then to /collections/. This stub keeps links
+// already shared alive, and points straight at the current home rather than hopping.
 // It is a page rather than an entry in astro.config's `redirects` because those
 // emit a bare meta-refresh, which drops the #fragment: every idea here is
 // individually shareable by design, so the anchor has to survive the move.
 // The script carries it across; the meta refresh is the no-JS fallback.
-const target = '/ideas/';
+const target = '/collections/';
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Moved to /ideas/</title>
+    <title>Moved to /collections/</title>
     <meta http-equiv="refresh" content={`0;url=${target}`} />
     <link rel="canonical" href={target} />
-    <script is:inline>location.replace('/ideas/' + location.hash);</script>
+    <script is:inline>location.replace('/collections/' + location.hash);</script>
   </head>
   <body>
-    <p>This page moved to <a href={target}>/ideas/</a>.</p>
+    <p>This page moved to <a href={target}>/collections/</a>.</p>
   </body>
 </html>

@@ -1,0 +1,1000 @@
+---
+import Base from '../layouts/Base.astro';
+
+// Two collections on one page, picked with the tab bar: `quotes` (Ideas) and
+// `history` (History). Both use the Entry shape below and the same card.
+// An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
+// whatever reads best, since the list is shuffled on load anyway.
+// A HISTORY entry is a short retold story: { text: [...], subject: '...', year: '...' }.
+// `subject` in place of `author` is what switches the card over: the body renders as
+// prose rather than a blockquote, and the subject and year sit above it instead of an
+// em-dash attribution below. History is NOT shuffled, so array order is display order.
+// `text` can be an array when several passages from the same person and occasion
+// belong together: each becomes its own paragraph under one attribution.
+// `source` is optional context (a book, talk, or paper) shown after the name, and
+// links to `url` when one is given. Set `paraphrased` when the wording is recalled
+// rather than transcribed, so the page never passes it off as verbatim.
+// `note` is your own commentary on the excerpt. It renders below the attribution,
+// under a rule and in a lighter register, so it reads as annotation and never as
+// something the speaker said. A line is the usual size; pass an array when it needs
+// more than one paragraph, and only the first gets the rule. Like `text` it goes
+// through set:html, so it can carry an inline link.
+// `image` hangs a figure from the same source under the quote. Keep it grayscale
+// line art: dark mode inverts the image rather than punching a white slab into the
+// card, which is lossless for black-on-white and wrong for anything colored.
+// Set `plain` when the figure is colored but on a white background: it keeps the
+// multiply/invert off so the art renders as-is, which costs a white slab in dark mode
+// but is the same trade the white-background note figures already make, and is much
+// better than an invert that hue-flips salmon to teal. `credit`/`creditUrl` add a
+// figcaption, for when the figure comes from somewhere other than the quote itself.
+// `width` caps one figure below the shared 460px, for art that is tall or square and
+// would otherwise eat the whole card. It keeps the min(100%, …) form so a phone still
+// wins on the 100% side.
+// `svg` is the escape hatch for a source figure that is neither: a colored or
+// dark-background diagram would come out hue-flipped under that invert, so redraw it
+// as inline SVG on the --diagram-*-border tokens instead. It is injected with
+// `set:html`, which means Astro's scoped styles never reach it, so its sizing and
+// colors live inline on the element (and `var()` needs `style=`, not a presentation
+// attribute, to resolve).
+// Every entry gets a shareable #anchor, slugged from `author` or `subject`. A second
+// entry under the same name fails the build; give that one an explicit `id` (short and
+// memorable, e.g. id: 'karpathy-understanding') so the first one's shared link keeps
+// working. The check spans both collections, and `ideas`/`history` are reserved: the
+// script reads those as "open that panel".
+// Redrawn from the chart in the HubSpot post credited on the figure: that original is
+// a dark-navy branded card, which the .quote-figure invert would turn cream-on-pink.
+const aiSingularityChart = `<svg viewBox="0 0 460 250" role="img" aria-labelledby="ai-sing-title" style="display:block;width:min(100%,460px);height:auto;margin:0 auto">
+  <title id="ai-sing-title">Intelligence plotted against time: a gently rising human curve, and an AI curve that starts lower, crosses it, and then climbs steeply.</title>
+  <defs>
+    <marker id="ai-sing-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 1 L 9 5 L 0 9 z" style="fill: var(--diagram-orange-border)" />
+    </marker>
+  </defs>
+  <path d="M 70 26 L 70 200 L 392 200" fill="none" stroke-width="1.5" stroke-linecap="round" style="stroke: var(--text-muted)" />
+  <path d="M 70 185 Q 230 162 380 128" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: currentColor" />
+  <path d="M 70 196 C 190 194 265 180 305 144 C 340 104 365 58 380 32" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: var(--diagram-blue-border)" />
+  <path d="M 196 78 Q 250 96 285 126" fill="none" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ai-sing-arrow)" style="stroke: var(--diagram-orange-border)" />
+  <circle cx="305" cy="144" r="5.5" style="fill: var(--diagram-orange-border)" />
+  <text x="388" y="36" font-size="13" style="fill: var(--diagram-blue-border)">AI</text>
+  <text x="388" y="132" font-size="13" style="fill: currentColor">Human</text>
+  <text x="231" y="230" font-size="13" text-anchor="middle" style="fill: var(--text-muted)">Time</text>
+  <text x="50" y="113" font-size="13" text-anchor="middle" transform="rotate(-90 50 113)" style="fill: var(--text-muted)">Intelligence</text>
+</svg>`;
+
+type Entry = {
+  text: string | string[];
+  // `author` marks an idea: the body renders as a quote, attributed with an em dash.
+  // `subject` marks a history entry instead: the body renders as prose, and the
+  // person and `year` the story is about sit above it rather than below. Exactly one
+  // of the two belongs on an entry; the slug comes from whichever is set.
+  author?: string;
+  subject?: string;
+  year?: string;
+  source?: string;
+  url?: string;
+  paraphrased?: boolean;
+  note?: string | string[];
+  image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string; width?: number };
+  // ISO date this went up. Everything added from Sep 2026 on carries one.
+  added?: string;
+  svg?: { markup: string; credit?: string; creditUrl?: string };
+  id?: string;
+};
+
+const quotes: Entry[] = [
+  {
+    text: [
+      'People have a misconception that it takes a lot of exceptional people to make frontier models. ' +
+        'You need a handful of experienced people, but mostly you need a lot of motivated and talented people… ' +
+        'This technology is not that old. The people who have experience like myself only have a few years of ' +
+        'experience working on this. A lot of people can build that experience very quickly.',
+      'It is good for the world if there are thousands of models, by different providers. ' +
+        'Competition breeds innovation, and specialization is better than one size fits all. ' +
+        'Different users want models at different sizes and different price points. Specifically for India, ' +
+        'we have so many languages and cultures, and our own education, legal and political systems, our own ' +
+        'public policy. So we want models that can be customized for all these things, and that is why we ' +
+        'need to build these models here.',
+    ],
+    author: 'Devendra Singh Chaplot',
+    source: 'at Sarvam Epoch',
+    url: 'https://www.youtube.com/watch?v=peO2ReobYSw',
+  },
+  {
+    text: [
+      'With scaling laws, people realized that scaling pretraining is the thing to do. The big breakthrough ' +
+        'of pretraining is the realization that this recipe is good: if you mix some data with some compute ' +
+        'into a neural net of a certain size, you will get results, and you know you will get something ' +
+        'better if you scale the recipe up.',
+      'At some point though, pretraining will run out of data. The data is very finite. So then we either do ' +
+        'souped up pretraining or some kind of RL, and in some sense we are back to the age of research.',
+      'From 2012 to 2020, it was the age of research. From 2020 to 2025, it was the age of scaling. But now ' +
+        'the scale is so big that the belief that things would be significantly different if it were even ' +
+        '100x bigger might not be true. So we are back to the age of research again.',
+    ],
+    author: 'Ilya Sutskever',
+    source: 'on the Dwarkesh Podcast',
+    url: 'https://youtube.com/shorts/pLHWn5SQvLM',
+    paraphrased: true,
+  },
+  {
+    text: [
+      'Current LLM agents can do really well and are incredibly capable when they are given a clear and ' +
+        'detailed specification. With access to these kinds of agents, the scarce skill then becomes having ' +
+        'incredibly good taste in what you ask them to work on.',
+      'A researcher can have all the tools and techniques, but often most of the battle is what problem you ' +
+        'are going to spend your time on. That high level wisdom of what to work on is incredibly important, ' +
+        'and I think models are not necessarily going to be good at it. We are going to have people steering ' +
+        'a lot of AI-assisted computation in order to accomplish great things more quickly, but the essence ' +
+        'of what you want the models to do is the key thing to focus on.',
+      'Building taste is difficult. Working on a lot of problems in the past teaches you what kind of ' +
+        'problems might be interesting in future, and what might just be possible by cobbling together ' +
+        'previous approaches. Another way is to write down a bunch of things you think might be important in ' +
+        'the near future, pick one of them to work on, and after a certain amount of time go back and ' +
+        'evaluate which of the others turned out to be important and worked for other people. That gives you ' +
+        'a lot more samples to build taste from. Finally, do crazy thought experiments, and don’t take as ' +
+        'given the things that most people seem to take as given.',
+    ],
+    author: 'Jeff Dean',
+    source: '“The 1% Rule for Building in AI”',
+    url: 'https://www.youtube.com/watch?v=CxXgV54KzpQ',
+    paraphrased: true,
+  },
+  {
+    text: 'You insist that there is something a machine cannot do. If you tell me precisely what a ' +
+      'machine cannot do, then I can always make a machine which will just do that.',
+    author: 'John von Neumann',
+  },
+  {
+    text: 'You can outsource your thinking but you cannot outsource your understanding.',
+    author: 'Andrej Karpathy',
+    source: 'commonly attributed',
+    note: 'Mentioned in the context of people outsourcing decision making to LLMs.',
+  },
+  {
+    text: [
+      'When you grow up you tend to get told the world is the way it is and your life is just to live ' +
+        'your life inside the world. Try not to bash into the walls too much, try to have a nice family ' +
+        'life, have fun, save a little money. But that is a very limited life, life can be much broader. ' +
+        'Once you discover one simple fact, and that is everything you call life was made up by people ' +
+        'that were no smarter than you. And you can change it, you can influence it. You can build your ' +
+        'own things that other people can use. And the minute that you understand that you can poke life, ' +
+        'and if you push in something will actually pop out the other side, that you can change and mold it.',
+      'The most important thing is to shake off this erroneous notion that life is there and you are just ' +
+        'going to live in it versus embrace it, change it, make your mark upon it. However you learn it, ' +
+        'once you learn, you’ll want to change life and make it better because it is kind of messed up in ' +
+        'a lot of ways. Once you learn that you will never be the same again.',
+    ],
+    author: 'Steve Jobs',
+    paraphrased: true,
+  },
+  {
+    text: [
+      'In future people won’t necessarily be having shitty jobs or nothing to do. Instead they will be ' +
+        'handling and guiding the Robots and AI. If we don’t get ASI, if AI gets you to expert level but ' +
+        'doesn’t go beyond and still needs human taste, guidance and creativity, humans are still the ' +
+        'motivated things in the society. People become like Pokémon trainers or robot/AI handlers.',
+      'That is what we are seeing today. People who are using AI today are more productive than ever. ' +
+        'The only way you are being displaced by AI if you are refusing to use it.',
+    ],
+    author: 'Naval Ravikant',
+    source: '“Riding AGI, AI Anxiety, …”',
+    url: 'https://www.youtube.com/watch?v=6m-ZZBCiiEE',
+  },
+  {
+    text: [
+      'There will be 3 types of people in the future:',
+      'The Purists - reject AI and become new-age hippies',
+      'The Automatons - outsource every decision and become machines',
+      'The New Renaissance Man - maintains humanity and leverages tech to do what used to be impossible',
+    ],
+    author: 'Dan Koe',
+    source: 'on X',
+    url: 'https://x.com/thedankoe/status/2091876986444533842',
+  },
+  {
+    text: [
+      'The problem was you can’t just ask Aristotle questions. And I think as we look to the next ' +
+        '50-100yrs, if we really can come up with these machines that can capture an underlying ' +
+        'spirit… maybe someday after a person’s dead and gone, we can ask this machine, hey what ' +
+        'would Aristotle have said?',
+      'And maybe we won’t get the right answer. But maybe we will. And that’s really exciting to ' +
+        'me. And that’s why I’m doing what I’m doing.',
+    ],
+    author: 'Steve Jobs',
+    source: 'at the International Design Conference in Aspen, 1983',
+    url: 'https://www.youtube.com/watch?v=t9HmOz8H0qI',
+    note: 'Said in 1983, describing more or less what we got with AI in 2026.',
+    // #steve-jobs is taken by the earlier excerpt; pinning keeps that link valid
+    id: 'jobs-aristotle',
+  },
+  {
+    text: 'Computer Science is no more about computers than astronomy is about telescopes',
+    author: 'Edsger Wybe Dijkstra',
+    // Wikiquote files this under Disputed ("possibly folklore"); the longer version
+    // with microscopes and beakers is documented to Fellows and Parberry, Computing
+    // Research News, Jan 1993. Attribution kept as Dijkstra at the site owner's call.
+    id: 'dijkstra',
+  },
+  {
+    text: 'I visualize a time when we will be to robots what dogs are to humans. And I am rooting ' +
+      'for the machines.',
+    author: 'Claude Shannon',
+    source: 'Omni, August 1987',
+    // Wikiquote has "I can visualize a time in the future when we will be to robots as dogs
+    // are to humans", with "I am rooting for the machines!" as a separate remark in the same
+    // interview; this is the popular one-sentence rendering, hence the flag.
+    paraphrased: true,
+  },
+  {
+    // The em dash is Feynman's own and stays: the no-em-dash rule in CLAUDE.md governs
+    // prose written for this site, not the wording of a quotation.
+    text: 'The first principle is that you must not fool yourself—and you are the easiest person ' +
+      'to fool.',
+    author: 'Richard Feynman',
+  },
+  {
+    text: 'The book of nature is written in the language of mathematics.',
+    author: 'Galileo Galilei',
+    source: '“Il Saggiatore” (1623)',
+    added: '2026-09-09',
+    // The passage itself is longer: philosophy is written in "this grand book, the
+    // universe", which "is written in the language of mathematics, and its characters are
+    // triangles, circles, and other geometrical figures, without which it is humanly
+    // impossible to understand a single word of it". This is the condensed rendering that
+    // circulates, and it is a translation either way, hence the flag.
+    paraphrased: true,
+    note: [
+      'LLMs are increasingly solving unsolved open math problems at the moment ' +
+        '(<a href="https://www.anthropic.com/research/riemann-zeta" target="_blank" ' +
+        'rel="noopener">Riemann zeta</a>, <a href="https://openai.com/index/navier-stokes-solution/" ' +
+        'target="_blank" rel="noopener">Navier-Stokes</a>). The secrets of the universe are ' +
+        'encoded in mathematics. That ability to decode it is where all of this is ultimately heading.',
+      'The goal isn’t to develop LLMs just to write emails or generate images. The goal is to ' +
+        'decode the mathematical structure of reality. Everything else (the chat, the creativity, ' +
+        'the analysis) is just a byproduct of that deeper process.',
+    ],
+  },
+  {
+    text: 'The way a computer and a keyboard are to a cat, the intricacies of the universe are ' +
+      'to a human. We will probably never understand it. But it is good once in a while to ' +
+      'discover something new.',
+    // attributed to the channel rather than a host: the specific video is not known, and
+    // Vsauce1/2/3 have different presenters
+    author: 'Vsauce',
+    added: '2026-09-09',
+    paraphrased: true,
+    image: {
+      src: '/images/quotes/cat-keyboard-cosmos.jpg',
+      alt: 'Cartoon panel split down the middle. On the left a cat sits in an office chair at a ' +
+        'desk, one paw on a keyboard, in front of a monitor showing a lightbulb, with surprise ' +
+        'marks above its head. On the right an astronaut floats in starry space among spiral ' +
+        'galaxies, reaching with the same surprise marks toward an enormous dark console studded ' +
+        'with planets, one of them Earth.',
+      // full-colour illustration: the dark-mode invert would turn the blue room orange and the
+      // night sky white
+      plain: true,
+      // square, so the shared 460px made it the tallest thing on the page
+      width: 260,
+      credit: 'Image generated using ChatGPT',
+    },
+  },
+  {
+    text: [
+      'The 80% Fallacy: When you start building using AI, you’re likely to get pretty good ' +
+        'results very quickly. However, the journey from 80% to 100% is far more challenging than ' +
+        'the journey from 0% to 80%. It’s a reality that catches many beginners off guard, ' +
+        'leading to wasted resources, missed deadlines, and failed projects.',
+      'The Exponential Difficulty of Completion means that as AI projects advance, challenges and ' +
+        'complexities multiply. Minor issues in the early stages can suddenly become major roadblocks.',
+      // the opening clause repeats paragraph one verbatim, so it is bracketed away
+      '[This is] due to two main factors: Technical Complexity (primarily for Classical AI) ' +
+        'and Unpredictable Outputs (especially for Generative AI).',
+    ],
+    author: 'Tobias Zwingmann',
+    source: '“The 80% Fallacy”',
+    url: 'https://blog.tobiaszwingmann.com/p/80-percent-fallacy-why-building-your-ai-use-case-might-be-harder-than-you-think',
+    image: {
+      src: '/images/quotes/exponential-difficulty.png',
+      alt: 'Hand-drawn chart of time against progress: an almost flat line most of the way, ' +
+        'turning near-vertical at the end, with a stick figure walking the flat part saying ' +
+        '“This will be easy!”',
+    },
+  },
+  {
+    text: '<strong>Singularity</strong> refers to a future point in time where artificial ' +
+      'intelligence (AI) could potentially surpass human intelligence. This occurrence would ' +
+      'arise from the exponential self-improvement of AI, leading to an unpredictable and rapid ' +
+      'change in the technological landscape.',
+    author: 'Ray Kurzweil',
+    added: '2026-09-08',
+    source: 'who popularized the idea in “The Singularity Is Near”',
+    // the wording is a general definition of the term, not Kurzweil's own sentence
+    paraphrased: true,
+    svg: {
+      markup: aiSingularityChart,
+      credit: 'Chart redrawn from Tristen Taylor, “How Far Are We from AI Singularity?”',
+      creditUrl: 'https://blog.hubspot.com/marketing/ai-singularity',
+    },
+  },
+  {
+    text: '<strong>Jagged intelligence</strong> describes the strange, unintuitive fact that ' +
+      'state-of-the-art LLMs can perform extremely impressive tasks, like solving a complex ' +
+      'math problem, while ' +
+      'simultaneously struggling with some very dumb ones.',
+    author: 'Andrej Karpathy',
+    source: 'who coined “jagged intelligence”',
+    added: '2026-09-08',
+    url: 'https://x.com/karpathy/status/1816531576228053133',
+    // the wording is a definition of the term, not a transcription of the post
+    paraphrased: true,
+    // #andrej-karpathy belongs to the earlier excerpt; pinning keeps that link valid
+    id: 'karpathy-jagged-intelligence',
+    image: {
+      src: '/images/quotes/jagged-frontier.jpg',
+      alt: 'Five stages of a growing, jagged salmon shape overlapping a pale blue circle of ' +
+        'tasks in a human job. The shape starts as a small squiggle inside the circle labelled ' +
+        '“the AI is a fun toy”, then fills more of it, then grows spikes that reach outside it ' +
+        '(“the AI has a jagged frontier, sometimes it’s amazing, sometimes it’s dumb”), with a ' +
+        'star marking “we are here”. In the fourth stage the spikes dwarf the circle but leave ' +
+        'gaps inside it (“the AI is unbelievably intelligent but for some reason it fails at X”), ' +
+        'and the final stage is a solid shape covering the circle entirely, labelled AGI.',
+      plain: true,
+      credit: 'Diagram via Ethan Mollick, “The Shape of AI: Jaggedness, Bottlenecks and Salients”',
+      creditUrl: 'https://www.oneusefulthing.org/p/the-shape-of-ai-jaggedness-bottlenecks',
+    },
+  },
+  {
+    text: '<strong>Shoggoths</strong> are formless, powerful, and not entirely controllable ' +
+      'creatures from Lovecraft’s stories. Large Language Models are analogous: they are almost ' +
+      'an alien technology, and we don’t entirely understand how or why they do what they do. ' +
+      'Since we don’t understand them, we can’t be sure we can control them. The cheerful smiley ' +
+      'face stuck on top of the shoggoth represents what we see after reinforcement learning ' +
+      'from human feedback (RLHF): a polite, aligned chatbot. Underneath, it is still a Shoggoth.',
+    // no author: this is a definition of the meme, not a quotation, so there is no
+    // name to slug from and the anchor is pinned instead
+    id: 'shoggoth',
+    added: '2026-09-08',
+    image: {
+      src: '/images/quotes/shoggoth-rlhf-mask.png',
+      alt: 'Cartoon drawing of a green many-eyed tentacled Shoggoth with a small yellow smiley ' +
+        'face mask held over one end of it, far too small to cover the creature behind it.',
+      // green and yellow on a transparent background: the dark-mode invert would turn the
+      // creature magenta, and transparency means plain needs no white panel either
+      plain: true,
+    },
+  },
+  {
+    text: 'AI accelerates the generalist and polymath - you can become a one-human business. ' +
+      'Content on social media to attract an audience around your life’s work, code to build ' +
+      'the product, funnel, and digital real estate, and domain specific knowledge that makes ' +
+      'what you do valuable over the next person.',
+    author: 'Dan Koe',
+    // #dan-koe is taken by the earlier excerpt; pinning keeps that link valid
+    id: 'koe-one-human-business',
+  },
+  {
+    text: [
+      'I am not sure inference will essentially ever be free. Because of Jevons paradox and ' +
+        'things like that, I think all of us will just end up using whatever we can get our ' +
+        'hands on. We can imagine millions of swarms of agents working together on things, and ' +
+        'this is one way to use inference. Or you could imagine smaller groups of agents ' +
+        'thinking in multiple directions and then ensembling that. All of that will end up ' +
+        'using any inference that is available.',
+      'One day it could be cost zero if we solved fusion, superconductors or optimal batteries ' +
+        'with material science, and energy costs came down to zero. But there will still be ' +
+        'some bottleneck, like the physical creation of chips, at least for the next few ' +
+        'decades. If that is the case, then there will be rationing on the inference side and ' +
+        'we will have to use it efficiently.',
+    ],
+    author: 'Demis Hassabis',
+    source: '“Agents, AGI & The Next Big Scientific Breakthrough”',
+    url: 'https://www.youtube.com/watch?v=JNyuX1zoOgU&t=1522s',
+    paraphrased: true,
+  },
+  {
+    text: 'Young people should focus on using the AI tools that we have built, and master even ' +
+      'those things that we missed because we were busy building the models.',
+    author: 'Demis Hassabis',
+    paraphrased: true,
+    // #demis-hassabis is taken by the earlier excerpt; pinning keeps that link valid
+    id: 'hassabis-young-people',
+  },
+];
+
+// History: a small moment that turned out to decide a lot. Same card as an idea, but
+// `subject` in place of `author`, so the body renders as prose rather than a quote and
+// the attribution moves above it. Everything else (note, added, figures, share link)
+// works exactly as it does for an idea.
+const history: Entry[] = [
+  {
+    subject: 'Morris Chang',
+    year: '1955',
+    text: [
+      'In 1955, Morris Chang suffered what he then considered the biggest failure of his life: ' +
+        'he failed his Ph.D. qualifying exams at MIT for the second time, meaning he could not ' +
+        'continue his doctorate. Forced to look for a job, he got two offers: Ford, the more ' +
+        'prestigious of the two, and Sylvania Electric Products, a lesser-known electronics ' +
+        'company working on a relatively new technology called \u201Ctransistors\u201D.',
+      'Ford offered Chang a salary of $479 a month. Sylvania offered him $480 a month. Chang ' +
+        'actually preferred the prestige and charm of Ford. However, finding it odd that ' +
+        'Ford\u2019s offer was exactly $1 less than Sylvania\u2019s, he decided to call the Ford ' +
+        'recruiter who had previously been very kind to him. He politely asked if Ford would ' +
+        'match Sylvania\u2019s offer so he could make an even $480 a month.',
+      'Instead of negotiating, the recruiter instantly turned hostile and dismissive. He snapped ' +
+        'at Chang, telling him that Ford\u2019s salary structure was set and that he would not get ' +
+        'a single cent more. Insulted by the recruiter\u2019s rude attitude, an angry Chang ' +
+        'rejected Ford\u2019s offer out of principle and signed with Sylvania. That is how he ' +
+        'entered the semiconductor industry. This $1 snub altered the course of tech history.',
+    ],
+    note: 'One of the most famous butterfly effect moments in modern tech history.',
+    added: '2026-09-10',
+  },
+  {
+    subject: 'Vasili Arkhipov',
+    year: '1962',
+    text: [
+      'A Soviet submarine named B-59 was hiding near Cuba. The U.S. Navy dropped non-lethal ' +
+        'depth charges to force the submarine to surface. The submarine was cut off from radio ' +
+        'contact. The crew felt the heat and shaking of the charges. They thought World War III ' +
+        'had started.',
+      'The captain and the political officer wanted to fire a nuclear-armed torpedo. Vasili ' +
+        'Arkhipov was second-in-command and the flotilla chief of staff. Rules required his ' +
+        'agreement to fire the weapon. He argued they were not under a real attack and ' +
+        'convinced the captain to surface instead.',
+    ],
+    note: 'This single moment prevented World War III and the nuclear winter that would likely have followed.',
+    added: '2026-09-10',
+  },
+];
+
+const addedOn = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+// Slugs are never derived from array position: a shared link has to keep pointing at
+// the same entry no matter what gets added above it later. So a second entry under the
+// same name collides on purpose and fails the build, and you resolve it by pinning `id`
+// on the NEW one, which leaves the already-shared link on the old one untouched.
+// The map spans BOTH collections, so moving an entry between them keeps its link, and a
+// slug can never be ambiguous about which panel it opens.
+const collections = [
+  { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
+  { key: 'history', label: 'History', items: history, shuffle: false },
+];
+
+const nameOf = (q: Entry) => q.author ?? q.subject;
+const firstWords = (q: Entry) =>
+  slugify((Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' '));
+
+// Seeded with the collection keys: the script opens a panel when the hash names one, so
+// an entry slugged "history" would be a link that lands on the wrong thing.
+const seen = new Map(collections.map((c) => [c.key, `the ${c.label} panel`]));
+
+const sections = collections.map((c) => ({
+  ...c,
+  entries: c.items.map((q) => {
+    const name = nameOf(q);
+    if (!q.id && !name) {
+      throw new Error(
+        `An entry with no author or subject has no name to slug from, so it needs an ` +
+          `explicit id. Add one, e.g. id: '${firstWords(q)}'.`
+      );
+    }
+    const slug = q.id ?? slugify(name!);
+    const clash = seen.get(slug);
+    if (clash) {
+      throw new Error(
+        `Duplicate anchor "#${slug}" (${clash} and ${name ?? `#${slug}`}). Add an explicit id ` +
+          `to the newer entry, e.g. id: '${slug}-${firstWords(q)}'. Do not renumber the ` +
+          `existing one: its link is already out in the world.`
+      );
+    }
+    seen.set(slug, name ?? `#${slug}`);
+    return { ...q, slug };
+  }),
+}));
+---
+
+<Base title="Collections · Varun Gandhi" description="Ideas and stories I keep coming back to.">
+  <h1>Collections</h1>
+  <p class="intro">
+    Ideas and stories I keep coming back to.
+  </p>
+
+  <div class="collections" id="collections">
+    {/* Ships hidden and is revealed by the script, so no-JS readers get both
+        collections stacked under their own headings rather than dead buttons. */}
+    <div class="collection-tabs" role="tablist" aria-label="Collections" hidden>
+      {sections.map((s, i) => (
+        <button
+          type="button"
+          class="collection-tab"
+          role="tab"
+          id={`tab-${s.key}`}
+          aria-controls={`panel-${s.key}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          tabindex={i === 0 ? 0 : -1}
+          data-target={`panel-${s.key}`}
+        >{s.label}</button>
+      ))}
+    </div>
+
+    {sections.map((s) => (
+      <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel" aria-labelledby={`tab-${s.key}`}>
+        <h2 class="collection-heading">{s.label}</h2>
+        {s.entries.length === 0 ? (
+          <p class="empty">Nothing here yet.</p>
+        ) : (
+          <ul class="quote-list" data-shuffle={s.shuffle ? 'true' : undefined}>
+            {s.entries.map((q) => (
+              <li id={q.slug}>
+                {/* a history entry names its subject above the story; an idea attributes
+                    below, in .attribution, where the em dash belongs */}
+                {q.subject && (
+                  <p class="subject">{q.subject}{q.year && <span class="year">, {q.year}</span>}</p>
+                )}
+                {/* set:html so an entry can bold the term it defines. Safe because every
+                    `text` value is authored in this file, never user input. */}
+                {q.subject ? (
+                  <div class="story">
+                    {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
+                  </div>
+                ) : (
+                  <blockquote>
+                    {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
+                  </blockquote>
+                )}
+                {q.image && (
+                  <figure class="quote-figure">
+                    <img
+                      src={q.image.src}
+                      alt={q.image.alt}
+                      class={q.image.plain ? 'plain' : undefined}
+                      style={q.image.width ? `width: min(100%, ${q.image.width}px)` : undefined}
+                      loading="lazy"
+                    />
+                    {q.image.credit && (
+                      <figcaption>
+                        {q.image.creditUrl
+                          ? <a href={q.image.creditUrl} target="_blank" rel="noopener">{q.image.credit}</a>
+                          : q.image.credit}
+                      </figcaption>
+                    )}
+                  </figure>
+                )}
+                {q.svg && (
+                  <figure class="quote-figure">
+                    <Fragment set:html={q.svg.markup} />
+                    {q.svg.credit && (
+                      <figcaption>
+                        {q.svg.creditUrl
+                          ? <a href={q.svg.creditUrl} target="_blank" rel="noopener">{q.svg.credit}</a>
+                          : q.svg.credit}
+                      </figcaption>
+                    )}
+                  </figure>
+                )}
+                <div class="meta">
+                  <div class="meta-text">
+                    {/* an idea with no author renders no attribution line, and the em dash
+                        goes with it since it lives on .attribution::before */}
+                    {q.author && (
+                      /* kept on one line: a line break here renders as a space before the comma */
+                      <p class="attribution">
+                        {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
+                      </p>
+                    )}
+                    {q.note && (Array.isArray(q.note) ? q.note : [q.note]).map((n) => <p class="commentary" set:html={n} />)}
+                    {q.added && (
+                      <p class="added">Added <time datetime={q.added}>{addedOn(q.added)}</time></p>
+                    )}
+                  </div>
+                  <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this idea by ${q.author}` : q.subject ? `Copy a link to this story about ${q.subject}` : 'Copy a link to this entry'}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    <span class="share-text">
+                      <span class="share-sizer" aria-hidden="true">Copy link</span>
+                      <span class="share-live">Copy link</span>
+                    </span>
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ))}
+  </div>
+  <script is:inline>
+    // Fisher-Yates shuffle, run inline right after the list so it reorders before
+    // first paint (same pre-paint trick as the theme script in Base.astro). Only
+    // lists that opted in: History is a set of dated stories and reads in order.
+    // No-JS visitors simply get the authored order.
+    for (const list of document.querySelectorAll('.quote-list[data-shuffle]')) {
+      const items = Array.from(list.children);
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      for (const item of items) list.append(item);
+    }
+
+    // Collection picker. Runs before DOMContentLoaded so the right panel is already
+    // open when the hash jump below fires.
+    (() => {
+      const root = document.getElementById('collections');
+      const bar = root && root.querySelector('.collection-tabs');
+      if (!bar) return;
+      const tabs = [...bar.querySelectorAll('.collection-tab')];
+      const panels = [...root.querySelectorAll('.collection-panel')];
+      if (tabs.length < 2) return;
+
+      const select = (panelId, focus) => {
+        for (const tab of tabs) {
+          const on = tab.dataset.target === panelId;
+          tab.setAttribute('aria-selected', String(on));
+          tab.tabIndex = on ? 0 : -1;
+          if (on && focus) tab.focus();
+        }
+        for (const panel of panels) panel.hidden = panel.id !== panelId;
+      };
+
+      for (const [index, tab] of tabs.entries()) {
+        tab.addEventListener('click', () => select(tab.dataset.target));
+        tab.addEventListener('keydown', (event) => {
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+          if (!step) return;
+          event.preventDefault();
+          const next = tabs[(index + step + tabs.length) % tabs.length];
+          select(next.dataset.target, true);
+        });
+      }
+
+      root.classList.add('is-interactive');
+      bar.hidden = false;
+
+      // A shared link points at one entry, which may sit in the panel that is not
+      // open. Resolve the hash to its panel first; #ideas and #history open a panel
+      // directly, and the build refuses an entry slug that would collide with either.
+      const hash = decodeURIComponent(location.hash.slice(1));
+      const byKey = hash && document.getElementById('panel-' + hash);
+      const byEntry = hash && document.getElementById(hash)?.closest('.collection-panel');
+      select((byKey || byEntry || panels[0]).id);
+    })();
+
+    // The shuffle above moves the element the browser already scrolled to, so a
+    // shared #link lands at the wrong offset. Re-run the jump once layout settles.
+    addEventListener('DOMContentLoaded', () => {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (id) document.getElementById(id)?.scrollIntoView({ block: 'center' });
+    });
+
+    // Share controls copy an absolute link. They stay real anchors, so with no JS
+    // (or no clipboard access) clicking still jumps to the entry and puts the
+    // shareable URL in the address bar.
+    if (navigator.clipboard) {
+      for (const btn of document.querySelectorAll('.share')) {
+        btn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          const slug = btn.dataset.slug;
+          try {
+            await navigator.clipboard.writeText(location.origin + location.pathname + '#' + slug);
+          } catch {
+            location.hash = slug;
+            return;
+          }
+          const label = btn.querySelector('.share-live');
+          btn.classList.add('copied');
+          label.textContent = 'Copied';
+          clearTimeout(btn.resetTimer);
+          btn.resetTimer = setTimeout(() => {
+            btn.classList.remove('copied');
+            label.textContent = 'Copy link';
+          }, 1600);
+        });
+      }
+    }
+  </script>
+</Base>
+
+<style>
+  /* Collection picker. Base state is both panels stacked under their own <h2>, so
+     the page reads without JS; .is-interactive (added by the script) reveals the
+     tab bar, drops the headings, and collapses to one panel at a time. */
+  .collection-tabs {
+    display: flex;
+    gap: 1.25rem;
+    margin: 0 0 1.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* display: flex above would otherwise beat the browser's [hidden] rule, leaving
+     a dead tab bar on the page for readers without JS */
+  .collection-tabs[hidden] {
+    display: none;
+  }
+
+  .collection-tab {
+    font: inherit;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.45rem 0.15rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .collection-tab:hover {
+    color: var(--text);
+  }
+
+  /* colour and a rule, deliberately not font-weight: bolding the selected tab
+     changes its width, so the bar reflows every time you switch */
+  .collection-tab[aria-selected='true'] {
+    color: var(--heading);
+    border-bottom-color: var(--link);
+  }
+
+  .collection-tab:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .collection-heading {
+    margin: 0 0 1rem;
+    font-size: 1.15rem;
+  }
+
+  .collections.is-interactive .collection-heading {
+    display: none;
+  }
+
+  /* only for the stacked no-JS case: a hidden panel is still a previous sibling,
+     so unscoped this would also indent the second panel when it is the selected tab */
+  .collections:not(.is-interactive) .collection-panel + .collection-panel {
+    margin-top: 2.75rem;
+  }
+
+  .intro {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  .empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .quote-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .quote-list li {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: 8px;
+    scroll-margin-top: 2rem;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .quote-list li:hover {
+    border-color: var(--text-muted);
+    border-left-color: var(--link);
+  }
+
+  /* the excerpt someone was linked to, so a shared link lands somewhere obvious */
+  .quote-list li:target {
+    border-color: var(--text-muted);
+    border-left-color: var(--link);
+  }
+
+  /* Base.astro styles blockquotes as muted pull-quotes with a left rule; on this
+     page the quote *is* the content, so it gets body color and no rule. */
+  blockquote {
+    margin: 0;
+    padding-left: 0;
+    border-left: none;
+    color: var(--text);
+    font-size: 1.05rem;
+  }
+
+  /* a history entry is retold, not quoted, so it gets ordinary prose at body size
+     rather than the slightly-raised pull-quote size */
+  .story {
+    font-size: 1rem;
+  }
+
+  blockquote p,
+  .story p {
+    margin: 0 0 0.9rem;
+  }
+
+  blockquote p:last-child,
+  .story p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* who and when the story is about. Sits above the body, where an idea's
+     attribution sits below, because this names the subject rather than a speaker. */
+  .subject {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--heading);
+  }
+
+  .subject .year {
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  /* a figure from the same source as the quote. These are black-on-white line
+     drawings, and a rectangle of paper sitting on the card reads as a slab in
+     either theme, so the flat background is blended away instead: multiply drops
+     white onto --surface, and dark mode inverts first so screen drops the black.
+     Both are lossless only while the art is grayscale, so keep it that way. */
+  .quote-figure {
+    margin: 1.1rem 0 0;
+  }
+
+  .quote-figure img {
+    display: block;
+    width: min(100%, 460px);
+    margin: 0 auto;
+    mix-blend-mode: multiply;
+  }
+
+  :global(:root[data-theme='dark']) .quote-figure img {
+    filter: invert(1);
+    mix-blend-mode: screen;
+  }
+
+  /* colored art on white: inverting it would hue-flip every fill, so it renders
+     plainly and accepts the white panel in dark mode */
+  .quote-figure img.plain,
+  :global(:root[data-theme='dark']) .quote-figure img.plain {
+    mix-blend-mode: normal;
+    filter: none;
+  }
+
+  .quote-figure figcaption {
+    text-align: center;
+  }
+
+  /* the share link tracks the BOTTOM of the text block, not the attribution line:
+     with a `note` present the attribution is no longer the card's last row, and
+     baseline-aligning left the link stranded halfway up the card */
+  .meta {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.9rem;
+  }
+
+  .meta-text {
+    min-width: 0;
+  }
+
+  .attribution {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    padding: 0.15rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .share:hover,
+  .share:focus-visible {
+    color: var(--link);
+    background: var(--bg);
+  }
+
+  .share.copied,
+  .share.copied:hover {
+    color: var(--heading);
+    background: var(--bg);
+  }
+
+  .share svg {
+    flex-shrink: 0;
+  }
+
+  /* Both labels occupy one grid cell, so the control stays as wide as the longer
+     one when the text swaps to "Copied". Without this the label narrows, .meta
+     (space-between) hands the freed width to .meta-text, and the commentary
+     re-wraps to fewer lines: the whole card visibly shrinks on click. */
+  .share-text {
+    display: inline-grid;
+  }
+
+  .share-text > * {
+    grid-area: 1 / 1;
+  }
+
+  .share-sizer {
+    visibility: hidden;
+  }
+
+  /* my own commentary, not the speaker's: the rule and the lighter register are
+     what keep the two voices apart once the card is screenshotted or shared */
+  .commentary {
+    margin: 0.85rem 0 0;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+
+  /* a short rule rather than a full-width one: --border sits almost on top of
+     --surface, so the hairline divider it would draw here is invisible */
+  .commentary::before {
+    content: '';
+    display: block;
+    width: 26px;
+    margin-bottom: 0.55rem;
+    border-top: 2px solid var(--text-muted);
+    opacity: 0.45;
+  }
+
+  /* the rule introduces the commentary block, so only the first paragraph draws it */
+  .commentary + .commentary {
+    margin-top: 0.6rem;
+  }
+
+  .commentary + .commentary::before {
+    display: none;
+  }
+
+  .added {
+    margin: 0.6rem 0 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.75;
+  }
+
+  .attribution::before {
+    content: '\2014\00a0';
+  }
+
+  .source {
+    font-style: italic;
+  }
+
+  .paraphrased {
+    font-style: normal;
+  }
+</style>
