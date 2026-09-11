@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-09
+updated: 2026-09-11
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -1722,11 +1722,28 @@ that self-reflection and self-correction emerge progressively throughout pre-tra
 various domains and model sizes.[^reflection] Both further complicate attributing reasoning
 capabilities solely to RL.
 
-Perhaps the conclusion is that RL definitely turns simple base models into reasoning models, but
-it is not the only way to induce or improve reasoning. As the DeepSeek-R1 team showed,
-distillation also improves reasoning. And since distillation in that paper meant instruction
-fine-tuning on chain-of-thought data, it is likely that pre-training on data which already
-includes chain-of-thought induces these abilities too.
+A broader evaluation of RLVR reaches the same conclusion by looking beyond pass@1.[^rlvr-capacity]
+RLVR models usually do better on pass@1, meaning they are more likely to produce a correct solution
+on the first attempt. But pass@k counts a problem as solved if any of $k$ sampled answers is
+correct; at large values of $k$, commonly 128–1024, base models often solve more distinct problems
+than their RLVR counterparts. The authors argue that current RLVR therefore improves sampling
+efficiency by shifting probability toward rewarded reasoning paths that the base model could
+already produce, rather than teaching fundamentally new reasoning patterns. Off-policy
+distillation is different: supervised fine-tuning on trajectories from a stronger teacher can
+transfer patterns outside the student's original reasoning distribution and expand what it can
+solve.
+
+Zhou et al. (2023) call this broader view the **Superficial Alignment Hypothesis** in
+*LIMA: Less Is More for Alignment*.[^lima] The hypothesis says that knowledge and capabilities
+are learned primarily during pre-training, while alignment mostly teaches the model which
+behaviors and response formats to produce. From this perspective, RLVR's pass@1 gain is an
+alignment effect: it makes an existing correct reasoning path more likely to appear.
+
+Taken together, the evidence suggests a distinction between exposing capacity and expanding it.
+Current RLVR reliably turns latent reasoning into reliable behavior, but does not necessarily
+expand the model's underlying reasoning boundary. Distillation can expand that boundary by
+directly supplying new chain-of-thought patterns, and pre-training on data that contains such
+patterns may do the same before post-training begins.
 
 ## Issues That Come Up for RL for LLMs
 
@@ -2379,3 +2396,7 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 [^r1zero-critical]: [Understanding R1-Zero-Like Training: A Critical Perspective](https://arxiv.org/abs/2503.20783), which finds that DeepSeek-V3-Base already exhibits an "Aha moment" before any RL, and attributes the reasoning of some base models to pretraining biases. This is also the paper that introduces Dr. GRPO.
 
 [^reflection]: [Rethinking Reflection in Pre-Training](https://arxiv.org/abs/2504.04022), which plants deliberate errors in reasoning chains and measures whether the model catches them, finding the ability appears early in pre-training and improves steadily.
+
+[^rlvr-capacity]: Yang Yue et al., ["Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?"](https://arxiv.org/abs/2504.13837), NeurIPS 2025. The study compares base and RLVR-trained models across model families, RL algorithms, and math, coding, and visual-reasoning benchmarks.
+
+[^lima]: Chunting Zhou et al., ["LIMA: Less Is More for Alignment"](https://arxiv.org/abs/2305.11206), NeurIPS 2023. LIMA fine-tunes a 65B LLaMA model on only 1,000 carefully curated examples, without reinforcement learning or human preference modeling, and finds that this small dataset is sufficient to teach strong instruction following and response formatting.
