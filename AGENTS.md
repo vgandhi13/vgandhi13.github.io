@@ -185,6 +185,12 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   GFM footnotes (`[^name]`) work. Footnote sections are styled globally in Base.astro
   (`.footnotes`: divider + smaller muted text) and the auto-generated "Footnotes" h2 is
   **intentionally hidden** via `.sr-only` — its absence on the page is not a bug.
+- **Bibliographies**: notes and blog posts can declare a `bibliography` array in frontmatter;
+  `Entry.astro` renders it after the article's explanatory footnotes. Each entry takes `id`,
+  `authors`, `title`, `source`, `year`, `url`, plus optional `sourcePrefix` and `details`. Link
+  prose citations with `[[1]](#ref-<id>)` and keep their numbers aligned with array order. Use
+  bibliography entries for sources; reserve GFM footnotes for explanations, derivations, and
+  worked examples.
 - **Images**: compress before adding — `sips -Z 640 -s format jpeg -s formatOptions 80 in.jpg
   --out public/...` for photos; note figures go in `public/images/notes/`. To size an image
   down in markdown, use an inline `<img width="450">` tag instead of `![]()`. Diagrams saved

@@ -7,6 +7,16 @@ const schema = z.object({
   date: z.coerce.date(), // created — never changes
   updated: z.coerce.date().optional(), // bumped on every content revision
   draft: z.boolean().default(false),
+  bibliography: z.array(z.object({
+    id: z.string(),
+    authors: z.string(),
+    title: z.string(),
+    source: z.string(),
+    sourcePrefix: z.string().optional(),
+    details: z.string().optional(),
+    year: z.number().int(),
+    url: z.string().url(),
+  })).default([]),
   // still being written: publishes as normal but is badged "in progress", so a
   // reader knows it's incomplete. `draft` hides an entry entirely; this doesn't.
   wip: z.boolean().default(false),

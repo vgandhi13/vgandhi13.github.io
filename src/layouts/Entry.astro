@@ -2,6 +2,17 @@
 import Base from './Base.astro';
 import 'katex/dist/katex.min.css';
 
+interface BibliographyEntry {
+  id: string;
+  authors: string;
+  title: string;
+  source: string;
+  sourcePrefix?: string;
+  details?: string;
+  year: number;
+  url: string;
+}
+
 interface Props {
   title: string;
   date: Date;
@@ -10,9 +21,19 @@ interface Props {
   backHref: string;
   backLabel: string;
   wip?: boolean;
+  bibliography?: BibliographyEntry[];
 }
 
-const { title, date, updated, description, backHref, backLabel, wip = false } = Astro.props;
+const {
+  title,
+  date,
+  updated,
+  description,
+  backHref,
+  backLabel,
+  wip = false,
+  bibliography = [],
+} = Astro.props;
 
 const fmt = (d: Date) =>
   // timeZone UTC: frontmatter dates parse as UTC midnight; local formatting shifts a day
@@ -33,6 +54,20 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
       {fmt(date)}{showUpdated && <span class="entry-updated"> · Updated {fmt(updated)}</span>}
     </p>
     <slot />
+    {bibliography.length > 0 && (
+      <section class="bibliography" aria-labelledby="bibliography">
+        <h2 id="bibliography">Bibliography</h2>
+        <ol>
+          {bibliography.map((entry) => (
+            <li id={`ref-${entry.id}`}>
+              {/* a title ending in ? or ! keeps its own mark instead of taking a comma */}
+              {entry.authors}{', “'}<a href={entry.url}>{entry.title}</a>{/[?!]$/.test(entry.title) ? '” ' : ',” '}
+              {entry.sourcePrefix ? `${entry.sourcePrefix} ` : ''}<em>{entry.source}</em>{entry.details ? `, ${entry.details}` : ''}{`, ${entry.year}.`}
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
   </article>
 </Base>
 
@@ -55,6 +90,32 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
 
   .entry-updated {
     font-style: italic;
+  }
+
+  .bibliography {
+    margin-top: 3rem;
+  }
+
+  .bibliography ol {
+    counter-reset: bibliography;
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .bibliography li {
+    position: relative;
+    counter-increment: bibliography;
+    padding-left: 2.25rem;
+  }
+
+  .bibliography li::before {
+    content: '[' counter(bibliography) ']';
+    position: absolute;
+    left: 0;
+  }
+
+  .bibliography li + li {
+    margin-top: 0.9rem;
   }
 
   /* sits on the h1, so it needs its own smaller/lighter type: inheriting the
