@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -266,7 +266,7 @@ single-sample approach, this benefits training stability, speed, and performance
 ## KL Divergence for LLMs
 
 The definition, its discrete and continuous forms, and why it is not symmetric are in the
-[actor-critic note](/notes/actor-critic-methods/#kullback-leibler-kl-divergence). This section is
+[standalone KL divergence note](/notes/entropy-cross-entropy-and-kl-divergence/#kl-divergence). This section is
 about what it is doing once the two distributions are language models.
 
 Throughout LLM post-training, there are many cases where we optimize our model subject to a KL
@@ -304,8 +304,8 @@ token within a completion. By computing the KL divergence over these completion 
 capture the similarity between the token distributions predicted by the two models.[^completion-kl-example]
 
 In practice, we usually approximate this KL divergence. These estimators start from the
-expectation form of KL divergence. As described in the
-[actor-critic note](/notes/actor-critic-methods/#kullback-leibler-kl-divergence), the log ratio
+expectation form of KL divergence. As shown in the
+[expectation form of KL divergence](/notes/entropy-cross-entropy-and-kl-divergence/#kl-divergence), the log ratio
 inside that expectation is simply the current policy's log-probability minus the reference
 policy's log-probability.
 

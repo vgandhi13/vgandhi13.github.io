@@ -102,7 +102,7 @@ $$
 = -\sum_i p_i^{(T)} \log q_i^{(T)}.
 $$
 
-Because the teacher distribution is fixed, this cross-entropy objective can equivalently be viewed as minimizing $D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right)$.[^cross-entropy-kl] The **hard-target loss** is ordinary cross-entropy between the one-hot true label $y$ and the student's temperature-$1$ distribution:
+Because the teacher distribution is fixed, this cross-entropy objective can equivalently be viewed as minimizing $D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right)$, as shown in [Cross-Entropy and Forward KL](/notes/entropy-cross-entropy-and-kl-divergence/#cross-entropy-and-forward-kl). The **hard-target loss** is ordinary cross-entropy between the one-hot true label $y$ and the student's temperature-$1$ distribution:
 
 $$
 \mathcal{L}_{\text{hard}}
@@ -148,7 +148,7 @@ $$
 \approx \arg\max_{u\in\mathcal{U}} p(u\mid s).
 $$
 
-Under this approximation, the sequence-level cross-entropy reduces to the negative log-probability that the student assigns to $\hat{u}$:
+Under this approximation, the sequence-level cross-entropy reduces to the negative log-probability that the student assigns to $\hat{u}$:[^sequence-kd-example]
 
 $$
 \begin{aligned}
@@ -162,59 +162,9 @@ $$
 
 Sequence-level KD moves toward modern distillation methods because the teacher now generates the tokens that supervise the student. However, the teacher outputs are generated *a priori*, stored, and then treated as a fixed training corpus. We will refer to this setup as **offline KD**. Replacing the intractable distribution over all possible sequences with fixed teacher generations makes training practical and sets up the later contrast with on-policy distillation, where the training sequences change as the student changes.
 
-[^cross-entropy-kl]: The equivalence follows from decomposing cross-entropy into entropy plus KL divergence. For the teacher distribution $p^{(T)}$ and student distribution $q^{(T)}$,
+The token- and sequence-level objectives above are cross-entropies between a fixed teacher distribution and the student. As explained in [Cross-Entropy and Forward KL](/notes/entropy-cross-entropy-and-kl-divergence/#cross-entropy-and-forward-kl), minimizing either objective is therefore equivalent to minimizing forward KL from the teacher to the student.
 
-    $$
-    D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right)
-    = \sum_i p_i^{(T)} \log \frac{p_i^{(T)}}{q_i^{(T)}}.
-    $$
-
-    Expanding gives
-
-    $$
-    \begin{aligned}
-    D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right)
-    &= \sum_i p_i^{(T)} \log p_i^{(T)}
-       - \sum_i p_i^{(T)} \log q_i^{(T)} \\
-    &= -H\!\left(p^{(T)}\right) + \mathcal{L}_{\text{soft}},
-    \end{aligned}
-    $$
-
-    where
-
-    $$
-    \begin{aligned}
-    H\!\left(p^{(T)}\right)
-    &= -\sum_i p_i^{(T)} \log p_i^{(T)}, \\
-    \mathcal{L}_{\text{soft}}
-    &= -\sum_i p_i^{(T)} \log q_i^{(T)}.
-    \end{aligned}
-    $$
-
-    Therefore,
-
-    $$
-    \boxed{\mathcal{L}_{\text{soft}}
-    = H\!\left(p^{(T)}\right)
-    + D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right)}.
-    $$
-
-    During training, the teacher is fixed, so $p^{(T)}$ and its entropy are constant. The student can change only $q^{(T)}$. Consequently,
-
-    $$
-    \arg\min_{q^{(T)}} \mathcal{L}_{\text{soft}}
-    = \arg\min_{q^{(T)}} D_{\mathrm{KL}}\!\left(p^{(T)} \parallel q^{(T)}\right).
-    $$
-
-    For a numerical example, suppose $p=(0.8,0.2)$ and $q=(0.6,0.4)$. Using natural logarithms:
-
-    | Quantity | Calculation |
-    | --- | --- |
-    | Cross-entropy | $\mathcal{L}_{\text{soft}}=-[0.8\log(0.6)+0.2\log(0.4)]=0.592$ |
-    | Teacher entropy | $H(p)=-[0.8\log(0.8)+0.2\log(0.2)]=0.500$ |
-    | KL divergence | $D_{\mathrm{KL}}(p\parallel q)=0.8\log\frac{0.8}{0.6}+0.2\log\frac{0.2}{0.4}=0.092$ |
-
-    The displayed values satisfy $\mathcal{L}_{\text{soft}}=H(p)+D_{\mathrm{KL}}(p\parallel q)=0.500+0.092=0.592$. If the student improves until $q=p=(0.8,0.2)$, then $D_{\mathrm{KL}}(p\parallel q)=0$ and $\mathcal{L}_{\text{soft}}=H(p)=0.500$. The minimum cross-entropy occurs when the student matches the teacher, but it does not generally become zero; the fixed teacher entropy remains.
+Their fixed teacher-generated training corpora also place them on the offline side of the [sampling distinction between SFT and RL](/notes/entropy-cross-entropy-and-kl-divergence/#sft-and-rl-through-the-kl-lens). On-policy distillation will instead train on completions sampled from the current student.
 
 [^distillation-loss-example]: Consider a three-class example with teacher logits $v=(\log 9,0,0)$, student logits $z=(\log 4,0,0)$, temperature $T=2$, and hard label $y=(1,0,0)$. Let $\alpha=0.8$ and $\beta=0.2$.
 
@@ -237,6 +187,25 @@ Sequence-level KD moves toward modern distillation methods because the teacher n
     | $j=2$: “Choose two colors: red” | $(0.10,0.80,0.10)$ | $(0.20,0.65,0.15)$ | $-[0.10\log(0.20)+0.80\log(0.65)+0.10\log(0.15)]=0.695$ |
 
     Using natural logarithms, the sequence loss is $\mathcal{L}_{\text{token-KD}}=0.825+0.695=1.520$. Although the teacher selected “red” and then “blue,” every vocabulary probability contributes to the loss at each position.
+
+[^sequence-kd-example]: Suppose the prompt is “Translate *Guten Morgen* into English.” Each complete-sequence probability is the product of the teacher's conditional token probabilities. For a coherent toy distribution:
+
+    | Candidate sequence or probability mass | Autoregressive factorization and calculation |
+    | --- | --- |
+    | “Good morning.” | $p(\text{Good}\mid s)\,p(\text{morning}\mid s,\text{Good})\,p(\text{.}\mid s,\text{Good morning})=0.85\times0.86\times0.85=0.62135\approx0.62$ |
+    | “Morning.” | $p(\text{Morning}\mid s)\,p(\text{.}\mid s,\text{Morning})=0.10\times0.80=0.080$ |
+    | “Have a good morning.” | $p(\text{Have}\mid s)\,p(\text{a}\mid s,\text{Have})\,p(\text{good}\mid s,\text{Have a})\,p(\text{morning}\mid s,\text{Have a good})\,p(\text{.}\mid s,\text{Have a good morning})=0.04\times0.90^4=0.026244\approx0.026$ |
+    | All remaining sequences combined | $1-(0.62135+0.080+0.026244)=0.272406\approx0.273$ |
+
+    Beam search selects $\hat{u}=$ “Good morning.” Sequence-level KD replaces the teacher's full sequence distribution with a point mass on this one output. Suppose the student assigns the following conditional probabilities to its three tokens:
+
+    | Position | Student prediction | Student probability | Token loss |
+    | ---: | --- | ---: | ---: |
+    | $1$ | $q(\text{Good}\mid s)$ | $0.70$ | $-\log(0.70)=0.357$ |
+    | $2$ | $q(\text{morning}\mid s,\text{Good})$ | $0.80$ | $-\log(0.80)=0.223$ |
+    | $3$ | $q(\text{.}\mid s,\text{Good morning})$ | $0.90$ | $-\log(0.90)=0.105$ |
+
+    The student's probability for the complete sequence is $q(\hat{u}\mid s)=0.70\times0.80\times0.90=0.504$. Therefore, $\mathcal{L}_{\text{seq-KD}}=-\log(0.504)=0.357+0.223+0.105=0.685$. The other teacher candidates do not contribute after the point-mass approximation.
 
 ## To read
 

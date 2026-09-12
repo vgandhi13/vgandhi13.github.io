@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-09-06
+updated: 2026-09-12
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -285,45 +285,6 @@ After a handful of these inner steps, set $\theta \leftarrow \theta'$ and repeat
 
 [Update this]
 
-## Kullback-Leibler (KL) Divergence
-
-KL divergence is a concept from information theory that measures how different a probability
-distribution is from some reference distribution. Used as a penalty term, its goal is to avoid our
-policy drifting too far away from a reference policy during training. For a discrete probability
-distribution it has the form[^kl-discrete-example]
-
-$$
-D_{\mathrm{KL}}(P \,\|\, Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)}
-$$
-
-and for a continuous one,
-
-$$
-D_{\mathrm{KL}}(P \,\|\, Q) = \int p(x) \log \frac{p(x)}{q(x)} \, dx
-$$
-
-Both can also be written as an expectation:
-
-$$
-D_{\mathrm{KL}}(P \,\|\, Q) = \mathbb{E}_{x \sim P} \left[ \log \frac{P(x)}{Q(x)} \right]
-$$
-
-or equivalently, since the log of a ratio is a difference of logs,
-
-$$
-D_{\mathrm{KL}}(P \,\|\, Q) = \mathbb{E}_{x \sim P} \left[ \log P(x) - \log Q(x) \right]
-$$
-
-Note that the KL divergence is not symmetric, so the order of the arguments matters:
-
-$$
-D_{\mathrm{KL}}(P \,\|\, Q) \neq D_{\mathrm{KL}}(Q \,\|\, P)
-$$
-
-By Gibbs' inequality both $D_{\mathrm{KL}}(P \,\|\, Q) \geq 0$ and $D_{\mathrm{KL}}(Q \,\|\, P) \geq 0$,
-but the individual terms inside them, $\log \frac{P(x)}{Q(x)}$ and $\log \frac{Q(x)}{P(x)}$, can be
-negative.[^kl-negative-terms]
-
 ## Proximal Policy Optimization
 
 Recall the [surrogate objective](/notes/policy-gradients/#implementing-this-efficiently-the-surrogate-objective) trick from policy gradients: instead of writing out a full gradient by hand, define a scalar objective whose gradient recovers it, so a single `backward()` call does the work. Applying that here, to the importance-weighted update from [off-policy actor-critic](#version-1-multiple-gradient-steps), gives the surrogate objective
@@ -354,7 +315,7 @@ So $r=1$ means $\theta'$ behaves exactly like $\theta$; $r>1$ means $\theta'$ is
 
 [Version 1](#version-1-multiple-gradient-steps) already flagged the risk of repeating steps 4 and 5 too many times: nothing in $\tilde{J}$ itself penalizes $\theta'$ for drifting far from $\theta$, so an optimizer that's free to keep climbing will happily push $r(\theta')$ far past $1$, long after the advantage estimate it's multiplying has stopped being trustworthy.[^ppo-drift-example]
 
-**TRPO** fixes this by directly constraining how far $\theta'$ is allowed to move, measured by [KL divergence](/notes/policy-gradients/#when-does-our-off-policy-approximation-stop-working): $D_{\mathrm{KL}}(\pi_{\theta'} \,\|\, \pi_\theta) \leq \delta$. It works well, but solving a constrained optimization problem at every gradient step is mathematically involved.
+**TRPO** fixes this by directly constraining how far $\theta'$ is allowed to move, measured by [KL divergence](/notes/entropy-cross-entropy-and-kl-divergence/#kl-divergence): $D_{\mathrm{KL}}(\pi_{\theta'} \,\|\, \pi_\theta) \leq \delta$. It works well, but solving a constrained optimization problem at every gradient step is mathematically involved.
 
 **PPO** takes a simpler route: instead of constraining the policy directly, just stop the importance ratio itself from getting too large.
 
@@ -563,19 +524,3 @@ TODO: add Generalized Advantage Estimation (GAE).
     In every case, the $\min$ either matches the clipped objective, when clipping alone already handles the update correctly, or falls back to the true, unclipped score, when clipping alone would have flattered a bad update. That's what stops the clipped objective from ever making an undesirable policy change look better than it is.
 
 [^ppo-batch-count-example]: Suppose $N = 100$ actors each contribute one rollout, and the implementation groups 10 whole rollouts into each minibatch. One optimizer step processes 10 rollouts, so one epoch contains $100 / 10 = 10$ optimizer steps and processes all 100 rollouts once. With $K = 4$, optimization takes $4 \times 10 = 40$ steps and accounts for $4 \times 100 = 400$ rollout-usages. These are not 400 unique rollouts: the same 100 are reused once in each of the four epochs. Only after all four epochs does PPO discard that batch, refresh the old policy, and collect new rollouts.
-
-[^kl-discrete-example]: Take two distributions over three outcomes:
-
-    | $x$ | $P(x)$ | $Q(x)$ | $\frac{P(x)}{Q(x)}$ | $\log \frac{P(x)}{Q(x)}$ | $P(x) \log \frac{P(x)}{Q(x)}$ |
-    | --- | --- | --- | --- | --- | --- |
-    | A | 0.50 | 0.25 | $2.0$ | $0.693$ | $0.3465$ |
-    | B | 0.30 | 0.25 | $1.2$ | $0.182$ | $0.0546$ |
-    | C | 0.20 | 0.50 | $0.4$ | $-0.916$ | $-0.1832$ |
-
-    The ratio column is the idea in miniature: it compares the two distributions at one particular outcome. $P$ considers A twice as likely as $Q$ does, B slightly more likely, and C less than half as likely. Summing the last column gives
-
-    $$
-    D_{\mathrm{KL}}(P \,\|\, Q) = 0.3465 + 0.0546 - 0.1832 = 0.2179 \approx 0.218
-    $$
-
-[^kl-negative-terms]: $\log \frac{P(x)}{Q(x)}$ can absolutely be negative: for outcome C in the [worked example](#user-content-fn-kl-discrete-example) it is $-0.916$. That is a single term, not yet the KL divergence.
