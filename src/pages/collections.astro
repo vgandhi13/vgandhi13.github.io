@@ -10,7 +10,12 @@ import Base from '../layouts/Base.astro';
 // prose rather than a blockquote, and the subject and year sit above it instead of an
 // em-dash attribution below. History is NOT shuffled, so array order is display order.
 // `text` can be an array when several passages from the same person and occasion
-// belong together: each becomes its own paragraph under one attribution.
+// belong together: each becomes its own paragraph under one attribution. The paragraph
+// break IS the elision mark: when a talk is stitched from passages with the connective
+// material cut, split at every cut and let the gap show it. Do not write ellipses at the
+// seams (…like this…) and do not join two passages inside one paragraph; the ellipses
+// only add visual noise to something the layout already says, and they read as the
+// speaker trailing off. Set `paraphrased` alongside, so the card says so in words too.
 // `source` is optional context (a book, talk, or paper) shown after the name, and
 // links to `url` when one is given. Set `paraphrased` when the wording is recalled
 // rather than transcribed, so the page never passes it off as verbatim.
@@ -398,6 +403,51 @@ const quotes: Entry[] = [
     paraphrased: true,
     // #demis-hassabis is taken by the earlier excerpt; pinning keeps that link valid
     id: 'hassabis-young-people',
+  },
+  {
+    text: [
+      'There are 334 months optimistically for you to pursue your passions and travel the world ' +
+        'and leave your mark. How you spend this time is going to determine the quality of your ' +
+        'life. But this time isn’t just something that you spend. It’s also something that you ' +
+        'invest, because what you do with it will quite literally determine the kind of person ' +
+        'you become. The body, mind, and character that you will have in the future are being ' +
+        'actively shaped by how you choose to use your time today.',
+      'Today, the average 18-year-old in the United States is on pace to spend 93% of their ' +
+        'remaining free time looking at a screen.',
+      'Imagine getting to the age of 90, seeing this visualization of how you spent all your ' +
+        'time after the age of 18, and thinking about all the things you could have done that ' +
+        'you did not do because you got distracted.',
+      'Social media platforms shape our beliefs and values by promoting superficial approval ' +
+        'and constant communication. It’s a consequence of a business model that has incentives ' +
+        'which are fundamentally misaligned with your wellbeing, because you are the product ' +
+        'that social media sells. These services are free because they are monetizing you.',
+      'I am not saying social media is without value. It can be an incredibly powerful tool. ' +
+        'It can foster relationships. It can introduce you to new ideas. It can even spark ' +
+        'social movements. But we need to learn to use it in moderation. Don’t let yourself get ' +
+        'to the age of 90, only to look back on your life and realize that, while you were ' +
+        'trying to avoid FOMO, you actually missed out on living. That free time is your most ' +
+        'valuable resource. Do not give it away for free.',
+    ],
+    author: 'Dino Ambrosi',
+    source: '“The Battle For Your Time: Exposing the Costs of Social Media”',
+    url: 'https://www.youtube.com/watch?v=4TMPXK9tw5U',
+    // stitched from passages across the talk, with the connective material between them cut;
+    // each paragraph is one retained passage, which is the page's usual elision convention
+    paraphrased: true,
+    added: '2026-09-13',
+    image: {
+      src: '/images/quotes/remaining-time-in-months.png',
+      alt: 'Grid titled “An 18 year old’s remaining time in months”, assuming a 90 year life ' +
+        'expectancy, with each row of 36 dots standing for three years. The dots are coloured ' +
+        'by what the time goes to: purple for sleep (288 months), green for work and school ' +
+        '(126), red for cooking and eating (36), blue for bathroom and hygiene (27), orange for ' +
+        'driving (18) and chores (36). A bracket marks the last 334 months as free time, and ' +
+        'almost all of it is a black block: 312 months of screen time, leaving only a handful ' +
+        'of empty dots at the end.',
+      // the chart is colour-coded by category, so the dark-mode invert would hue-flip every
+      // series and break the legend
+      plain: true,
+    },
   },
 ];
 
