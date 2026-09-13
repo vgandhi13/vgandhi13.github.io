@@ -254,7 +254,8 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
      ink. Cap them and centre, keeping the caption aligned to the image, not the column.
      Dense diagrams stay full width, and genuinely wide ones use figure.wide. */
   figure.narrow img,
-  figure.narrow svg {
+  figure.narrow svg,
+  figure.narrow video {
     display: block;
     /* min(..., 100%): a bare 34rem would override the global img max-width:100% and
        overflow the viewport on a phone, where 34rem is wider than the screen */
