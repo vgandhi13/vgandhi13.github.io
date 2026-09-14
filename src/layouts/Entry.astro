@@ -13,6 +13,14 @@ interface BibliographyEntry {
   url: string;
 }
 
+// Astro hands these back from render(): every heading in the markdown, already
+// slugged with the same ids the rendered HTML carries.
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
 interface Props {
   title: string;
   date: Date;
@@ -22,6 +30,7 @@ interface Props {
   backLabel: string;
   wip?: boolean;
   bibliography?: BibliographyEntry[];
+  headings?: Heading[];
 }
 
 const {
@@ -33,6 +42,7 @@ const {
   backLabel,
   wip = false,
   bibliography = [],
+  headings = [],
 } = Astro.props;
 
 const fmt = (d: Date) =>
@@ -44,15 +54,49 @@ const fmt = (d: Date) =>
     timeZone: 'UTC',
   });
 const showUpdated = updated && fmt(updated) !== fmt(date);
+
+// h2 and h3 only: h4 and below are usually a worked example inside a section, not a
+// place anyone navigates to. h3 matters because some notes (policy-gradients) carry
+// their real structure there and would otherwise get a three-line contents list.
+// The auto-generated GFM footnotes heading is .sr-only on the page, so listing it
+// would send a reader to a heading they cannot see.
+const toc: Heading[] = headings
+  .filter((h) => (h.depth === 2 || h.depth === 3) && h.slug !== 'footnote-label')
+  .map((h) => ({ ...h }));
+
+// Entry.astro renders the bibliography itself, so it never reaches `headings`.
+if (bibliography.length > 0) {
+  toc.push({ depth: 2, slug: 'bibliography', text: 'Bibliography' });
+}
+
+// Under three entries there is nothing to navigate: a two-item rail is furniture.
+const showToc = toc.length >= 3;
 ---
 
 <Base title={`${title} · Varun Gandhi`} description={description}>
-  <article>
+  <article class={showToc ? 'has-toc' : undefined}>
     <p class="back"><a href={backHref}>← {backLabel}</a></p>
     <h1>{title}{wip && <span class="wip-badge">in progress</span>}</h1>
     <p class="entry-date">
       {fmt(date)}{showUpdated && <span class="entry-updated"> · Updated {fmt(updated)}</span>}
     </p>
+    {showToc && (
+      /* A <details> so the no-JS and narrow-screen base state is a real collapsible
+         sitting in the flow. The script opens it and the media query lifts it into
+         the left margin when the window is wide enough to hold it. */
+      <details class="toc" id="entry-toc">
+        <summary>Contents</summary>
+        <nav aria-label="Table of contents">
+          <ul>
+            {toc.map((h) => (
+              <li class={h.depth === 3 ? 'toc-sub' : undefined}>
+                <a href={`#${h.slug}`}>{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </details>
+    )}
     <slot />
     {bibliography.length > 0 && (
       <section class="bibliography" aria-labelledby="bibliography">
@@ -90,6 +134,107 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
 
   .entry-updated {
     font-style: italic;
+  }
+
+  /* Base state (narrow windows, and any window without JS): an ordinary collapsible
+     block in the flow, closed, so it costs one line above the article. */
+  .toc {
+    margin: 1.5rem 0 2rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  .toc summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    width: fit-content;
+  }
+
+  .toc nav {
+    margin-top: 0.7rem;
+  }
+
+  .toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .toc li {
+    position: relative;
+    padding-left: 0.95rem;
+    margin: 0.4rem 0;
+  }
+
+  /* `.toc li` is (0,1,1) and a bare `.toc-sub` is (0,1,0), so the plain class silently
+     loses and every h3 sits flush with its parent. Same specificity trap as the
+     figure.wide overrides in Base.astro: qualify it with the element. */
+  .toc li.toc-sub {
+    padding-left: 1.95rem;
+  }
+
+  .toc a {
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .toc a:hover {
+    color: var(--link);
+  }
+
+  /* The current section is marked with colour plus a bullet and NOT with
+     font-weight: the rail is narrow enough that a weight change re-wraps the item's
+     own lines, so the list would twitch on every scroll. */
+  .toc a.is-current {
+    color: var(--heading);
+  }
+
+  .toc a.is-current::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--heading);
+  }
+
+  .toc-sub a.is-current::before {
+    left: 1rem;
+  }
+
+  /* The rail lives in the left margin of the centred 58rem body, so the window has to
+     be wide enough to hold 29rem of half-body, the gap, the rail and a gutter. Below
+     1320px there is not enough margin for a legible rail and the block above is what
+     readers get instead.
+     Anchoring BOTH edges rather than setting a width is what keeps that honest: a
+     fixed 11rem rail hung off `right` alone overhangs the viewport by 10px at the
+     breakpoint, because the left gutter is not in the equation. Here the box can only
+     ever be as wide as the margin actually is. */
+  @media (min-width: 1320px) {
+    /* .is-rail, not the bare class: the script adds it, and it is also what forces the
+       <details> open. Styling the rail on the media query alone would hide the summary
+       of a still-closed <details> for a reader without JS, leaving the whole contents
+       list unreachable on exactly the widest screens. */
+    .toc.is-rail {
+      position: fixed;
+      top: 7rem;
+      left: 1.5rem;
+      /* measured back from the centre: half the body (29rem) plus the gap, so the rail
+         tracks the prose column instead of drifting to the edge of a wide monitor */
+      right: calc(50% + 29rem + 1.25rem);
+      /* and margin-left: auto keeps it against the prose once the margin outgrows this */
+      max-width: 13rem;
+      margin-left: auto;
+      max-height: calc(100vh - 10rem);
+      overflow-y: auto;
+    }
+
+    /* the rail is always open up here, so the disclosure triangle is noise */
+    .toc.is-rail summary {
+      display: none;
+    }
+
+    .toc.is-rail nav {
+      margin-top: 0;
+    }
   }
 
   .bibliography {
@@ -133,3 +278,88 @@ const showUpdated = updated && fmt(updated) !== fmt(date);
     color: var(--text-muted);
   }
 </style>
+
+<!-- is:inline, like the theme script in Base.astro: plain DOM APIs with no imports,
+     so there is nothing for Vite to bundle (or to serve stale from its dep cache). -->
+<script is:inline>
+  (() => {
+    const toc = document.getElementById('entry-toc');
+    if (!toc) return;
+
+    // Keep the disclosure state tied to the breakpoint in the stylesheet: open (and
+    // styled as a fixed rail) when the margin can hold it, collapsed when it cannot.
+    const wide = window.matchMedia('(min-width: 1320px)');
+    const syncOpen = () => {
+      toc.open = wide.matches;
+      // .is-rail is what turns the stylesheet's rail treatment on. Gating it on the
+      // script means a reader without JS keeps the ordinary collapsible at every width.
+      toc.classList.toggle('is-rail', wide.matches);
+    };
+    syncOpen();
+    wide.addEventListener('change', syncOpen);
+
+    // Pair each link with its heading up front. Building the two lists separately and
+    // filtering one of them would drift the indices apart the first time a link points
+    // at a heading that is not on the page.
+    const pairs = [];
+    toc.querySelectorAll('a').forEach((a) => {
+      const el = document.getElementById(decodeURIComponent(a.hash.slice(1)));
+      if (el) pairs.push({ a, el });
+    });
+    if (!pairs.length) return;
+
+    // On a phone the list is in the flow, so leaving it open after a jump means the
+    // reader lands with the whole contents list still above them.
+    toc.addEventListener('click', (e) => {
+      if (!wide.matches && e.target.closest('a')) toc.open = false;
+    });
+
+    // The active section is the LAST heading whose top has passed the trigger line,
+    // which an IntersectionObserver does not report directly: a heading scrolled far
+    // off the top is simply not intersecting, same as one far below.
+    const TRIGGER = 120;
+    let queued = false;
+
+    const update = () => {
+      queued = false;
+      let active = 0;
+      for (let i = 0; i < pairs.length; i++) {
+        if (pairs[i].el.getBoundingClientRect().top <= TRIGGER) active = i;
+        else break;
+      }
+      // The last section is usually too short to ever reach the trigger line, so at
+      // the bottom of the page it would otherwise never light up.
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 2) {
+        active = pairs.length - 1;
+      }
+      pairs.forEach((p, i) => p.a.classList.toggle('is-current', i === active));
+      keepInView(pairs[active].a);
+    };
+
+    // A long contents list outruns the rail's max-height on a short window, and the
+    // marked item then sits somewhere the reader cannot see. Scroll the rail itself,
+    // never scrollIntoView(): that walks up to the page and would fight the scrolling
+    // that triggered this in the first place.
+    const keepInView = (a) => {
+      if (!wide.matches || toc.scrollHeight <= toc.clientHeight) return;
+      // Rects, not offsetTop: the rail is position:fixed so its offsetParent is null,
+      // and each link's offsetParent is its own position:relative <li>, which makes
+      // every link's offsetTop ~0 and the comparison meaningless.
+      const rail = toc.getBoundingClientRect();
+      const item = a.getBoundingClientRect();
+      if (item.top < rail.top) toc.scrollTop += item.top - rail.top - 8;
+      else if (item.bottom > rail.bottom) toc.scrollTop += item.bottom - rail.bottom + 8;
+    };
+
+    const onScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(update);
+    };
+
+    addEventListener('scroll', onScroll, { passive: true });
+    addEventListener('resize', onScroll);
+    update();
+
+  })();
+</script>

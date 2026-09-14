@@ -236,6 +236,22 @@ const current = (prefix: string) => (path.startsWith(prefix) ? 'page' : undefine
     overflow-x: auto;
   }
 
+  /* With the contents rail up (Entry.astro adds .has-toc), the left margin is taken,
+     and a figure centred on the viewport lands on top of it. Anchor the breakout to the
+     left edge of the prose column instead and let it grow right into the free margin:
+     left: auto returns the relatively-positioned figure to its static position.
+     This is a MAX-WIDTH on purpose. Both wide figures set their own `width` from a
+     <style> block inside the note, which lands in the body and therefore beats a
+     same-specificity rule up here; max-width is a different property, so it clamps
+     whatever the note asked for instead of fighting it. */
+  @media (min-width: 1320px) {
+    article.has-toc figure.wide {
+      left: auto;
+      transform: none;
+      max-width: calc(50vw + 29rem - 3rem);
+    }
+  }
+
   figure.wide img,
   figure.wide svg {
     display: block;

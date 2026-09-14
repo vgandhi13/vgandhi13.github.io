@@ -204,6 +204,23 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   GFM footnotes (`[^name]`) work. Footnote sections are styled globally in Base.astro
   (`.footnotes`: divider + smaller muted text) and the auto-generated "Footnotes" h2 is
   **intentionally hidden** via `.sr-only` — its absence on the page is not a bug.
+- **Bibliographies**: notes and blog posts can declare a `bibliography` array in frontmatter
+  (schema in `src/content.config.ts`); `Entry.astro` renders it as a numbered `<section>` after
+  the article's footnotes, under an `h2#bibliography` so `…/#bibliography` links like any other
+  heading. Each entry takes `id`, `authors`, `title`, `source`, `year`, `url`, plus optional
+  `sourcePrefix` and `details`. Cite in prose with `[[1]](#ref-<id>)` and keep the numbers
+  aligned with array order, which is **citation order, not alphabetical**. `sourcePrefix: in`
+  gives the "in *NeurIPS*, 2023" form for conference papers; a bare `source` gives the
+  "*arXiv preprint arXiv:2503.20783*, 2025" form. Spell `authors` in full up to about four
+  names, then `First Author et al.`. The renderer drops the comma after a `title` ending in
+  `?` or `!` (`Model?” in …`, not `Model?,” in …`), so titles keep their own punctuation.
+  **Division of labour**: bibliography entries are for *sources*; GFM footnotes stay for
+  explanations, derivations, and worked examples. Don't put a citation in a footnote, and don't
+  leave both markers adjacent in prose, since GFM footnotes also render as bracketed numbers and
+  two numbering systems side by side are unreadable. `rl-for-llms.md` is the reference example:
+  four papers cited, one of them (`ref-r1zero-critical`) cited twice from different sections.
+  Verify author lists against the arXiv API rather than from memory
+  (`curl -sS "https://export.arxiv.org/api/query?id_list=<id>"`; plain `http` returns empty).
 - **Images**: compress before adding — `sips -Z 640 -s format jpeg -s formatOptions 80 in.jpg
   --out public/...` for photos; note figures go in `public/images/notes/`. To size an image
   down in markdown, use an inline `<img width="450">` tag instead of `![]()`. Diagrams saved
@@ -335,6 +352,41 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   wraps), with `align-items: baseline` on the `li` so the date sits on the title's first
   baseline. Entry.astro's copy of the badge was always fine because it lives inside the `h1`.
   Desktop looks identical either way, so check any badge/pill at 390px, not just 1440px.
+
+- **Table of contents on notes/blog posts** (`Entry.astro`): built from the `headings`
+  array Astro returns from `render()`, so heading ids always match the ones in the page and
+  nothing needs `rehype-slug`. Three things are decided in the frontmatter, not the CSS:
+  h2 **and** h3 are listed (some notes, e.g. `policy-gradients`, carry their real structure in
+  h3 and would otherwise get a three-line list), the GFM `footnote-label` heading is filtered out
+  because it is `.sr-only` on the page, and the bibliography h2 is pushed on by hand since
+  `Entry.astro` renders it after the markdown and it never reaches `headings`. A post with fewer
+  than 3 entries gets no TOC at all.
+  One `<details id="entry-toc">` serves both layouts: closed-in-the-flow is the base state, and a
+  `@media (min-width: 1320px)` block lifts it into the left margin as a fixed rail while an inline
+  script sets `open` to match that same breakpoint (keep the two numbers in sync). Without JS it
+  stays a working "Contents" disclosure, which is why it is a `<details>` and not a `<nav>`.
+  Gotchas: (1) **anchor both `left` and `right`** on the rail instead of giving it a width. The
+  margin is only `(vw - 58rem) / 2`, so an 11rem rail hung off `right` alone hangs 10px off the
+  left edge of the viewport at the breakpoint; anchoring both edges plus `max-width` means it can
+  never be wider than the margin actually is. (2) `.toc li` is (0,1,1), so a bare `.toc-sub` loses
+  to it and the h3 indent silently does nothing: write `.toc li.toc-sub` (same trap as
+  `figure.wide`). (3) The active item is marked with colour and a bullet and **never**
+  `font-weight`, which would re-wrap the item's own lines and make the rail twitch while scrolling.
+  (4) Scroll-spy is a rAF-throttled scroll listener, not an `IntersectionObserver`: the active
+  section is the *last* heading whose top has passed the trigger line, and IO cannot report that
+  (a heading far above the viewport and one far below are both simply not intersecting). The
+  bottom-of-page clamp is what lets the final short section light up at all.
+  **The rail collides with `figure.wide`** and that is not optional to handle: a wide figure
+  centres itself on the viewport and the rail sits in the left margin, so they overlap (seen
+  first as a code block painted over the contents list). The margin is only `(vw - 58rem) / 2`,
+  so there is no width at which a symmetric 1280px figure and a rail both fit below ~1550px.
+  Fix in Base.astro: `article.has-toc figure.wide` (the class comes from `Entry.astro`) sets
+  `left: auto; transform: none` so the figure starts at the prose column's left edge and grows
+  right instead. It is written as a **`max-width`**, not `width`, because both wide figures set
+  their own `width` from a `<style>` block *inside the note*, which lands in the body and beats a
+  same-specificity rule in `<head>`; `max-width` is a different property, so it clamps rather than
+  fights. Re-run the overlap check (figure left vs rail right, at 1920/1600/1440/1320/1319) after
+  touching either feature.
 
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.

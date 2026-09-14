@@ -8,7 +8,7 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 ---
 
 <Entry
@@ -17,6 +17,7 @@ const { Content } = await render(post);
   updated={post.data.updated}
   description={post.data.description}
   bibliography={post.data.bibliography}
+  headings={headings}
   backHref="/blog/"
   backLabel="All posts"
 >
