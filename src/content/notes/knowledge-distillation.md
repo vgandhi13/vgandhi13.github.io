@@ -1,8 +1,8 @@
 ---
-title: Knowledge Distillation, On Policy Distillation, On Policy Self Distillation
+title: Knowledge Distillation for Language Models
 description: A reading list in progress on knowledge distillation, on-policy distillation, and on-policy self-distillation.
 date: 2026-08-29
-updated: 2026-09-13
+updated: 2026-09-14
 wip: true
 bibliography:
   - id: gou2021
@@ -91,12 +91,63 @@ bibliography:
     source: "arXiv preprint arXiv:2504.14871"
     year: 2025
     url: https://arxiv.org/abs/2504.14871
+  - id: agarwal2023-gkd
+    authors: Rishabh Agarwal, Nino Vieillard, Yongchao Zhou, Piotr Stanczyk, Sabela Ramos, Matthieu Geist, and Olivier Bachem
+    title: "On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes"
+    source: "arXiv preprint arXiv:2306.13649"
+    year: 2023
+    url: https://arxiv.org/abs/2306.13649
+  - id: qwen3-report
+    authors: Qwen Team
+    title: Qwen3 Technical Report
+    source: "arXiv preprint arXiv:2505.09388"
+    year: 2025
+    url: https://arxiv.org/abs/2505.09388
+  - id: lu2025-opd
+    authors: Kevin Lu and Thinking Machines Lab
+    title: On-Policy Distillation
+    source: Thinking Machines Lab
+    year: 2025
+    url: https://thinkingmachines.ai/blog/on-policy-distillation/
+  - id: huang2026-opd
+    authors: Zachary Huang
+    title: On-Policy Distillation in 20 Min
+    source: YouTube
+    year: 2026
+    url: https://www.youtube.com/watch?v=4l39C6-MZsE
+  - id: zhao2026-opsd
+    authors: Siyan Zhao, Zhihui Xie, Mengchen Liu, Jing Huang, Guan Pang, Feiyu Chen, and Aditya Grover
+    title: "Self-Distilled Reasoner: On-Policy Self-Distillation for Large Language Models"
+    source: "arXiv preprint arXiv:2601.18734"
+    year: 2026
+    url: https://arxiv.org/abs/2601.18734
+  - id: shenfeld2026-sdft
+    authors: Idan Shenfeld, Mehul Damani, Jonas Hübotter, and Pulkit Agrawal
+    title: Self-Distillation Enables Continual Learning
+    source: "arXiv preprint arXiv:2601.19897"
+    year: 2026
+    url: https://arxiv.org/abs/2601.19897
+  - id: hubotter2026-sdpo
+    authors: Jonas Hübotter, Frederike Lübeck, Lejs Behric, Anton Baumann, Marco Bagatella, Daniel Marta, Ido Hakimi, Idan Shenfeld, Thomas Kleine Buening, Carlos Guestrin, and Andreas Krause
+    title: Reinforcement Learning via Self-Distillation
+    source: "arXiv preprint arXiv:2601.20802"
+    year: 2026
+    url: https://arxiv.org/abs/2601.20802
+  - id: tiwari2026-naive-opsd
+    authors: Rishabh Tiwari
+    title: Why On-Policy Distillation Works and Naive Self-Distillation Doesn't
+    source: X
+    year: 2026
+    url: https://x.com/rish2k1/article/2068414528598286485?lang=en
+  - id: trl-gold
+    authors: Hugging Face
+    title: General Online Logit Distillation (GOLD) Trainer
+    source: TRL documentation
+    year: 2026
+    url: https://huggingface.co/docs/trl/en/gold_trainer
 ---
 
-TODO: this note is a placeholder while I work through the material below and write it up
-properly.
-
-## Knowledge Distillation
+## Foundations
 
 *Adapted from ["Everything You Need to Know about Knowledge Distillation"](https://huggingface.co/blog/Kseniase/kd).*
 
@@ -106,7 +157,7 @@ Instead of training the student only on correct answers, we train it on the teac
 
 <span id="dark-knowledge"></span>
 
-This helps because the teacher's *full probability distribution* carries far more information than a single correct answer. For an image of a dog, a teacher might output `dog: 0.9, wolf: 0.08, cat: 0.001`. The relative probabilities reveal that the teacher considers dogs more similar to wolves than to cats. Hinton called this hidden similarity structure **dark knowledge**, and it is exactly the kind of signal a small model struggles to learn from hard labels alone.[[12]](#ref-hinton-dark-knowledge)
+This helps because the teacher's *full probability distribution* carries far more information than a single correct answer. Those probabilities carry information about how the larger model thinks: which alternatives it considers and how confident it is in each one. For an image of a dog, a teacher might output `dog: 0.9, wolf: 0.08, cat: 0.001`. The relative probabilities reveal that the teacher considers dogs more similar to wolves than to cats. Hinton called this hidden similarity structure **dark knowledge**, and it is exactly the kind of signal a small model struggles to learn from hard labels alone.[[12]](#ref-hinton-dark-knowledge)
 
 <figure class="narrow">
   <img src="/images/notes/knowledge-distillation-teacher-student.jpg" alt="A large teacher model transfers knowledge learned from shared data to a smaller student model." />
@@ -194,11 +245,11 @@ $$
 
 Both terms use the same student logits. The soft term evaluates them at the same high temperature used by the teacher, while the hard term evaluates them at $T=1$. The paper does not prescribe universal values for $\alpha$ and $\beta$, although it reports generally placing considerably less weight on the hard-target term. In its speech-recognition experiments, it used a relative hard-target cross-entropy weight of $0.5$.[[3]](#ref-hinton2015) Here, the $T^2$ factor is present because, when the soft- and hard-target losses are combined, increasing $T$ would otherwise make the soft-target gradient weaker relative to the hard-target gradient.[[3]](#ref-hinton2015)
 
-### Knowledge Distillation for Language Models
+## Adapting distillation to language models
 
 *Adapted from ["Adapting Knowledge Distillation for LMs"](https://rlhfbook.com/c/12-synthetic-data#adapting-knowledge-distillation-for-lms).*
 
-#### Token-level distillation
+### Token-level distillation
 
 Knowledge distillation is not limited to language modeling. In a multiclass classification problem, it usually matches one output distribution for each input. An autoregressive language model instead predicts a distribution at every sequence position, so the distillation objective can be decomposed into a sum of per-token distribution-matching losses.
 
@@ -215,7 +266,7 @@ $$
 
 In this offline formulation, the loss is generally computed over a static text sequence already included in the training corpus. It has the ordinary cross-entropy form. At each position $j$, the teacher distribution $p(\cdot \mid s,u_{<j})$ assigns probability to every possible next token $k\in\mathcal{V}$, and the student is penalized when its distribution $q(\cdot \mid s,u_{<j})$ puts too little probability on tokens the teacher considers likely. The inner sum aggregates this mismatch across the vocabulary, while the outer sum adds the loss across the complete sequence.[^token-kd-example]
 
-#### Sequence-level distillation
+### Sequence-level distillation
 
 Sequence-level distillation instead treats $\mathcal{U}$ as the space of all possible output sequences and asks the student to match the teacher's distribution over complete sequences. The exact objective requires summing over every $u\in\mathcal{U}$, an exponentially large space. Kim and Rush make this tractable by approximating the teacher distribution with a point mass on one high-probability teacher output $\hat{u}$ found using beam search:[[4]](#ref-kim2016)
 
@@ -243,7 +294,7 @@ The token- and sequence-level objectives above are cross-entropies between a fix
 
 Their fixed teacher-generated training corpora also place them on the offline side of the [sampling distinction between SFT and RL](/notes/entropy-cross-entropy-and-kl-divergence/#sft-and-rl-through-the-kl-lens). On-policy distillation will instead train on completions sampled from the current student.
 
-### How it is being used in practice
+## Distillation in practice
 
 *Adapted from [Julia Turc, "Knowledge Distillation: How LLMs train each other"](https://www.youtube.com/watch?v=jrJKRYAdh7I).*
 
@@ -265,7 +316,7 @@ Distillation can be applied at two main stages of the LLM training pipeline, or 
   <figcaption>Distillation can transfer teacher knowledge during pre-training, post-training, or both. Source: <a href="#ref-turc-distillation">Julia Turc, “Knowledge Distillation: How LLMs train each other” [8]</a>.</figcaption>
 </figure>
 
-#### Proper distillation and behavioral cloning
+### Proper distillation and behavioral cloning
 
 However, the exact transfer mechanism differs across model families. Google and Meta use **logit-level distillation**, which the source calls **proper distillation**. A more precise name for DeepSeek-R1's approach is **behavioral cloning**: its students imitate teacher-generated sequences rather than matching the teacher's full token probability distribution.[[8]](#ref-turc-distillation)
 
@@ -295,7 +346,7 @@ The crucial difference is that the labels are no longer soft. At each position, 
   <figcaption>Behavioral cloning trains the student on the teacher's sampled tokens as hard labels rather than on its full vocabulary distribution. Source: <a href="#ref-turc-distillation">Julia Turc, “Knowledge Distillation: How LLMs train each other” [8]</a>.</figcaption>
 </figure>
 
-#### Why not use proper distillation everywhere?
+### Why not use proper distillation everywhere?
 
 Proper distillation gives the student a richer target than behavioral cloning, but it is not always practical for two reasons:
 
@@ -310,7 +361,7 @@ $$
 
 At one byte per value in FP8, storing the dense targets alone would require roughly one exabyte. Gemma 3 reduces this burden by sampling 256 logits per token, weighted by the teacher probabilities. It sets the unsampled logits to zero probability and renormalizes the sparse target distribution.[[9]](#ref-gemma3-report) Applied to the same hypothetical 8-trillion-token corpus, this still produces about $2 \times 10^{15}$ values, but it is far smaller than retaining a full vocabulary distribution. Computing or streaming these targets as they are consumed can avoid storing a complete soft-label dataset, at the cost of running the teacher during student training.
 
-#### Codistillation
+### Codistillation
 
 Meta says that codistillation from Llama 4 Behemoth during pre-training amortized the expensive teacher forward passes needed to compute distillation targets for most of Llama 4 Maverick's training data.[[5]](#ref-meta-llama4) The distinction becomes clearer by separating regular distillation into two phases.
 
@@ -337,7 +388,7 @@ The tradeoff is that the teacher is still learning, so its early soft targets ma
   <figcaption>Codistillation reuses the teacher's current forward pass to train both the teacher and student together. Source: <a href="#ref-turc-distillation">Julia Turc, “Knowledge Distillation: How LLMs train each other” [8]</a>.</figcaption>
 </figure>
 
-#### Black-box distillation
+### Black-box distillation
 
 *Adapted from [Sergei Parfenov, "How Model Distillation Actually Works (and What the 'China Distilled Our Model' Headlines Really Mean)"](https://dev.to/p0rt/how-model-distillation-actually-works-and-what-the-china-distilled-our-model-headlines-really-3o0o).*
 
@@ -356,7 +407,7 @@ Because the student observes only sampled text, it loses the [dark knowledge](#d
 
 This also explains why claims that model X learned from model Y's outputs are difficult to prove. Black-box distillation does not require copying a weights file. The observable evidence is indirect: shared stylistic quirks, self-identification mistakes, or other statistical fingerprints in behavior. Such fingerprints can reveal similarity between model outputs, but they do not by themselves establish the provenance of the training data.[[14]](#ref-suzuki2025-fingerprints)
 
-### Distillation scaling laws
+## Distillation scaling laws
 
 A distillation scaling law predicts student performance from three main factors:[[10]](#ref-busbridge2025)
 
@@ -369,6 +420,265 @@ These relationships follow a power law, making improvements predictable but subj
 A stronger teacher does not always produce a better student. If the gap between their learning capacities is too large, the student may struggle to imitate the teacher and can perform worse than it would with a somewhat weaker teacher. This is called the **capacity gap**.[[10]](#ref-busbridge2025)
 
 A student can also sometimes outperform its teacher. When a stronger pretrained student learns from a weaker supervisor and then exceeds that supervisor's performance, the phenomenon is called **weak-to-strong generalization**.[[11]](#ref-burns2023)
+
+## On-Policy Distillation
+
+*Adapted from [Zachary Huang, "On-Policy Distillation in 20 Min"](#ref-huang2026-opd) and [Thinking Machines Lab, "On-Policy Distillation"](#ref-lu2025-opd).*
+
+### Motivation
+
+In the comparison below, **off-policy distillation** is standard supervised fine-tuning on teacher-generated solutions. The teacher writes a solution, and the student trains on that fixed text. This is relatively cheap, but it creates a distribution mismatch: the student learns from trajectories generated by the teacher during training, then must condition on its own earlier tokens at inference time. It never trains directly on the mistakes it makes when generating independently, so performance can plateau.[[15]](#ref-agarwal2023-gkd)
+
+Reinforcement learning fixes the mismatch by letting the current student generate its own attempts and then grading them. In outcome-based RL, however, a long sampled response may receive only one sparse reward at the end. The method can improve benchmark performance, but it spends substantial sampling and training compute to obtain that limited feedback.
+
+**On-policy distillation** keeps the part of RL that works, namely learning from the student's own attempts, while making the feedback dense. The student generates a trajectory, and the teacher supplies a next-token distribution at every prefix of that student-written trajectory. The student therefore receives a training signal at every token rather than only a final outcome reward.
+
+<style>
+  .opd-source-row {
+    grid-template-columns: minmax(0, 0.65fr) minmax(0, 1.35fr);
+  }
+  figure.opd-training-comparison {
+    max-width: min(44rem, 100%);
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: auto;
+  }
+  figure.opd-training-comparison img {
+    width: 100%;
+    max-width: none;
+    min-width: 700px;
+  }
+  figure.opd-toy-example.wide {
+    width: min(1280px, calc(100vw - 2.5rem));
+    overflow: visible;
+  }
+  figure.opd-toy-example.wide .opd-toy-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+    align-items: center;
+    gap: 1.5rem;
+  }
+  figure.opd-toy-example.wide .opd-toy-code,
+  figure.opd-toy-example.wide .opd-toy-dry-run {
+    min-width: 0;
+  }
+  figure.opd-toy-example.wide pre {
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.65;
+  }
+  figure.opd-toy-example.wide .opd-toy-dry-run {
+    overflow-x: auto;
+  }
+  figure.opd-toy-example.wide .opd-toy-dry-run img {
+    display: block;
+    width: 100%;
+    max-width: none;
+    min-width: 680px;
+  }
+  @media (max-width: 700px) {
+    .opd-source-row {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 1160px) {
+    figure.opd-toy-example.wide {
+      width: 100%;
+      left: auto;
+      transform: none;
+    }
+    figure.opd-toy-example.wide .opd-toy-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="figure-row opd-source-row">
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/qwen3-technical-report.jpg" alt="Title page and abstract of the Qwen3 Technical Report, which describes using knowledge from flagship models to train competitive smaller models with less compute." />
+      <figcaption>The Qwen3 Technical Report presents strong-to-weak distillation as a way to reduce the cost of training smaller models. Source: <a href="#ref-qwen3-report">Qwen Team [16]</a>.</figcaption>
+    </figure>
+  </div>
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/qwen3-distillation-comparison-table.jpg" alt="Qwen3-8B benchmark table comparing off-policy distillation, reinforcement learning, and on-policy distillation. On-policy distillation has the highest scores and lists 1,800 GPU-hours compared with 17,920 for reinforcement learning." />
+      <figcaption>On Qwen3-8B, on-policy distillation achieved the strongest result in every reported benchmark column while listing 1,800 GPU-hours, compared with 17,920 for reinforcement learning. Source: <a href="#ref-qwen3-report">Qwen Team [16]</a>, Table 21.</figcaption>
+    </figure>
+  </div>
+</div>
+
+The Qwen3 comparison makes the compute tradeoff concrete. On-policy distillation produced the highest score in all six reported benchmark columns, using about one tenth of the GPU-hours listed for reinforcement learning: 1,800 instead of 17,920.[[16]](#ref-qwen3-report)
+
+The underlying problem was identified clearly by Rishabh Agarwal and colleagues in 2023. A student trained only on fixed outputs can drift as soon as it generates its own response, because each imperfect token changes the context for the tokens that follow. Their Generalized Knowledge Distillation method instead lets the student produce its own sequences and asks the teacher to provide token-level feedback on those sequences. In short, the student writes, and the teacher grades every token.[[15]](#ref-agarwal2023-gkd)
+
+The 2025 Thinking Machines post helped popularize the technique through a practical internal-assistant case study. The goal was to teach a model knowledge from a company's private documents without sacrificing its existing ability to follow instructions.
+
+In their experiments, continuing training on the internal documents during **mid-training** successfully taught the domain knowledge. It also caused **catastrophic forgetting**: as the network absorbed the new data, some of its post-trained assistant behavior was overwritten. In the reported experiment, Qwen3-8B's internal-QA score rose from 18% to 43% after document-only mid-training, while its instruction-following score fell from 85% to 45%.[[17]](#ref-lu2025-opd)
+
+The researchers then mid-trained on a 70:30 mix of internal documents and chat data and applied on-policy distillation, using the earlier Qwen3-8B checkpoint as the teacher. Distillation raised internal QA from 36% to 41% and nearly restored instruction following from 79% to 83%, close to the original 85%. The model retained the new domain knowledge while recovering almost all of its assistant behavior.[[17]](#ref-lu2025-opd)
+
+<figure class="narrow">
+  <img src="/images/notes/on-policy-distillation-internal-assistant.jpg" alt="Table comparing Qwen3-8B before and after internal-document mid-training and on-policy distillation. A 70 percent mid-training mix followed by distillation reaches 41 percent on internal QA and 83 percent on instruction following." />
+  <figcaption>On-policy distillation recovered nearly all instruction-following performance while preserving the knowledge learned during mid-training. Source: <a href="#ref-lu2025-opd">Thinking Machines Lab [17]</a>, Figure 13.</figcaption>
+</figure>
+
+The takeaway is that, in these examples, on-policy distillation costs about one tenth as much as reinforcement learning and can even repair catastrophic forgetting.[[16]](#ref-qwen3-report)[[17]](#ref-lu2025-opd)
+
+### How it works
+
+Suppose we are training a model to solve the arithmetic prompt `2 + 3 × 4 = ?`. The correct answer is $14$ because multiplication comes before addition: $3\times4=12$, then $2+12=14$. A model can instead make the tempting mistake of adding first, obtaining $5\times4=20$.
+
+SFT, RL, and on-policy distillation differ in who writes the training trajectory and how that trajectory is graded:
+
+<figure class="opd-training-comparison">
+  <img src="/images/notes/on-policy-distillation-training-comparison.jpg" alt="Three training pipelines compare supervised fine-tuning, reinforcement learning, and on-policy distillation. In SFT the teacher writes and the student learns token by token. In RL the student writes and the environment returns one score. In OPD the student writes and the teacher grades every token." />
+  <figcaption>SFT is off-policy with dense token supervision, RL is on-policy with a sparse outcome reward, and on-policy distillation is on-policy with dense teacher feedback. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+**Supervised fine-tuning.** The teacher might provide the worked solution `3 × 4 = 12, then 2 + 12 = 14`. The student learns to reproduce this clean teacher-written text token by token. It never trains on a prefix containing its own arithmetic mistake, so it has not learned how to recover when that mistake appears at inference time.
+
+**Reinforcement learning.** The student writes its own attempts, and an environment checks each final answer. For example:
+
+| Student attempt | Final answer | Reward |
+| --- | ---: | ---: |
+| `2 + 3 = 5, then 5 × 4 = 20` | $20\neq14$ | $0$ |
+| `3 × 4 = 12, then 2 + 12 = 14` | $14=14$ | $1$ |
+
+This feedback trains on the student's own behavior, but the verifier returns only one number for the entire attempt. A reward of $0$ reveals that the first solution failed without identifying which step introduced the error.
+
+**On-policy distillation.** The student generates the same attempted solution, but the teacher evaluates it token by token.
+
+The per-token grade can be based on [reverse KL divergence](/notes/entropy-cross-entropy-and-kl-divergence/#kl-divergence). Reusing the earlier notation, let $q_\theta$ be the student distribution, $p_T$ the fixed teacher distribution, and $h_t$ the prompt plus all tokens before position $t$. The reverse KL at that prefix is
+
+$$
+D_{\mathrm{KL}}\!\left(
+q_\theta(\cdot\mid h_t)\parallel p_T(\cdot\mid h_t)
+\right)
+=
+\mathbb{E}_{x\sim q_\theta(\cdot\mid h_t)}
+\!\left[
+\log q_\theta(x\mid h_t)-\log p_T(x\mid h_t)
+\right].
+$$
+
+The student distribution appears first, so the expectation is over the student's own possible next tokens. This is the **on-policy** part. For a token $x_t$ actually sampled by the student, the log-ratio
+
+$$
+\widehat d_t
+=
+\log q_\theta(x_t\mid h_t)
+-
+\log p_T(x_t\mid h_t)
+$$
+
+is a one-sample estimate of that per-prefix reverse KL. An RL-style update can use $A_t=-\widehat d_t$ as a per-token advantage, giving lower advantage to tokens the student considers much more likely than the teacher does.[[17]](#ref-lu2025-opd)
+
+Unlike RL, where the environment penalizes the student only for the wrong answer at the end, on-policy distillation can identify the token where the trajectory first goes wrong. Here `= 5` is that token, so it receives a large reverse-KL penalty of about $3.9$. Once the student has sampled `= 5`, that mistake becomes part of the context. Conditioned on this new context, the teacher also considers the following green tokens plausible, so they receive much smaller reverse-KL penalties of about $0.1$. The teacher therefore concentrates the punishment on the earlier mistake instead of repeatedly blaming the final answer.[[15]](#ref-agarwal2023-gkd)[[17]](#ref-lu2025-opd)
+
+<figure class="narrow">
+  <img src="/images/notes/on-policy-distillation-token-credit.jpg" alt="The incorrect attempt 2 plus 3 equals 5, then 5 times 4 equals 20. The first mistaken token, equals 5, has a reverse-KL penalty of 3.9, while each locally plausible continuation has a penalty of 0.1." />
+  <figcaption>Dense feedback assigns the large penalty to the first token where the student's trajectory departs from the teacher. Later tokens can remain plausible after conditioning on that mistake. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+A 500-token rollout therefore gives standard RL one outcome-level training signal, while on-policy distillation can provide 500 token-level signals, one for each sampled token.
+
+For the first wrong token, let $h_t=$ `2 + 3`, and suppose the student assigns probability $0.90$ to `= 5` while the teacher assigns it $0.02$ and instead assigns $0.88$ to `× 4`. If the student samples `= 5`, its log-ratio is
+
+<figure class="narrow">
+  <img src="/images/notes/on-policy-distillation-token-distributions.jpg" alt="Student and teacher next-token probability distributions after the context 2 plus 3. The student assigns probability 0.90 to equals 5, while the teacher assigns probability 0.88 to times 4 and only 0.02 to equals 5." />
+  <figcaption>At the same prefix, the student strongly favors the incorrect token <code>= 5</code>, while the teacher favors <code>× 4</code>. This distribution-level disagreement provides a dense training signal. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+$$
+\widehat d_t
+=
+\log(0.90)-\log(0.02)
+=
+\log(45)
+\approx 3.81\ \text{nats}.
+$$
+
+This large positive value becomes an advantage of approximately $-3.81$, strongly pushing the student away from that token in the same context. In contrast to a single reward of $0$ for the whole response, the signal identifies where the student's probability distribution first diverged sharply from the teacher.
+
+#### Toy rollout
+
+Let the batch contain one rollout ($B=1$), with four generated tokens ($T=4$) and a vocabulary of eight tokens ($V=8$). Before selection, each model produces a $[1,4,8]$ tensor containing a log-probability for every vocabulary item at every position. `gather` keeps only the log-probability of the token the student actually sampled, reducing each tensor to $[1,4]$. The PyTorch-like sketch omits prompt concatenation and the causal shift for brevity.
+
+<figure class="wide opd-toy-example">
+  <div class="opd-toy-row">
+    <div class="opd-toy-code">
+      <pre><code class="language-python">rollout = student.sample(prompt)                 # [B, T]
+s_all = student(rollout).log_softmax(-1)         # [B, T, V]
+with torch.no_grad():
+    t_all = teacher(rollout).log_softmax(-1)     # [B, T, V]
+# Keep only the sampled token at each position.
+chosen = rollout.unsqueeze(-1)                   # [B, T, 1]
+s_lp = s_all.gather(-1, chosen).squeeze(-1)      # [B, T]
+t_lp = t_all.gather(-1, chosen).squeeze(-1)      # [B, T]
+# Turn the discrepancy into a policy-gradient loss.
+rkl = s_lp - t_lp                                # [B, T]
+advantage = -rkl.detach()                        # [B, T]
+loss = -(advantage * s_lp).mean()                # scalar
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()</code></pre>
+    </div>
+    <div class="opd-toy-dry-run">
+      <img src="/images/notes/on-policy-distillation-toy-dry-run.jpg" alt="Dry run for a batch of one four-token rollout. The student log-probabilities are minus 0.1, minus 0.2, minus 0.1, and minus 0.3. The teacher log-probabilities are minus 4.0, minus 0.3, minus 0.2, and minus 0.4, producing reverse-KL estimates of 3.9, 0.1, 0.1, and 0.1 and advantages of minus 3.9, minus 0.1, minus 0.1, and minus 0.1." />
+    </div>
+  </div>
+  <figcaption>The code gathers both models' log-probabilities for the student's sampled tokens, then converts their differences into per-token advantages. The dry run shows the first wrong token receiving nearly all of the corrective signal. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+In the dry run, subtracting the teacher log-probabilities from the student's gives $[3.9,0.1,0.1,0.1]$. Negating those values produces the token-level advantages $[-3.9,-0.1,-0.1,-0.1]$. Using the rounded values shown, the first token contributes $3.9/(3.9+0.1+0.1+0.1)\approx93\%$ of the total reverse-KL signal.
+
+### Limitations
+
+The logit-based form of on-policy distillation described here cannot be used directly when the teacher is available only through a black-box API that returns text but not token log-probabilities. Without those probabilities, the student cannot compute the per-token divergence. Specialized [black-box distillation](#black-box-distillation) methods must replace the missing logit signal with another form of feedback.[[13]](#ref-ye2025-black-box)
+
+The direct per-token objective also assumes compatible tokenization. If the teacher and student use different tokenizers, one student token may correspond to several teacher tokens, so their vocabulary indices and token positions cannot be matched directly. TRL's experimental [GOLD Trainer](https://huggingface.co/docs/trl/en/gold_trainer) works around this by aligning decoded text spans and merging the associated probabilities before computing the distillation loss.[[23]](#ref-trl-gold)
+
+Distillation is fundamentally an imitation objective, so it should not be expected by itself to push the capability frontier beyond the best available teacher. A student can occasionally outperform its teacher, as in the [weak-to-strong generalization](#distillation-scaling-laws) phenomenon discussed above, but that is not guaranteed. When the goal is to discover behavior better than the strongest teacher can demonstrate, reinforcement learning with an external reward or verifier remains the standard tool.[[11]](#ref-burns2023)
+
+## On-Policy Self-Distillation
+
+*Adapted from [Zhao et al., "Self-Distilled Reasoner"](#ref-zhao2026-opsd) and [Zachary Huang, "On-Policy Distillation in 20 Min"](#ref-huang2026-opd).*
+
+Three contemporaneous works, *Self-Distilled Reasoner*, *Self-Distillation Enables Continual Learning*, and *Reinforcement Learning via Self-Distillation*, converged on the same basic idea: why pay for a separate teacher if the model can grade itself under a more informative context? The same model is used twice. The student view sees the ordinary prompt, while the teacher view also receives privileged information such as a reference solution, an expert demonstration, or environment feedback.[[19]](#ref-zhao2026-opsd)[[20]](#ref-shenfeld2026-sdft)[[21]](#ref-hubotter2026-sdpo)
+
+In ordinary OPD, a weaker student generates the rollout and a separate, stronger teacher grades every sampled token. **On-policy self-distillation (OPSD)** keeps the student-generated rollout but replaces the external teacher with another evaluation of the same model. For reasoning tasks, the privileged teacher prompt can include the verified reference answer. The teacher does not write a replacement solution; it scores the student's exact trajectory while having access to that additional context.[[19]](#ref-zhao2026-opsd)
+
+<figure class="narrow">
+  <img src="/images/notes/on-policy-vs-self-distillation.jpg" alt="Comparison of on-policy distillation and on-policy self-distillation. In OPD, Qwen3-8B writes and a separate Qwen3-32B teacher grades it. In self-distillation, Qwen3-8B both writes and grades, with the reference answer added to the teacher copy's prompt." />
+  <figcaption>OPD uses a separate, stronger teacher. OPSD uses the same model as both student and teacher, but gives the teacher view privileged information. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+Conceptually, the implementation changes one line. Instead of calling a separate `teacher` to score the rollout, the training loop calls the `student` again and adds the reference answer to its context. In an actual implementation, gradients through this teacher-side evaluation are stopped; only the ordinary student view is updated.[[19]](#ref-zhao2026-opsd)
+
+<figure>
+  <img src="/images/notes/on-policy-self-distillation-code-change.jpg" alt="PyTorch-like on-policy distillation code where the separate teacher scoring call is crossed out and replaced by a second call to the student conditioned on the prompt and reference answer." />
+  <figcaption>The OPSD proposal replaces the external teacher call with a privileged evaluation of the same model. Source: <a href="#ref-huang2026-opd">Zachary Huang [18]</a>.</figcaption>
+</figure>
+
+### Competence versus privilege
+
+This approach depends on a strong assumption: the privileged self-teacher must behave like a genuinely better policy, not merely like the same policy holding an answer sheet. Rishabh Tiwari argues that naive privileged self-distillation can fail in three related ways:[[22]](#ref-tiwari2026-naive-opsd)
+
+1. **Feedback leakage.** Training can teach the student to write as though it always has access to a hint, reference solution, or earlier feedback. At inference time that context is absent, but the model may still refer to feedback or evidence it was never given.
+2. **Overconfidence.** The model can become less likely to re-examine its reasoning because the privileged teacher was conditioned on the answer from the start.
+3. **Poorer out-of-distribution generalization.** In the reported comparisons, the weakness becomes much clearer outside the training distribution, where naive self-distillation falls 6–25 points below RL across the evaluated settings.[[22]](#ref-tiwari2026-naive-opsd)
+
+The arithmetic example makes the distinction concrete. A stronger OPD teacher can independently derive that `2 + 3 × 4 = 14`; that is a **competence advantage**. A privileged copy of the student can simply read `14` from the reference answer and construct reasoning backward from it; that is only a **contextual advantage**. Seeing the destination can make rationalization easier, but it does not necessarily teach the unprivileged student how to find that destination at inference time.
+
+Ground truth itself is not the problem. A verifier can safely use the correct answer to evaluate a solution the student generated independently. The risk comes from promoting an answer-conditioned copy of the student into a dense teacher and assuming that every distributional change caused by the answer is useful supervision.
+
+| Teacher advantage | Example | What is being transferred |
+| --- | --- | --- |
+| **Real capability** | A stronger model solves a chemistry problem because it understands the chemistry better than the student. | Knowledge and reasoning the deployed student can learn to reproduce. |
+| **Privileged context only** | The same student is shown the correct answer and asked to produce reasoning that leads to it. | A tendency to rationalize from information that will be unavailable at inference time. |
+
+Using an older checkpoint of the same model as the teacher is not inherently a problem. It can work when that checkpoint genuinely produces behavior the new model should learn without receiving special hints. The useful criterion is not whether teacher and student share a model family; it is whether the teacher possesses a real capability or knowledge advantage rather than merely being shown clues that reveal the desired answer.
 
 [^distillation-loss-example]: Consider a three-class example with teacher logits $v=(\log 9,0,0)$, student logits $z=(\log 4,0,0)$, temperature $T=2$, and hard label $y=(1,0,0)$. Let $\alpha=0.8$ and $\beta=0.2$.
 
@@ -415,7 +725,10 @@ A student can also sometimes outperform its teacher. When a stronger pretrained 
 
 - [On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/), Thinking Machines
 - [On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes](https://arxiv.org/pdf/2306.13649) (GKD)
-- [On-Policy Self-Distillation](https://arxiv.org/pdf/2601.18734) (OPSD)
+- [Self-Distilled Reasoner: On-Policy Self-Distillation for Large Language Models](https://arxiv.org/pdf/2601.18734) (OPSD)
+- [Self-Distillation Enables Continual Learning](https://arxiv.org/abs/2601.19897) (SDFT)
+- [Reinforcement Learning via Self-Distillation](https://arxiv.org/abs/2601.20802) (SDPO)
+- [Why On-Policy Distillation Works and Naive Self-Distillation Doesn't](https://x.com/rish2k1/article/2068414528598286485?lang=en)
 - [Self-Distilled RLVR](https://arxiv.org/pdf/2604.03128)
 
 ## To watch
