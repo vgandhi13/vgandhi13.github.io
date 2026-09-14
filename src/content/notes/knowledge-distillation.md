@@ -145,6 +145,18 @@ bibliography:
     source: TRL documentation
     year: 2026
     url: https://huggingface.co/docs/trl/en/gold_trainer
+  - id: deepseek-v4-pro
+    authors: DeepSeek-AI
+    title: "DeepSeek-V4: Towards Highly Efficient Million-Token Context Intelligence"
+    source: Hugging Face model card
+    year: 2026
+    url: https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro
+  - id: nvidia-nemotron3-ultra
+    authors: NVIDIA
+    title: "Nemotron 3 Ultra: Open, Efficient Mixture-of-Experts Hybrid Mamba-Transformer Model for Agentic Reasoning"
+    source: Technical report
+    year: 2026
+    url: https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Ultra-Technical-Report.pdf
 ---
 
 ## Foundations
@@ -633,6 +645,56 @@ optimizer.step()</code></pre>
 
 In the dry run, subtracting the teacher log-probabilities from the student's gives $[3.9,0.1,0.1,0.1]$. Negating those values produces the token-level advantages $[-3.9,-0.1,-0.1,-0.1]$. Using the rounded values shown, the first token contributes $3.9/(3.9+0.1+0.1+0.1)\approx93\%$ of the total reverse-KL signal.
 
+### Why on-policy distillation works
+
+The reason copying such a teacher can improve the student has a precise form. Let $u$ denote a complete output sequence, let $q_k(u)$ be the current student policy held fixed while the teacher is constructed, and let $R(u)$ be its reward. Consider the following KL-regularized policy-improvement objective over a candidate policy $p$:
+
+$$
+p_T^\star
+=
+\underset{p}{\operatorname{arg\,max}}
+\left\{
+\beta\,\mathbb{E}_{u\sim p}[R(u)]
+-
+D_{\mathrm{KL}}\!\left(p\parallel q_k\right)
+\right\},
+$$
+
+where $\beta>0$ controls the strength of reward relative to the KL penalty. This objective has the closed-form optimum
+
+$$
+p_T^\star(u)
+=
+\frac{1}{Z_k}\,q_k(u)e^{\beta R(u)},
+\qquad
+Z_k
+=
+\mathbb{E}_{u\sim q_k}\!\left[e^{\beta R(u)}\right].
+$$
+
+The factor $e^{\beta R(u)}$ tilts the current student toward high-reward responses, while $q_k(u)$ keeps the resulting teacher close to behavior the student can already produce. Now freeze this reward-tilted teacher, set $p_T=p_T^\star$, and train a new student policy $q$ by minimizing reverse KL. The loss decomposes as
+
+$$
+\begin{aligned}
+D_{\mathrm{KL}}\!\left(q\parallel p_T\right)
+&=
+\mathbb{E}_{u\sim q}
+\left[
+\log\frac{q(u)}{p_T(u)}
+\right] \\
+&=
+D_{\mathrm{KL}}\!\left(q\parallel q_k\right)
+-
+\beta\,\mathbb{E}_{u\sim q}[R(u)]
++
+\log Z_k.
+\end{aligned}
+$$
+
+**Because $q_k$ and $Z_k$ are fixed during this update, minimizing the distillation loss is equivalent to maximizing expected reward while penalizing movement away from the current policy.** Distillation toward the ideal reward-tilted teacher is therefore exactly a KL-regularized RL update. Its token-level decomposition also supplies a learning signal at every prefix, making the update much denser than one scalar reward per trajectory.
+
+A real teacher will not equal $p_T^\star$ exactly. The closer its distribution is to this reward tilt, the better distillation approximates a reward-improving step. If the teacher is not better on reward, or is too far from the student's distribution to grade its rollouts reliably, that policy-improvement interpretation no longer holds. The practical requirement is therefore a teacher that is both better and close enough to copy.
+
 ### Limitations
 
 The logit-based form of on-policy distillation described here cannot be used directly when the teacher is available only through a black-box API that returns text but not token log-probabilities. Without those probabilities, the student cannot compute the per-token divergence. Specialized [black-box distillation](#black-box-distillation) methods must replace the missing logit signal with another form of feedback.[[13]](#ref-ye2025-black-box)
@@ -640,6 +702,12 @@ The logit-based form of on-policy distillation described here cannot be used dir
 The direct per-token objective also assumes compatible tokenization. If the teacher and student use different tokenizers, one student token may correspond to several teacher tokens, so their vocabulary indices and token positions cannot be matched directly. TRL's experimental [GOLD Trainer](https://huggingface.co/docs/trl/en/gold_trainer) works around this by aligning decoded text spans and merging the associated probabilities before computing the distillation loss.[[23]](#ref-trl-gold)
 
 Distillation is fundamentally an imitation objective, so it should not be expected by itself to push the capability frontier beyond the best available teacher. A student can occasionally outperform its teacher, as in the [weak-to-strong generalization](#distillation-scaling-laws) phenomenon discussed above, but that is not guaranteed. When the goal is to discover behavior better than the strongest teacher can demonstrate, reinforcement learning with an external reward or verifier remains the standard tool.[[11]](#ref-burns2023)
+
+### OPD being used in practice
+
+On-policy distillation is becoming a standard post-training tool. DeepSeek-V4 trains domain-specific experts with SFT and GRPO, then consolidates their capabilities into one model through on-policy distillation.[[24]](#ref-deepseek-v4-pro) Nemotron 3 Ultra similarly uses multi-teacher on-policy distillation to merge more than ten specialized teachers through dense token-level guidance on student-generated rollouts.[[25]](#ref-nvidia-nemotron3-ultra) In a matched-architecture experiment, Thinking Machines recovered the performance of an RL-trained teacher in roughly 7–10 times fewer gradient steps and estimated a 50–100 times reduction in total compute.[[17]](#ref-lu2025-opd)
+
+A useful teacher has two properties: it earns higher reward than the student, and it remains close enough for the student to imitate. One option is a larger model from the same family, which tends to share the student's training distribution while being more capable. Another is a domain expert obtained by post-training a common base model with SFT or RL. Closeness matters because the teacher must still provide meaningful probabilities on prefixes generated by the student. Nemotron 3 Ultra, for example, reports that a large teacher-student distribution mismatch weakened supervision and used a short warmup stage to bring their distributions closer before distillation.[[25]](#ref-nvidia-nemotron3-ultra)
 
 ## On-Policy Self-Distillation
 
