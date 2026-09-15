@@ -2,7 +2,34 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-12
+updated: 2026-09-15
+bibliography:
+  - id: r1zero-critical
+    authors: Zichen Liu et al.
+    title: "Understanding R1-Zero-Like Training: A Critical Perspective"
+    source: "arXiv preprint arXiv:2503.20783"
+    year: 2025
+    url: https://arxiv.org/abs/2503.20783
+  - id: reflection
+    authors: Darsh J. Shah et al. (Essential AI)
+    title: Rethinking Reflection in Pre-Training
+    source: "arXiv preprint arXiv:2504.04022"
+    year: 2025
+    url: https://arxiv.org/abs/2504.04022
+  - id: rlvr-capacity
+    authors: Yang Yue et al.
+    title: "Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?"
+    sourcePrefix: in
+    source: Advances in Neural Information Processing Systems (NeurIPS)
+    year: 2025
+    url: https://arxiv.org/abs/2504.13837
+  - id: lima
+    authors: Chunting Zhou et al.
+    title: "LIMA: Less Is More for Alignment"
+    sourcePrefix: in
+    source: Advances in Neural Information Processing Systems (NeurIPS)
+    year: 2023
+    url: https://arxiv.org/abs/2305.11206
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -1717,12 +1744,17 @@ RL alone.
 The fundamental claim behind DeepSeek-R1 and R1-Zero is that RLVR explicitly induces reasoning
 capabilities. However, recent findings suggest that reasoning behaviors, including the "Aha
 moment" described above, might already be present in base models because of pre-training on
-extensive chain-of-thought data.[^r1zero-critical] A separate line of work found
-that self-reflection and self-correction emerge progressively throughout pre-training, across
-various domains and model sizes.[^reflection] Both further complicate attributing reasoning
+extensive chain-of-thought data. One critical study finds that DeepSeek-V3-Base already
+exhibits an "Aha moment" before any RL, and attributes the reasoning of some base models to
+pretraining biases.[[1]](#ref-r1zero-critical) A separate line of work plants deliberate errors
+in reasoning chains and measures whether the model catches them, finding that self-reflection
+and self-correction emerge progressively throughout pre-training, across various domains and
+model sizes.[[2]](#ref-reflection) Both further complicate attributing reasoning
 capabilities solely to RL.
 
-A broader evaluation of RLVR reaches the same conclusion by looking beyond pass@1.[^rlvr-capacity]
+A broader evaluation of RLVR reaches the same conclusion by looking beyond pass@1, comparing
+base and RLVR-trained models across model families, RL algorithms, and math, coding, and
+visual-reasoning benchmarks.[[3]](#ref-rlvr-capacity)
 RLVR models usually do better on pass@1, meaning they are more likely to produce a correct solution
 on the first attempt. But pass@k counts a problem as solved if any of $k$ sampled answers is
 correct; at large values of $k$, commonly 128–1024, base models often solve more distinct problems
@@ -1734,14 +1766,18 @@ transfer patterns outside the student's original reasoning distribution and expa
 solve.
 
 Zhou et al. (2023) call this broader view the **Superficial Alignment Hypothesis** in
-*LIMA: Less Is More for Alignment*.[^lima] The hypothesis says that knowledge and capabilities
-are learned primarily during pre-training, while alignment mostly teaches the model which
-behaviors and response formats to produce. From this perspective, RLVR's pass@1 gain is an
+*LIMA: Less Is More for Alignment*.[[4]](#ref-lima) The hypothesis says that knowledge and
+capabilities are learned primarily during pre-training, while alignment mostly teaches the model
+which behaviors and response formats to produce. LIMA fine-tunes a 65B LLaMA model on only
+1,000 carefully curated examples, without reinforcement learning or human preference modeling,
+and finds that this small dataset is sufficient to teach strong instruction following and
+response formatting. From this perspective, RLVR's pass@1 gain is an
 alignment effect: it makes an existing correct reasoning path more likely to appear.
 
 Taken together, the evidence suggests a distinction between exposing capacity and expanding it.
 Current RLVR reliably turns latent reasoning into reliable behavior, but does not necessarily
-expand the model's underlying reasoning boundary. Distillation can expand that boundary by
+expand the model's underlying reasoning boundary. In short, RL only shapes behavior; it does not
+teach new knowledge well. Distillation can expand that boundary by
 directly supplying new chain-of-thought patterns, and pre-training on data that contains such
 patterns may do the same before post-training begins.
 
@@ -1815,7 +1851,7 @@ disagrees, get weighted down relative to those.
   <figcaption>Near-zero spread on the easy and impossible prompts inflates their weight; the discriminating problem in the middle is weighted down. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
 </figure>
 
-The fix from the [Dr. GRPO](https://arxiv.org/abs/2503.20783) work is to recognize these as objective biases, properties of the loss
+The fix from the Dr. GRPO[[1]](#ref-r1zero-critical) work is to recognize these as objective biases, properties of the loss
 itself rather than bugs in the data, and simply drop both normalization terms.
 
 TODO: more issues to come.
@@ -2392,11 +2428,3 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     a single number per completion, multiplying every one of its $T_{i,j}$ ratios. The collapse follows directly from dropping the critic: with no value function, nothing can score an individual token's state, so the signal has to come from comparing whole responses against each other, and a comparison between completions yields one number per completion.
 
 [^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_{i,j}$ is already the reward of completion $j$ here, so the ratio gets $\rho$ instead.
-
-[^r1zero-critical]: [Understanding R1-Zero-Like Training: A Critical Perspective](https://arxiv.org/abs/2503.20783), which finds that DeepSeek-V3-Base already exhibits an "Aha moment" before any RL, and attributes the reasoning of some base models to pretraining biases. This is also the paper that introduces Dr. GRPO.
-
-[^reflection]: [Rethinking Reflection in Pre-Training](https://arxiv.org/abs/2504.04022), which plants deliberate errors in reasoning chains and measures whether the model catches them, finding the ability appears early in pre-training and improves steadily.
-
-[^rlvr-capacity]: Yang Yue et al., ["Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?"](https://arxiv.org/abs/2504.13837), NeurIPS 2025. The study compares base and RLVR-trained models across model families, RL algorithms, and math, coding, and visual-reasoning benchmarks.
-
-[^lima]: Chunting Zhou et al., ["LIMA: Less Is More for Alignment"](https://arxiv.org/abs/2305.11206), NeurIPS 2023. LIMA fine-tunes a 65B LLaMA model on only 1,000 carefully curated examples, without reinforcement learning or human preference modeling, and finds that this small dataset is sufficient to teach strong instruction following and response formatting.

@@ -376,6 +376,13 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   section is the *last* heading whose top has passed the trigger line, and IO cannot report that
   (a heading far above the viewport and one far below are both simply not intersecting). The
   bottom-of-page clamp is what lets the final short section light up at all.
+  (5) A long list (knowledge-distillation lists 24) outruns the rail's own `max-height` on a
+  short window, so the marked item scrolls out of sight: the script nudges `toc.scrollTop`
+  to follow it. Measure that with `getBoundingClientRect()`, **not `offsetTop`** — the rail is
+  `position: fixed` so its `offsetParent` is `null`, and each link's `offsetParent` is its own
+  `position: relative` `<li>`, which makes every link's `offsetTop` ~0 and the comparison a
+  no-op. Don't reach for `scrollIntoView()` either; it walks up and scrolls the page itself,
+  fighting the scroll that triggered it.
   **The rail collides with `figure.wide`** and that is not optional to handle: a wide figure
   centres itself on the viewport and the rail sits in the left margin, so they overlap (seen
   first as a code block painted over the contents list). The margin is only `(vw - 58rem) / 2`,
@@ -387,6 +394,15 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   same-specificity rule in `<head>`; `max-width` is a different property, so it clamps rather than
   fights. Re-run the overlap check (figure left vs rail right, at 1920/1600/1440/1320/1319) after
   touching either feature.
+
+- **"Up next" list**: `src/components/UpNext.astro`, used by both `notes/index.astro` and
+  `blog/index.astro`, each passing its own `planned` array of plain topic strings. Deliberately
+  not links and not content-collection entries, since there is no page to point at yet; adding or
+  retiring a topic is one line in the calling page. Delete a topic when its note or post ships, or
+  it will sit there duplicating the entry now at the top of the list above. Rows use a hollow `○`
+  marker and no border, so they never read as a link whose target is missing. It started inline in
+  the notes page and moved to a component on its second use, which is the right moment: the ~40
+  lines of styling are the part you do not want two copies of.
 
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.

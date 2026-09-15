@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Search from '../../components/Search.astro';
+import UpNext from '../../components/UpNext.astro';
 import { getCollection } from 'astro:content';
 
 const modifiedDate = (post) => post.data.updated ?? post.data.date;
@@ -8,6 +9,10 @@ const modifiedDate = (post) => post.data.updated ?? post.data.date;
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => modifiedDate(b).valueOf() - modifiedDate(a).valueOf()
 );
+
+// Posts lined up to write next. Same contract as the notes page: plain strings,
+// removed once the post ships.
+const planned = ['Implementing Nanochat'];
 ---
 
 <Base title="Blog · Varun Gandhi">
@@ -37,6 +42,7 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
       )
     }
   </div>
+  <UpNext items={planned} />
 </Base>
 
 <style>

@@ -9,6 +9,12 @@ bibliography:
     source: "arXiv preprint arXiv:2510.18874"
     year: 2025
     url: https://arxiv.org/abs/2510.18874
+  - id: wolfe2026
+    authors: Cameron R. Wolfe
+    title: SFT and RL Training Objectives as Forward and Reverse KL Divergence
+    source: X
+    year: 2026
+    url: https://x.com/cwolferesearch/status/2012551263099949143?lang=en
 ---
 
 Throughout this note, let $z$ be an outcome, such as a class, token, or complete sequence, and let $p$ and $q$ be probability distributions over the same outcomes.
@@ -152,6 +158,8 @@ $$
 Both objectives consequently have the same optimum.[^cross-entropy-kl] This is why a cross-entropy objective against a fixed teacher or data distribution can be interpreted as forward-KL minimization.
 
 ## SFT and RL Through the KL Lens
+
+*Adapted from Cameron R. Wolfe's explanation of SFT and RL through KL divergence.[[2]](#ref-wolfe2026)*
 
 The same KL perspective clarifies an important difference between supervised fine-tuning (SFT) and KL-regularized reinforcement learning. For a fixed prompt $s$, let $u$ denote a complete output sequence. To keep the equations uncluttered, all distributions below are implicitly conditioned on $s$.
 

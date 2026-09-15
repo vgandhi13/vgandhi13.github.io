@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Search from '../../components/Search.astro';
+import UpNext from '../../components/UpNext.astro';
 import { getCollection } from 'astro:content';
 
 const modifiedDate = (note) => note.data.updated ?? note.data.date;
@@ -8,6 +9,24 @@ const modifiedDate = (note) => note.data.updated ?? note.data.date;
 const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
   (a, b) => modifiedDate(b).valueOf() - modifiedDate(a).valueOf()
 );
+
+// Topics lined up to write about next. Plain strings on purpose: these have no page to
+// link to yet, so a note here is one line to add and one line to delete once it ships.
+// When a topic does ship, remove it from this list, since the note itself will already
+// be sitting at the top of the list above.
+const planned = [
+  'Continual learning',
+  'Reward models',
+  'PRM',
+  'Efficient LLMs',
+  {
+    topic: 'LoRA and QLoRA',
+    ref: 'https://thinkingmachines.ai/blog/lora/',
+    refLabel: 'Thinking Machines',
+  },
+  'Scaling book exercises',
+  'Prefill decode, KV Cache, Paged Attention, Radix Attention',
+];
 ---
 
 <Base title="Notes · Varun Gandhi" description="Learning notes on AI, LLMs, and post-training.">
@@ -39,6 +58,7 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
       </li>
     ))}
   </ul>
+  <UpNext items={planned} />
 </Base>
 
 <style>

@@ -1,0 +1,104 @@
+---
+// The "Up next" list that sits under the published list on /notes/ and /blog/.
+// An item is a plain topic string, or { topic, ref, refLabel? } to hang a source on it.
+// The topic itself is never a link: there is no page to point at until the note ships,
+// and a row that looked clickable would be a link with a missing target. `ref` is the
+// opposite case, an outbound link to someone else's piece, so it renders as a separate
+// small link after the topic and is labelled with where it goes. Without `refLabel` the
+// label falls back to the hostname, so a bare URL still reads as something, not as "here".
+// Delete a topic when its note or post ships, or it will sit here duplicating the entry
+// now at the top of the list above.
+interface PlannedItem {
+  topic: string;
+  ref?: string;
+  refLabel?: string;
+}
+
+interface Props {
+  items: (string | PlannedItem)[];
+}
+
+const { items } = Astro.props;
+
+const entries: PlannedItem[] = items.map((item) =>
+  typeof item === 'string' ? { topic: item } : item
+);
+
+const hostLabel = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+};
+---
+
+{entries.length > 0 && (
+  <section class="up-next">
+    <h2>Up next</h2>
+    <ul>
+      {entries.map(({ topic, ref, refLabel }) => (
+        <li>
+          {topic}
+          {ref && (
+            <a class="up-next-ref" href={ref} target="_blank" rel="noopener">
+              {refLabel ?? hostLabel(ref)}
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  .up-next {
+    margin-top: 2.5rem;
+  }
+
+  /* quieter than the page's h1 on purpose: this is a footnote to the list above, not a
+     second section competing with it */
+  .up-next h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .up-next ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* No border and no date, so the row never reads as a link with a missing target. The
+     hollow marker is the "not written yet" signal, against the filled bullet the
+     contents rail uses for where you ARE. */
+  .up-next li {
+    position: relative;
+    padding-left: 1.1rem;
+    padding-block: 0.2rem;
+    color: var(--text-muted);
+  }
+
+  .up-next li::before {
+    content: '○';
+    position: absolute;
+    left: 0;
+    font-size: 0.8em;
+  }
+
+  /* smaller than the topic it hangs off, so the row still reads as "topic, not written
+     yet" first and "and here is the thing I am reading" second */
+  .up-next-ref {
+    font-size: 0.85em;
+  }
+
+  /* the separator is on the link, not in the markup, so it cannot be selected or copied
+     as part of either the topic or the label */
+  .up-next-ref::before {
+    content: '·';
+    margin: 0 0.4em;
+    color: var(--text-muted);
+  }
+</style>
