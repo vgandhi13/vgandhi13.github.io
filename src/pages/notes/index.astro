@@ -16,16 +16,15 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // be sitting at the top of the list above.
 const planned = [
   'Continual learning',
-  'Reward models',
-  'PRM',
-  'Efficient LLMs',
+  'Reward Model - PRM',
   {
-    topic: 'LoRA and QLoRA',
+    topic: 'Efficient LLMs - PEFT, LoRA, QLoRA',
     ref: 'https://thinkingmachines.ai/blog/lora/',
     refLabel: 'Thinking Machines',
   },
   'Scaling book exercises',
   'Prefill decode, KV Cache, Paged Attention, Radix Attention',
+  'Distributed training - FSDP, tensor parallelism, pipeline parallelism',
 ];
 ---
 

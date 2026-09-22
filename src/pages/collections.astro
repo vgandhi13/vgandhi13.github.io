@@ -488,6 +488,28 @@ const quotes: Entry[] = [
       plain: true,
     },
   },
+  {
+    text: 'All modern digital infrastructure, balanced on a project some random person in ' +
+      'Nebraska has been thanklessly maintaining since 2003.',
+    author: 'Randall Munroe',
+    source: '“Dependency”, xkcd 2347',
+    url: 'https://www.explainxkcd.com/wiki/index.php/2347:_Dependency',
+    // the comic states this as two separate labels, a bracket over the tower and an arrow at
+    // its base; joining them into one sentence is the picture's relationship, not its wording
+    paraphrased: true,
+    added: '2026-09-19',
+    image: {
+      src: '/images/quotes/xkcd-dependency.png',
+      alt: 'Stick-figure comic. A tall, precarious tower of stacked blocks is labelled “all ' +
+        'modern digital infrastructure”. Near the bottom, one thin block holds up everything ' +
+        'above it, with an arrow pointing to it reading “a project some random person in ' +
+        'Nebraska has been thanklessly maintaining since 2003”.',
+      // flat black line art on white, so the default multiply/invert is the case it was
+      // written for: dark mode renders it as white line art on black with nothing lost
+      // portrait, so the shared 460px would make it the tallest thing on the page
+      width: 280,
+    },
+  },
 ];
 
 // History: a small moment that turned out to decide a lot. Same card as an idea, but

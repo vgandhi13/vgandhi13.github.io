@@ -3,7 +3,6 @@ title: Knowledge Distillation for Language Models
 description: A reading list in progress on knowledge distillation, on-policy distillation, and on-policy self-distillation.
 date: 2026-08-29
 updated: 2026-09-15
-wip: true
 bibliography:
   - id: gou2021
     authors: Jianping Gou, Baosheng Yu, Stephen J. Maybank, and Dacheng Tao
@@ -157,6 +156,12 @@ bibliography:
     source: Technical report
     year: 2026
     url: https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Ultra-Technical-Report.pdf
+  - id: nrehiew2026
+    authors: nrehiew
+    title: SFT, RL, and On-Policy Distillation Through a Distributional Lens
+    source: nrehiew.github.io
+    year: 2026
+    url: https://nrehiew.github.io/blog/sft_rl_opd/
 ---
 
 ## Foundations
@@ -537,6 +542,8 @@ The researchers then mid-trained on a 70:30 mix of internal documents and chat d
 
 The takeaway is that, in these examples, on-policy distillation costs about one tenth as much as reinforcement learning and can even repair catastrophic forgetting.[[16]](#ref-qwen3-report)[[17]](#ref-lu2025-opd)
 
+A distributional account of the same effect argues that the on-policy data is what protects existing capabilities. Because the student samples its own responses, training pressure stays in the region of the distribution the model already visits, rather than dragging it toward an arbitrary external target the way supervised fine-tuning does. In that analysis, on-policy distillation students forgot less than the supervised teacher they were distilled from, even when that teacher was itself already degraded.[[26]](#ref-nrehiew2026)
+
 ### How it works
 
 Suppose we are training a model to solve the arithmetic prompt `2 + 3 × 4 = ?`. The correct answer is $14$ because multiplication comes before addition: $3\times4=12$, then $2+12=14$. A model can instead make the tempting mistake of adding first, obtaining $5\times4=20$.
@@ -794,7 +801,6 @@ Using an older checkpoint of the same model as the teacher is not inherently a p
 ## To read
 
 - [On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/), Thinking Machines
-- [SFT, RL, and On-Policy Distillation Through a Distributional Lens](https://nrehiew.github.io/blog/sft_rl_opd/), nrehiew
 - [On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes](https://arxiv.org/pdf/2306.13649) (GKD)
 - [Self-Distilled Reasoner: On-Policy Self-Distillation for Large Language Models](https://arxiv.org/pdf/2601.18734) (OPSD)
 - [Self-Distillation Enables Continual Learning](https://arxiv.org/abs/2601.19897) (SDFT)
