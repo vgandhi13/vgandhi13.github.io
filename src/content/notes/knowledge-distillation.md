@@ -2,7 +2,7 @@
 title: Knowledge Distillation for Language Models
 description: A reading list in progress on knowledge distillation, on-policy distillation, and on-policy self-distillation.
 date: 2026-08-29
-updated: 2026-09-15
+updated: 2026-09-24
 bibliography:
   - id: gou2021
     authors: Jianping Gou, Baosheng Yu, Stephen J. Maybank, and Dacheng Tao
@@ -800,6 +800,7 @@ Using an older checkpoint of the same model as the teacher is not inherently a p
 
 ## To read
 
+- [MOPD: Multi-Teacher On-Policy Distillation for Capability Integration in LLM Post-Training](https://arxiv.org/pdf/2606.30406)
 - [On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/), Thinking Machines
 - [On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes](https://arxiv.org/pdf/2306.13649) (GKD)
 - [Self-Distilled Reasoner: On-Policy Self-Distillation for Large Language Models](https://arxiv.org/pdf/2601.18734) (OPSD)

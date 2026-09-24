@@ -16,6 +16,15 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // be sitting at the top of the list above.
 const planned = [
   {
+    topic: 'LLM Post-training',
+    refs: [
+      {
+        url: 'https://www.perplexity.ai/hub/blog/learning-from-real-world-experience',
+        label: 'Perplexity',
+      },
+    ],
+  },
+  {
     topic: 'Continual learning',
     refs: [{ url: 'https://nrehiew.github.io/blog/sft_rl_opd/', label: 'nrehiew' }],
   },
