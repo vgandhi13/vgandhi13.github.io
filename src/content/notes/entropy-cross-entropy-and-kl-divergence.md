@@ -2,6 +2,7 @@
 title: Negative Log-Likelihood, Entropy, Cross-Entropy, and KL Divergence
 description: A guide to entropy, cross-entropy, forward and reverse KL divergence, and their connection to SFT and KL-regularized RL.
 date: 2026-09-12
+updated: 2026-09-24
 bibliography:
   - id: chen2025
     authors: Howard Chen, Noam Razin, Karthik Narasimhan, and Danqi Chen
@@ -253,6 +254,10 @@ These two KL directions help explain the different tendencies of SFT and RL:
 </figure>
 
 Mode covering and mode seeking describe tendencies, not guarantees. The practical behavior also depends on model capacity, optimization, reward quality, sampling, and the strength $\beta$ of the reference-policy constraint.
+
+## TODO
+
+- Jensen-Shannon divergence
 
 [^kl-discrete-example]: Take two distributions over three outcomes:
 
