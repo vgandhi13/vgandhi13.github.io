@@ -3,7 +3,6 @@ title: Scaling RL
 description: "Why synchronous RL leaves GPUs idle, and how asynchronous Pipeline RL fixes it with in-flight weight updates and per-token importance ratios."
 date: 2026-07-29
 updated: 2026-09-13
-wip: true
 ---
 
 ## Synchronous RL

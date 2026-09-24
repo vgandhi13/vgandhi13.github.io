@@ -342,17 +342,6 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
      such rules with `.code-tabs:not(.is-interactive)`, and check every tab, not just the one
      that loads first.
 
-- **A pill-shaped badge must never be a direct flex item** (the `in progress` badge on
-  `src/pages/notes/index.astro`, `wip: true` in a note's frontmatter). The row is
-  `display: flex`, so with default `align-items: stretch` the badge grew to the row's full
-  height; on a phone, where the long title wraps to three lines, `border-radius: 999px` on
-  that ~95px-tall box rendered as a giant oval floating beside the title. Fix is structural,
-  not a height override: wrap link + badge in one `.note-title` flex item so the badge is
-  inline-block *text* that flows after the last word (and reflows for free when the title
-  wraps), with `align-items: baseline` on the `li` so the date sits on the title's first
-  baseline. Entry.astro's copy of the badge was always fine because it lives inside the `h1`.
-  Desktop looks identical either way, so check any badge/pill at 390px, not just 1440px.
-
 - **Table of contents on notes/blog posts** (`Entry.astro`): built from the `headings`
   array Astro returns from `render()`, so heading ids always match the ones in the page and
   nothing needs `rehype-slug`. Three things are decided in the frontmatter, not the CSS:

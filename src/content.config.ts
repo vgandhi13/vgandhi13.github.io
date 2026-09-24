@@ -17,9 +17,6 @@ const schema = z.object({
     year: z.number().int(),
     url: z.string().url(),
   })).default([]),
-  // still being written: publishes as normal but is badged "in progress", so a
-  // reader knows it's incomplete. `draft` hides an entry entirely; this doesn't.
-  wip: z.boolean().default(false),
 });
 
 const notes = defineCollection({

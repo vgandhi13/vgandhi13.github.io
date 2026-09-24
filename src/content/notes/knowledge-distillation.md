@@ -1,6 +1,6 @@
 ---
 title: Knowledge Distillation for Language Models
-description: A reading list in progress on knowledge distillation, on-policy distillation, and on-policy self-distillation.
+description: A reading list on knowledge distillation, on-policy distillation, and on-policy self-distillation.
 date: 2026-08-29
 updated: 2026-09-24
 bibliography:

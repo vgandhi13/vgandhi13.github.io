@@ -3,7 +3,6 @@ title: LLM Pre-training
 description: "How language models learn next-token prediction: the chain rule, why we optimize log-likelihood instead of raw probability, and the resulting cross-entropy loss."
 date: 2026-07-11
 updated: 2026-09-24
-wip: true
 ---
 
 Pretraining teaches the model what the world and language look like.
