@@ -15,7 +15,10 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // When a topic does ship, remove it from this list, since the note itself will already
 // be sitting at the top of the list above.
 const planned = [
-  'Continual learning',
+  {
+    topic: 'Continual learning',
+    refs: [{ url: 'https://nrehiew.github.io/blog/sft_rl_opd/', label: 'nrehiew' }],
+  },
   'Reward Model - PRM',
   {
     topic: 'Efficient LLMs - PEFT, LoRA, QLoRA',
@@ -46,7 +49,15 @@ const planned = [
       },
     ],
   },
-  'Mixture of experts',
+  {
+    topic: 'Attention alternatives and mixture of experts',
+    refs: [
+      {
+        url: 'https://github.com/stanford-cs336/lectures/blob/main/lecture_04.pdf',
+        label: 'CS336 Lecture 4 (PDF)',
+      },
+    ],
+  },
 ];
 ---
 
