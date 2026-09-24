@@ -19,12 +19,25 @@ const planned = [
   'Reward Model - PRM',
   {
     topic: 'Efficient LLMs - PEFT, LoRA, QLoRA',
-    ref: 'https://thinkingmachines.ai/blog/lora/',
-    refLabel: 'Thinking Machines',
+    refs: [
+      { url: 'https://thinkingmachines.ai/blog/lora/', label: 'Thinking Machines' },
+      { url: 'https://www.tensortonic.com/llm-internals/lora', label: 'Tensortonic: LoRA' },
+      { url: 'https://www.tensortonic.com/llm-internals/qlora', label: 'Tensortonic: QLoRA' },
+    ],
   },
   'Scaling book exercises',
-  'Prefill decode, KV Cache, Paged Attention, Radix Attention',
+  {
+    topic: 'Prefill decode, KV Cache, Paged Attention, Radix Attention, speculative decoding',
+    refs: [
+      { url: 'https://www.tensortonic.com/llm-internals/kv-cache', label: 'Tensortonic: KV cache' },
+      {
+        url: 'https://www.tensortonic.com/llm-internals/speculative-decoding',
+        label: 'Tensortonic: speculative decoding',
+      },
+    ],
+  },
   'Distributed training - FSDP, tensor parallelism, pipeline parallelism',
+  'Mixture of experts',
 ];
 ---
 

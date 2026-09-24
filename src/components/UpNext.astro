@@ -1,17 +1,26 @@
 ---
 // The "Up next" list that sits under the published list on /notes/ and /blog/.
-// An item is a plain topic string, or { topic, ref, refLabel? } to hang a source on it.
+// An item is a plain topic string, or { topic, ref | refs } to hang sources on it.
 // The topic itself is never a link: there is no page to point at until the note ships,
-// and a row that looked clickable would be a link with a missing target. `ref` is the
+// and a row that looked clickable would be a link with a missing target. A ref is the
 // opposite case, an outbound link to someone else's piece, so it renders as a separate
-// small link after the topic and is labelled with where it goes. Without `refLabel` the
+// small link after the topic and is labelled with where it goes. Without a `label` the
 // label falls back to the hostname, so a bare URL still reads as something, not as "here".
+// A topic usually collects reading from more than one place, so `refs` takes a list;
+// `ref`/`refLabel` stay as the shorthand for the single-source case, and normalise into
+// the same list below rather than being a second code path in the template.
 // Delete a topic when its note or post ships, or it will sit here duplicating the entry
 // now at the top of the list above.
+interface PlannedRef {
+  url: string;
+  label?: string;
+}
+
 interface PlannedItem {
   topic: string;
   ref?: string;
   refLabel?: string;
+  refs?: PlannedRef[];
 }
 
 interface Props {
@@ -20,10 +29,6 @@ interface Props {
 
 const { items } = Astro.props;
 
-const entries: PlannedItem[] = items.map((item) =>
-  typeof item === 'string' ? { topic: item } : item
-);
-
 const hostLabel = (url: string) => {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -31,20 +36,28 @@ const hostLabel = (url: string) => {
     return url;
   }
 };
+
+const entries = items
+  .map((item) => (typeof item === 'string' ? { topic: item } : item))
+  .map(({ topic, ref, refLabel, refs }) => ({
+    topic,
+    refs: [...(ref ? [{ url: ref, label: refLabel }] : []), ...(refs ?? [])].map((r) => ({
+      url: r.url,
+      label: r.label ?? hostLabel(r.url),
+    })),
+  }));
 ---
 
 {entries.length > 0 && (
   <section class="up-next">
     <h2>Up next</h2>
     <ul>
-      {entries.map(({ topic, ref, refLabel }) => (
+      {entries.map(({ topic, refs }) => (
         <li>
           {topic}
-          {ref && (
-            <a class="up-next-ref" href={ref} target="_blank" rel="noopener">
-              {refLabel ?? hostLabel(ref)}
-            </a>
-          )}
+          {refs.map((r) => (
+            <a class="up-next-ref" href={r.url} target="_blank" rel="noopener">{r.label}</a>
+          ))}
         </li>
       ))}
     </ul>

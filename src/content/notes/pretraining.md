@@ -2,6 +2,7 @@
 title: Pretraining
 description: "How language models learn next-token prediction: the chain rule, why we optimize log-likelihood instead of raw probability, and the resulting cross-entropy loss."
 date: 2026-07-11
+wip: true
 ---
 
 Pretraining teaches the model what the world and language look like.
@@ -85,3 +86,8 @@ Suppose the true next token is "cat":
 
 - **Good prediction**: the model says cat: 0.99. Loss contribution: $-\log(0.99) \approx 0.01$, a tiny penalty.
 - **Decent prediction**: the model says cat: 0.6. Loss: $-\log(0.6) \approx 0.51$, a bigger penalty.
+
+## TODO
+
+1. ["GPT Pretraining Explained: From Raw Text to Next-Token Prediction"](https://www.tensortonic.com/llm-internals/gpt-pretraining), TensorTonic
+2. Scaling laws.
