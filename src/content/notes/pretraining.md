@@ -90,4 +90,6 @@ Suppose the true next token is "cat":
 ## TODO
 
 1. ["GPT Pretraining Explained: From Raw Text to Next-Token Prediction"](https://www.tensortonic.com/llm-internals/gpt-pretraining), TensorTonic
-2. Scaling laws.
+2. Scaling laws: [CS336 Lecture 9](https://github.com/stanford-cs336/lectures/blob/main/lecture_09.pdf) (PDF).
+3. [CS336 Assignment 3: Scaling](https://github.com/stanford-cs336/assignment3-scaling). Understand the function of each component of the Transformer, and query a training API to fit a scaling law that projects how a model scales.
+4. [CS336 Assignment 4: Data](https://github.com/stanford-cs336/assignment4-data). Convert raw Common Crawl dumps into usable pretraining data, filtering and deduplicating it to improve model performance.
