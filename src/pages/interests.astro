@@ -1,47 +1,18 @@
 ---
-import Base from '../layouts/Base.astro';
+// /interests/ was renamed to /me/. Keep old links working.
+const target = '/me/';
 ---
 
-<Base
-  title="Interests · Varun Gandhi"
-  description="What I spend my time on outside of work: AI and consciousness, the humanities, training, and sport."
->
-  <h1>Interests</h1>
-  <p class="intro">What I spend my time on, roughly in order of how much of it they take.</p>
-
-  <p>
-    I am fascinated by how everything works, and by the nature of the universe we find ourselves
-    in. That curiosity lands most often on two things: artificial intelligence and human
-    consciousness. Most of what I read and build sits somewhere between them: how these systems
-    come to behave the way they do, and what that does or does not tell us about how we do.
-  </p>
-
-  <p>
-    Beyond those, I follow history, philosophy, psychology, geopolitics, economics, and
-    financial markets. Most of that learning happens on LinkedIn, X, and YouTube, and it is
-    where a lot of my spare attention goes.
-  </p>
-
-  <p>
-    I also enjoy teaching and public speaking. Explaining something to an audience is the
-    fastest way I know to find the gaps in my own understanding, which is a large part of why I
-    keep <a href="/notes/">notes</a> here at all.
-  </p>
-
-  <p>
-    Away from a screen, I work out (mostly strength training), run, and play sports whenever I
-    get the chance. The ones I play most are table tennis, badminton, and football, in that
-    order, which also happens to be the order of how good I am at each.
-  </p>
-
-  <p>
-    I only really enjoy one video game, and that is FIFA, now EA Sports FC.
-  </p>
-</Base>
-
-<style>
-  .intro {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-  }
-</style>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Moved to /me/</title>
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <link rel="canonical" href={target} />
+    <script is:inline>location.replace('/me/' + location.hash);</script>
+  </head>
+  <body>
+    <p>This page moved to <a href={target}>/me/</a>.</p>
+  </body>
+</html>
