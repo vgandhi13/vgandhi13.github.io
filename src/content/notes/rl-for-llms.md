@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-15
+updated: 2026-09-26
 bibliography:
   - id: r1zero-critical
     authors: Zichen Liu et al.
@@ -590,7 +590,10 @@ for a broader overview.
 [state-action value function and the value function](/notes/actor-critic-methods/#q-still-depends-on-the-state-not-just-the-action),
 $A(s_t, a_t) = Q(s_t, a_t) - V(s_t)$. In PPO, we estimate the state-action value function using
 the actual reward observed for a trajectory. The value function, in contrast, is estimated using
-a learned model, the critic.
+a learned model, the critic. For an LLM completion with $T$ generated tokens, PPO evaluates this
+quantity at every token-level state-action pair, producing
+$[\hat{A}_1, \hat{A}_2, \ldots, \hat{A}_T]$: each token position receives its own advantage
+value.[^ppo-token-credit-example]
 
 The critic that supplies $V(s_t)$ is usually built by copying the policy and swapping its
 language modeling head, which outputs one logit per vocabulary token, for a value head: a small
@@ -1100,7 +1103,7 @@ if __name__ == "__main__":
   })();
 </script>
 
-TODO: add Generalized Advantage Estimation (GAE). The code above takes the simplest route to an
+The code above takes the simplest route to an
 advantage: a Monte Carlo return-to-go, then one subtraction, $\hat{A}_t = G_t - V_{\text{old}}(s_t)$.
 That is unbiased but noisy, since $G_t$ is a single sampled trajectory. GAE interpolates toward
 the low-variance end instead, by discounting a backward sum of one-step TD residuals
@@ -1227,6 +1230,8 @@ should decrease.
 
 In PPO, the baseline comes from a learned value function. GRPO instead gets it from the group
 itself, using the rewards $r_{i,1}, \ldots, r_{i,G}$ of the completions sampled for prompt $s_i$:
+
+<span id="grpo-group-advantage"></span>
 
 $$
 \text{baseline}_i = \text{mean}(r_{i,1}, \ldots, r_{i,G}), \qquad A_{i,j} = \frac{r_{i,j} - \text{baseline}_i}{\text{std}(r_{i,1}, \ldots, r_{i,G})}.
@@ -2005,6 +2010,109 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
     recomputed from the current $\pi_\theta$ at every inner step, so it carries a gradient of its
     own that pulls $\pi_\theta$ back toward $\pi_{\mathrm{ref}}$ directly.
 
+[^ppo-token-credit-example]: Work through one rollout. Suppose the prompt is "What is 12 × 7?" and the model generates `12 × 7 = 84`. Treat `84` as the terminal action for this simplified example; an implementation that includes `<eos>` explicitly would place the outcome reward there instead. With $s_t$ defined as the prompt plus everything generated before token $t$, the rollout is
+
+    $$
+    s_1 \xrightarrow{a_1} s_2
+    \xrightarrow{a_2} s_3
+    \xrightarrow{a_3} s_4
+    \xrightarrow{a_4} s_5
+    \xrightarrow{a_5} s_6,
+    \qquad
+    (a_1, a_2, a_3, a_4, a_5)
+    = (\texttt{12}, \times, \texttt{7}, \texttt{=}, \texttt{84}).
+    $$
+
+    PPO does not directly observe which token caused the final success. It constructs a learning signal for each token from the rewards and a learned value function.
+
+    **1. Record the rewards and critic values.** Suppose the finished response earns $R_{\mathrm{final}} = 1$, with no environment reward before termination. Imagine the critic assigns these values to the five states from which the tokens were sampled:
+
+    | $t$ | Token $a_t$ | State $s_t$ | Immediate reward $r_t$ | Critic value $V(s_t)$ |
+    | ---: | --- | --- | ---: | ---: |
+    | 1 | `12` | prompt only | $0$ | $0.30$ |
+    | 2 | `×` | prompt + `12` | $0$ | $0.40$ |
+    | 3 | `7` | prompt + `12 ×` | $0$ | $0.45$ |
+    | 4 | `=` | prompt + `12 × 7` | $0$ | $0.65$ |
+    | 5 | `84` | prompt + `12 × 7 =` | $1$ | $0.75$ |
+
+    The state after `84` is terminal, so PPO masks its bootstrap value and uses $V(s_6)=0$. The immediate rewards alone, $[0, 0, 0, 0, 1]$, do not assign credit to the earlier tokens.
+
+    **2. Compute one-step TD residuals.** For each token, the residual
+
+    $$
+    \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)
+    $$
+
+    asks whether the next state turned out better or worse than the critic expected. With $\gamma=1$:
+
+    | Token | TD residual |
+    | --- | --- |
+    | `12` | $\delta_1 = 0 + 0.40 - 0.30 = +0.10$ |
+    | `×` | $\delta_2 = 0 + 0.45 - 0.40 = +0.05$ |
+    | `7` | $\delta_3 = 0 + 0.65 - 0.45 = +0.20$ |
+    | `=` | $\delta_4 = 0 + 0.75 - 0.65 = +0.10$ |
+    | `84` | $\delta_5 = 1 + 0 - 0.75 = +0.25$ |
+
+    **3. Propagate future credit backward with GAE.** Using $\gamma=1$ and $\lambda=0.9$, compute the advantages backward with
+
+    $$
+    \hat{A}_t = \delta_t + \gamma\lambda\hat{A}_{t+1},
+    \qquad \hat{A}_5 = \delta_5.
+    $$
+
+    | Token | Advantage calculation |
+    | --- | --- |
+    | `84` | $\hat{A}_5 = 0.25$ |
+    | `=` | $\hat{A}_4 = 0.10 + 0.9(0.25) = 0.325$ |
+    | `7` | $\hat{A}_3 = 0.20 + 0.9(0.325) = 0.4925$ |
+    | `×` | $\hat{A}_2 = 0.05 + 0.9(0.4925) = 0.49325$ |
+    | `12` | $\hat{A}_1 = 0.10 + 0.9(0.49325) = 0.543925$ |
+
+    Rounding to three decimals gives one advantage per token:
+
+    $$
+    [\hat{A}_1, \hat{A}_2, \hat{A}_3, \hat{A}_4, \hat{A}_5]
+    = [0.544, 0.493, 0.493, 0.325, 0.250].
+    $$
+
+    This is the backward propagation of the final outcome through the rollout:
+
+    $$
+    \boxed{\text{final reward}
+    \longrightarrow \text{TD residuals}
+    \longrightarrow \text{GAE}
+    \longrightarrow (\hat{A}_1, \hat{A}_2, \ldots, \hat{A}_T)}.
+    $$
+
+    **4. Apply PPO at every token.** To avoid confusing the importance ratio with the reward $r_t$, call the ratio $\rho_t$:
+
+    $$
+    \rho_t(\theta)
+    = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\mathrm{old}}}(a_t \mid s_t)}.
+    $$
+
+    Each token contributes its own clipped surrogate term,
+
+    $$
+    L_t^{\mathrm{CLIP}}(\theta)
+    = \min\!\left(
+    \rho_t(\theta)\hat{A}_t,
+    \operatorname{clip}(\rho_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t
+    \right).
+    $$
+
+    Every advantage in this example is positive, so each term encourages a higher probability for its sampled token, subject to clipping:
+
+    | Token | Advantage | Token-level effect |
+    | --- | ---: | --- |
+    | `12` | $+0.544$ | Reinforce $\pi_\theta(\texttt{12} \mid \text{prompt})$ |
+    | `×` | $+0.493$ | Reinforce $\pi_\theta(\times \mid \text{prompt}, \texttt{12})$ |
+    | `7` | $+0.493$ | Reinforce $\pi_\theta(\texttt{7} \mid \text{prompt}, \texttt{12}\,\times)$ |
+    | `=` | $+0.325$ | Reinforce $\pi_\theta(\texttt{=} \mid \ldots)$ |
+    | `84` | $+0.250$ | Reinforce $\pi_\theta(\texttt{84} \mid \ldots)$ |
+
+    The resulting numbers are critic-dependent credit signals, not proof that PPO has identified which token was causally responsible for the correct answer.
+
 [^ppo-code-trace]: The batch in `ppo_llm_example.py` is three prompts, so `ppo_update` can be followed all the way through by hand. Here it is, tensor by tensor.
 
     The batch is $B = 3$ samples padded out to $L = 8$ token positions, and `ppo_update` takes
@@ -2419,12 +2527,29 @@ TODO: write this section, from ["From GRPO to DAPO and GSPO: What, Why, and How"
 
 [^rlvr]: See the RLHF Book's [discussion of RLVR](https://rlhfbook.com/c/07-reasoning#the-role-of-rlvr).
 
-[^advantage-index]: Note which index the advantage does *not* carry. PPO's objective has a per-token advantage, one estimate for every state-action pair, which is what the critic is there to supply. In this note's indexing that would be $\hat{A}_{i,j,t}$, and GRPO collapses it to
+[^advantage-index]: This is the key difference in granularity. PPO generally has a separate advantage for every token-level state-action pair:
 
     $$
-    \hat{A}_{i,j,t} \longrightarrow A_{i,j}
+    [\hat{A}_{i,j,1},\, \hat{A}_{i,j,2},\, \ldots,\, \hat{A}_{i,j,T_{i,j}}].
     $$
 
-    a single number per completion, multiplying every one of its $T_{i,j}$ ratios. The collapse follows directly from dropping the critic: with no value function, nothing can score an individual token's state, so the signal has to come from comparing whole responses against each other, and a comparison between completions yields one number per completion.
+    These values can differ across positions because the critic estimates the value of each token-level state, and GAE uses those estimates to construct a separate advantage at each timestep. Standard outcome-reward GRPO instead [computes its group-relative advantage once per completed response](#grpo-group-advantage), then uses that scalar for every token in the response:
+
+    $$
+    \hat{A}^{\text{GRPO}}_{i,j,1}
+    = \hat{A}^{\text{GRPO}}_{i,j,2}
+    = \cdots
+    = \hat{A}^{\text{GRPO}}_{i,j,T_{i,j}}
+    = A_{i,j}.
+    $$
+
+    For example, the token-level multipliers for a four-token response might look like this:
+
+    | Method | Token 1 | Token 2 | Token 3 | Token 4 |
+    | --- | ---: | ---: | ---: | ---: |
+    | PPO | $+0.3$ | $+0.7$ | $-0.1$ | $+1.1$ |
+    | GRPO, if $A_{i,j}=+1.2$ | $+1.2$ | $+1.2$ | $+1.2$ | $+1.2$ |
+
+    In short, PPO usually uses token-specific advantages $\hat{A}_{i,j,t}$, while standard outcome-reward GRPO uses one response-level advantage $A_{i,j}$ shared by all its tokens. Dropping the critic causes this collapse: without a value function, GRPO cannot separately evaluate the state at each token position, so its signal comes from comparing completed responses.
 
 [^ratio-symbol]: PPO write-ups usually call this ratio $r_t$, but $r_{i,j}$ is already the reward of completion $j$ here, so the ratio gets $\rho$ instead.
