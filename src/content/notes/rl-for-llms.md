@@ -330,30 +330,9 @@ completion $y$ is simply the product of next token probabilities predicted by th
 token within a completion. By computing the KL divergence over these completion probabilities, we
 capture the similarity between the token distributions predicted by the two models.[^completion-kl-example]
 
-In practice, we usually approximate this KL divergence. These estimators start from the
-expectation form of KL divergence. As shown in the
-[expectation form of KL divergence](/notes/entropy-cross-entropy-and-kl-divergence/#kl-divergence), the log ratio
-inside that expectation is simply the current policy's log-probability minus the reference
-policy's log-probability.
-
-Specifically, suppose we want to estimate the KL divergence between the current and reference
-policies for a prompt $x$. We would:
-
-1. Generate a completion $y$ from the current policy, not the reference policy, because the
-   expectation is taken over completions sampled from the current policy.
-2. Evaluate that same completion under both models, recording the conditional log-probability
-   that each model assigns to every sampled token.
-3. Sum each model's token log-probabilities to obtain its log-probability for the complete
-   sequence.
-4. Subtract the reference policy's sequence log-probability from the current policy's sequence
-   log-probability. This difference is the sampled log ratio inside the KL expectation.
-
-Once these log-probabilities are available, there are several options for turning their ratio
-into an approximation of the KL divergence.[^kl-log-ratio-example]
-
-The token-by-token sum in that worked example gives the exact log ratio for that particular
-completion. KL, however, compares two entire completion distributions, so its exact definition
-includes every possible completion:
+The log ratio for a sampled completion is exact for that particular completion. KL, however,
+compares two entire completion distributions, so its exact definition includes every possible
+completion:
 
 $$
 D_{\mathrm{KL}}\!\left(\pi_\theta(\cdot \mid x) \,\|\, \pi_{\mathrm{ref}}(\cdot \mid x)\right)
@@ -376,6 +355,74 @@ possible completions. Computing and adding one term for each is impractical. Ano
 reason is that during training we generally do not retain the full distribution (all token
 probabilities) at every position. To save GPU memory and I/O, we keep only the log-probabilities
 of the tokens actually generated along each trajectory.
+
+**From the exact KL to a sampled token.** At each generated prefix, let
+
+$$
+h_t = (x, y_{<t})
+$$
+
+denote the prompt together with the tokens generated before position $t$. The exact reverse KL
+between the current and reference next-token distributions is
+
+$$
+\begin{aligned}
+D_{\mathrm{KL}}^{(t)}
+&= D_{\mathrm{KL}}\!\left(
+\pi_\theta(\cdot \mid h_t)
+\,\|\,
+\pi_{\mathrm{ref}}(\cdot \mid h_t)
+\right) \\
+&= \sum_{v \in \mathcal{V}}
+\pi_\theta(v \mid h_t)
+\left[
+\log \pi_\theta(v \mid h_t)
+- \log \pi_{\mathrm{ref}}(v \mid h_t)
+\right] \\
+&= \mathbb{E}_{v \sim \pi_\theta(\cdot \mid h_t)}
+\left[
+\log \pi_\theta(v \mid h_t)
+- \log \pi_{\mathrm{ref}}(v \mid h_t)
+\right].
+\end{aligned}
+$$
+
+Computing this expression directly requires summing over the entire vocabulary at every generated
+position. A rollout instead supplies one token sampled from the current policy,
+
+$$
+y_t \sim \pi_\theta(\cdot \mid h_t).
+$$
+
+Evaluating that token under both policies gives the one-sample estimator
+
+$$
+\widehat{D}_{\mathrm{KL}}^{(t)}
+= \log \pi_\theta(y_t \mid h_t)
+- \log \pi_{\mathrm{ref}}(y_t \mid h_t).
+$$
+
+Conditioned on the prefix, this estimator is unbiased:
+
+$$
+\mathbb{E}_{y_t \sim \pi_\theta(\cdot \mid h_t)}
+\left[
+\widehat{D}_{\mathrm{KL}}^{(t)}
+\right]
+= D_{\mathrm{KL}}^{(t)}.
+$$
+
+This is ordinary Monte Carlo estimation with one sample, providing a KL signal at every generated
+token. An individual sampled value can be negative even though the exact KL is nonnegative.
+
+Summing these sampled token-level log ratios gives the log ratio for the complete sampled
+completion:[^kl-log-ratio-example]
+
+$$
+\sum_{t=1}^{T} \widehat{D}_{\mathrm{KL}}^{(t)}
+= \log \pi_\theta(y \mid x)
+- \log \pi_{\mathrm{ref}}(y \mid x).
+$$
 
 A good estimator should ideally be unbiased, so it has the right mean, and low-variance, so a
 finite batch gives a stable answer. For each sampled prompt-completion pair, define the inverse
