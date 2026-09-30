@@ -83,12 +83,14 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
 - **Collections** (`src/pages/collections.astro`, served at `/collections/`): one page holding
-  two collections, picked with a tab bar. **Ideas** are quotes (`author` set, body renders as a
+  three collections, picked with a tab bar. **Ideas** are quotes (`author` set, body renders as a
   `<blockquote>`, attribution below with an em dash from `.attribution::before`, list shuffled
   pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
   `.story` prose at body size, subject line *above* it, never shuffled, since these are dated
-  and read in order). One `Entry` type and one `<li>` template serve both; the page maps over
-  `collections` so the card markup exists once. The picker follows the same contract as the
+  and read in order). **Cognitive Science** is explained concepts (`title` set, body renders as
+  `.story` prose with the title above it, never shuffled). One `Entry` type and one `<li>`
+  template serve all three; the page maps over `collections` so the card markup exists once.
+  The picker follows the same contract as the
   tabbed code blocks below: bar ships `hidden` and is revealed by the script, base state is both
   panels stacked under `<h2>`s so it reads without JS, `.is-interactive` on `#collections`
   collapses to one panel, and `.collection-tabs[hidden]` is written explicitly because
@@ -100,13 +102,13 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `/ideas/` → Collections); `src/pages/quotes.astro` and `src/pages/ideas.astro` are stubs that
   redirect and carry the `#fragment` across, which a config redirect would drop, and both point
   straight at `/collections/` rather than hopping through each other. Entries take an `added`
-  ISO date, shown as "Added Sep 10, 2026"; give every new one a date. Slugs come from `author`
-  or `subject` (`slugify`) and are deliberately **not** position-derived: a second entry under
-  the same name throws at build time rather than silently taking `#name` and pushing the
+  ISO date, shown as "Added Sep 10, 2026"; give every new one a date. Slugs come from `author`,
+  `subject`, or `title` (`slugify`) and are deliberately **not** position-derived: a second
+  entry under the same name throws at build time rather than silently taking `#name` and pushing the
   existing one to `-2`, which would repoint links already shared. Resolve a clash by adding an
   explicit `id` to the *newer* entry and leaving the older slug alone. The `seen` map spans
-  **both** collections and is seeded with the collection keys, so moving an entry between
-  panels keeps its link and no entry can be slugged `ideas` or `history` (the script treats
+  **all** collections and is seeded with the collection keys, so moving an entry between
+  panels keeps its link and no entry can be slugged with a collection key (the script treats
   those as "open that panel"). Three things that look redundant are not: the control is a real
   `<a href="#slug">` so it still works without JS or clipboard access (the address bar becomes
   the shareable thing); the script re-runs `scrollIntoView` on `DOMContentLoaded` because the

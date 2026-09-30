@@ -1,14 +1,17 @@
 ---
 import Base from '../layouts/Base.astro';
 
-// Two collections on one page, picked with the tab bar: `quotes` (Ideas) and
-// `history` (History). Both use the Entry shape below and the same card.
+// Three collections on one page, picked with the tab bar: `quotes` (Ideas),
+// `history` (History), and `cognitiveScience` (Cognitive Science). All use the
+// Entry shape below and the same card.
 // An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
 // whatever reads best, since the list is shuffled on load anyway.
 // A HISTORY entry is a short retold story: { text: [...], subject: '...', year: '...' }.
-// `subject` in place of `author` is what switches the card over: the body renders as
-// prose rather than a blockquote, and the subject and year sit above it instead of an
-// em-dash attribution below. History is NOT shuffled, so array order is display order.
+// A COGNITIVE SCIENCE entry is an explained concept: { text: [...], title: '...' }.
+// `subject` or `title` in place of `author` switches the card over: the body renders as
+// prose rather than a blockquote, and its heading sits above it instead of an em-dash
+// attribution below. History and Cognitive Science are NOT shuffled, so array order is
+// display order.
 // `text` can be an array when several passages from the same person and occasion
 // belong together: each becomes its own paragraph under one attribution. The paragraph
 // break IS the elision mark: when a talk is stitched from passages with the connective
@@ -41,10 +44,10 @@ import Base from '../layouts/Base.astro';
 // `set:html`, which means Astro's scoped styles never reach it, so its sizing and
 // colors live inline on the element (and `var()` needs `style=`, not a presentation
 // attribute, to resolve).
-// Every entry gets a shareable #anchor, slugged from `author` or `subject`. A second
+// Every entry gets a shareable #anchor, slugged from `author`, `subject`, or `title`. A second
 // entry under the same name fails the build; give that one an explicit `id` (short and
 // memorable, e.g. id: 'karpathy-understanding') so the first one's shared link keeps
-// working. The check spans both collections, and `ideas`/`history` are reserved: the
+// working. The check spans all collections, and every collection key is reserved: the
 // script reads those as "open that panel".
 // Redrawn from the chart in the HubSpot post credited on the figure: that original is
 // a dark-navy branded card, which the .quote-figure invert would turn cream-on-pink.
@@ -70,10 +73,12 @@ type Entry = {
   text: string | string[];
   // `author` marks an idea: the body renders as a quote, attributed with an em dash.
   // `subject` marks a history entry instead: the body renders as prose, and the
-  // person and `year` the story is about sit above it rather than below. Exactly one
-  // of the two belongs on an entry; the slug comes from whichever is set.
+  // person and `year` the story is about sit above it rather than below. `title`
+  // likewise marks an explained concept in another collection. The slug comes from
+  // whichever of the three is set.
   author?: string;
   subject?: string;
+  title?: string;
   year?: string;
   source?: string;
   url?: string;
@@ -87,6 +92,20 @@ type Entry = {
 };
 
 const quotes: Entry[] = [
+  {
+    text: [
+      'Amtrak made a lot of fanfare about its fancy new trains, which can reach 160 mph. But ' +
+        'the limiting factor is the country’s outdated track infrastructure, so actual speeds ' +
+        'have barely changed and still average around 65 mph.',
+      'AI is similar. The LLM is a fast new train, but the real-world systems it runs through ' +
+        'are old tracks. Upgrading them will not happen overnight because the bottlenecks are ' +
+        'political, economic, and sociological.',
+    ],
+    author: 'Arvind Narayanan',
+    source: 'on AI adoption',
+    paraphrased: true,
+    added: '2026-09-30',
+  },
   {
     text: [
       'Most people never say what they want. It’s not because we don’t want. We want fiercely ' +
@@ -488,7 +507,7 @@ const quotes: Entry[] = [
       'this intuitive feeling that although I love chess, this was not the right thing to ' +
       'spend my whole life on.',
     author: 'Demis Hassabis',
-    source: 'on leaving competitive chess',
+    source: '“The Thinking Game | Full documentary | Tribeca Film Festival official selection”',
     url: 'https://www.youtube.com/watch?v=d95J8yzvjbQ',
     paraphrased: true,
     id: 'hassabis-chess-brainpower',
@@ -654,6 +673,32 @@ const history: Entry[] = [
   },
 ];
 
+const cognitiveScience: Entry[] = [
+  {
+    title: 'Attention residue',
+    text: [
+      'Attention residue is the cognitive lag that happens when your brain keeps thinking ' +
+        'about an unfinished task even after you have moved on to a new one. You leave one ' +
+        'task, but part of your mind is still there. Or you return to it and need time to ' +
+        'rebuild the context you had before leaving.',
+      'A single interruption might seem too small to matter. Repeated throughout a day, those ' +
+        'interruptions change what kind of work you can do. You spend more time getting back ' +
+        'into things and less time moving them forward.',
+    ],
+    note: 'Coined in 2009 by Dr. Sophie Leroy.',
+    added: '2026-09-30',
+    image: {
+      src: '/images/quotes/attention-residue.gif',
+      alt: 'Animated chart contrasting multitasking, shown as several short focus bars, with ' +
+        'focused work, shown as fewer taller bars.',
+      plain: true,
+      credit: 'Watch the original video on YouTube',
+      creditUrl: 'https://www.youtube.com/shorts/9lJCSz09QEI',
+      width: 280,
+    },
+  },
+];
+
 const addedOn = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -678,9 +723,10 @@ const slugify = (value: string) =>
 const collections = [
   { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
   { key: 'history', label: 'History', items: history, shuffle: false },
+  { key: 'cognitive-science', label: 'Cognitive Science', items: cognitiveScience, shuffle: false },
 ];
 
-const nameOf = (q: Entry) => q.author ?? q.subject;
+const nameOf = (q: Entry) => q.author ?? q.subject ?? q.title;
 const firstWords = (q: Entry) =>
   slugify((Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' '));
 
@@ -694,7 +740,7 @@ const sections = collections.map((c) => ({
     const name = nameOf(q);
     if (!q.id && !name) {
       throw new Error(
-        `An entry with no author or subject has no name to slug from, so it needs an ` +
+        `An entry with no author, subject, or title has no name to slug from, so it needs an ` +
           `explicit id. Add one, e.g. id: '${firstWords(q)}'.`
       );
     }
@@ -713,10 +759,10 @@ const sections = collections.map((c) => ({
 }));
 ---
 
-<Base title="Collections · Varun Gandhi" description="Ideas and stories I keep coming back to.">
+<Base title="Collections · Varun Gandhi" description="Ideas, stories, and concepts I keep coming back to.">
   <h1>Collections</h1>
   <p class="intro">
-    Ideas and stories I keep coming back to.
+    Ideas, stories, and concepts I keep coming back to.
   </p>
 
   <div class="collections" id="collections">
@@ -746,14 +792,14 @@ const sections = collections.map((c) => ({
           <ul class="quote-list" data-shuffle={s.shuffle ? 'true' : undefined}>
             {s.entries.map((q) => (
               <li id={q.slug}>
-                {/* a history entry names its subject above the story; an idea attributes
-                    below, in .attribution, where the em dash belongs */}
-                {q.subject && (
-                  <p class="subject">{q.subject}{q.year && <span class="year">, {q.year}</span>}</p>
+                {/* prose entries name their subject or concept above the body; an idea
+                    attributes below, in .attribution, where the em dash belongs */}
+                {(q.subject || q.title) && (
+                  <p class="subject">{q.subject ?? q.title}{q.year && <span class="year">, {q.year}</span>}</p>
                 )}
                 {/* set:html so an entry can bold the term it defines. Safe because every
                     `text` value is authored in this file, never user input. */}
-                {q.subject ? (
+                {(q.subject || q.title) ? (
                   <div class="story">
                     {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
                   </div>
@@ -807,7 +853,7 @@ const sections = collections.map((c) => ({
                       <p class="added">Added <time datetime={q.added}>{addedOn(q.added)}</time></p>
                     )}
                   </div>
-                  <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this idea by ${q.author}` : q.subject ? `Copy a link to this story about ${q.subject}` : 'Copy a link to this entry'}>
+                  <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this idea by ${q.author}` : q.subject ? `Copy a link to this story about ${q.subject}` : q.title ? `Copy a link to ${q.title}` : 'Copy a link to this entry'}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
@@ -874,8 +920,8 @@ const sections = collections.map((c) => ({
       bar.hidden = false;
 
       // A shared link points at one entry, which may sit in the panel that is not
-      // open. Resolve the hash to its panel first; #ideas and #history open a panel
-      // directly, and the build refuses an entry slug that would collide with either.
+      // open. Resolve the hash to its panel first; collection-key hashes open panels
+      // directly, and the build refuses an entry slug that would collide with one.
       const hash = decodeURIComponent(location.hash.slice(1));
       const byKey = hash && document.getElementById('panel-' + hash);
       const byEntry = hash && document.getElementById(hash)?.closest('.collection-panel');
@@ -1027,8 +1073,8 @@ const sections = collections.map((c) => ({
     font-size: 1.05rem;
   }
 
-  /* a history entry is retold, not quoted, so it gets ordinary prose at body size
-     rather than the slightly-raised pull-quote size */
+  /* history and cognitive-science entries are prose, not quotations, so they get
+     ordinary body size rather than the slightly-raised pull-quote size */
   .story {
     font-size: 1rem;
   }
@@ -1043,8 +1089,8 @@ const sections = collections.map((c) => ({
     margin-bottom: 0;
   }
 
-  /* who and when the story is about. Sits above the body, where an idea's
-     attribution sits below, because this names the subject rather than a speaker. */
+  /* the story subject or concept title. It sits above the body, where an idea's
+     attribution sits below, because this is a heading rather than a speaker. */
   .subject {
     margin: 0 0 0.75rem;
     font-size: 0.85rem;
