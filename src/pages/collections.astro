@@ -81,6 +81,7 @@ type Entry = {
   title?: string;
   year?: string;
   source?: string;
+  sourceBold?: boolean;
   url?: string;
   paraphrased?: boolean;
   note?: string | string[];
@@ -176,11 +177,11 @@ const quotes: Entry[] = [
         'years, most of these will be upgraded to AI glasses.',
       'We think glasses will become the biggest AI category because they are the only form ' +
         'factor that lets AI see what you see, hear what you hear, talk with you throughout ' +
-        'the day, and display information directly in your field of vision. We are building ' +
-        'glasses as personal-superintelligence wearables.',
+        'the day, and display information directly in your field of vision.',
     ],
     author: 'Mark Zuckerberg',
-    source: 'on AI glasses',
+    source: 'Meta Connect Keynote 2026',
+    sourceBold: true,
     url: 'https://www.youtube.com/watch?v=SdKFDIAGF24',
     paraphrased: true,
     added: '2026-09-26',
@@ -858,7 +859,7 @@ const sections = collections.map((c) => ({
                     {q.author && (
                       /* kept on one line: a line break here renders as a space before the comma */
                       <p class="attribution">
-                        {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.source}</a> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
+                        {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.sourceBold ? <strong>{q.source}</strong> : q.source}</a> : q.sourceBold ? <strong>{q.source}</strong> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
                       </p>
                     )}
                     {q.note && (Array.isArray(q.note) ? q.note : [q.note]).map((n) => <p class="commentary" set:html={n} />)}
@@ -1258,6 +1259,10 @@ const sections = collections.map((c) => ({
 
   .source {
     font-style: italic;
+  }
+
+  .source strong {
+    font-style: normal;
   }
 
   .paraphrased {
