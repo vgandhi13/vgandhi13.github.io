@@ -812,9 +812,9 @@ const sections = collections.map((c) => ({
         aria-controls="collection-unlock"
         title="Unlock Philosophy"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="5" y="10" width="14" height="11" rx="2" />
-          <path data-lock-shackle d="M8 10V7a4 4 0 0 1 8 0v3" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <path data-lock-shackle d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
       </button>
     </div>
@@ -1030,7 +1030,7 @@ const sections = collections.map((c) => ({
         lock.setAttribute('title', 'Unlock Philosophy');
         lock.setAttribute('aria-haspopup', 'dialog');
         lock.setAttribute('aria-controls', dialog.id);
-        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M8 10V7a4 4 0 0 1 8 0v3');
+        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 10 0v4');
       });
       form.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -1048,7 +1048,7 @@ const sections = collections.map((c) => ({
         lock.setAttribute('title', 'Lock Philosophy');
         lock.removeAttribute('aria-haspopup');
         lock.setAttribute('aria-controls', 'panel-philosophy');
-        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M8 10V7a4 4 0 0 1 8 0');
+        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 9.9-1');
         const target = hashPanel();
         select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);
         jumpToEntry();
