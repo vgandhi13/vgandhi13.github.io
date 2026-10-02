@@ -1,9 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
 
-// Three collections on one page, picked with the tab bar: `quotes` (Ideas),
-// `history` (History), and `cognitiveScience` (Cognitive Science). All use the
-// Entry shape below and the same card.
+// Collections on one page, picked with the tab bar: `quotes` (Ideas),
+// `history` (History), `cognitiveScience` (Cognitive Science), and `philosophy`.
+// Philosophy is hidden until the lock dialog is unlocked for this page visit.
+// This is a client-side reveal, not authentication; all content ships in the HTML.
+// All collections use the Entry shape below and the same card.
 // An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
 // whatever reads best, since the list is shuffled on load anyway.
 // A HISTORY entry is a short retold story: { text: [...], subject: '...', year: '...' }.
@@ -713,6 +715,9 @@ const cognitiveScience: Entry[] = [
   },
 ];
 
+// Add Philosophy entries here, using the same Entry shape as the other collections.
+const philosophy: Entry[] = [];
+
 const addedOn = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -732,12 +737,13 @@ const slugify = (value: string) =>
 // the same entry no matter what gets added above it later. So a second entry under the
 // same name collides on purpose and fails the build, and you resolve it by pinning `id`
 // on the NEW one, which leaves the already-shared link on the old one untouched.
-// The map spans BOTH collections, so moving an entry between them keeps its link, and a
+// The map spans all collections, so moving an entry between them keeps its link, and a
 // slug can never be ambiguous about which panel it opens.
 const collections = [
   { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
   { key: 'history', label: 'History', items: history, shuffle: false },
   { key: 'cognitive-science', label: 'Cognitive Science', items: cognitiveScience, shuffle: false },
+  { key: 'philosophy', label: 'Philosophy', items: philosophy, shuffle: false, locked: true },
 ];
 
 const nameOf = (q: Entry) => q.author ?? q.subject ?? q.title;
@@ -780,25 +786,41 @@ const sections = collections.map((c) => ({
   </p>
 
   <div class="collections" id="collections">
-    {/* Ships hidden and is revealed by the script, so no-JS readers get both
-        collections stacked under their own headings rather than dead buttons. */}
-    <div class="collection-tabs" role="tablist" aria-label="Collections" hidden>
-      {sections.map((s, i) => (
-        <button
-          type="button"
-          class="collection-tab"
-          role="tab"
-          id={`tab-${s.key}`}
-          aria-controls={`panel-${s.key}`}
-          aria-selected={i === 0 ? 'true' : 'false'}
-          tabindex={i === 0 ? 0 : -1}
-          data-target={`panel-${s.key}`}
-        >{s.label}</button>
-      ))}
+    {/* No-JS readers get public collections stacked under their own headings.
+        Locked tabs and panels stay hidden, including before the first paint. */}
+    <div class="collection-picker" hidden>
+      <div class="collection-tabs" role="tablist" aria-label="Collections">
+        {sections.map((s, i) => (
+          <button
+            type="button"
+            class="collection-tab"
+            role="tab"
+            id={`tab-${s.key}`}
+            aria-controls={`panel-${s.key}`}
+            aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1}
+            data-target={`panel-${s.key}`}
+            hidden={s.locked}
+          >{s.label}</button>
+        ))}
+      </div>
+      <button
+        type="button"
+        class="collection-lock"
+        aria-label="Unlock Philosophy"
+        aria-haspopup="dialog"
+        aria-controls="collection-unlock"
+        title="Unlock Philosophy"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path data-lock-shackle d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      </button>
     </div>
 
     {sections.map((s) => (
-      <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel" aria-labelledby={`tab-${s.key}`}>
+      <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel" aria-labelledby={`tab-${s.key}`} data-locked={s.locked ? 'true' : undefined} hidden={s.locked}>
         <h2 class="collection-heading">{s.label}</h2>
         {s.entries.length === 0 ? (
           <p class="empty">Nothing here yet.</p>
@@ -884,6 +906,18 @@ const sections = collections.map((c) => ({
         )}
       </section>
     ))}
+    <dialog class="collection-dialog" id="collection-unlock" aria-labelledby="collection-unlock-title">
+      <form class="collection-unlock-form">
+        <h2 id="collection-unlock-title">Private</h2>
+        <label for="collection-password">Password</label>
+        <input id="collection-password" type="password" autocomplete="off" aria-describedby="collection-unlock-error" required autofocus />
+        <p class="collection-unlock-error" id="collection-unlock-error" role="status" hidden></p>
+        <div class="collection-dialog-actions">
+          <button type="button" data-unlock-cancel>Cancel</button>
+          <button type="submit" class="collection-unlock-submit">Unlock</button>
+        </div>
+      </form>
+    </dialog>
   </div>
   <script is:inline>
     // Fisher-Yates shuffle, run inline right after the list so it reorders before
@@ -907,9 +941,19 @@ const sections = collections.map((c) => ({
       if (!bar) return;
       const tabs = [...bar.querySelectorAll('.collection-tab')];
       const panels = [...root.querySelectorAll('.collection-panel')];
+      const picker = root.querySelector('.collection-picker');
+      const lock = root.querySelector('.collection-lock');
+      const dialog = root.querySelector('.collection-dialog');
+      const form = dialog.querySelector('form');
+      const password = dialog.querySelector('input');
+      const error = dialog.querySelector('.collection-unlock-error');
+      let unlocked = false;
       if (tabs.length < 2) return;
 
+      const isLocked = (panel) => panel.dataset.locked === 'true' && !unlocked;
       const select = (panelId, focus) => {
+        const target = panels.find((panel) => panel.id === panelId);
+        if (!target || isLocked(target)) return;
         for (const tab of tabs) {
           const on = tab.dataset.target === panelId;
           tab.setAttribute('aria-selected', String(on));
@@ -919,35 +963,111 @@ const sections = collections.map((c) => ({
         for (const panel of panels) panel.hidden = panel.id !== panelId;
       };
 
-      for (const [index, tab] of tabs.entries()) {
+      for (const tab of tabs) {
         tab.addEventListener('click', () => select(tab.dataset.target));
         tab.addEventListener('keydown', (event) => {
           const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-          if (!step) return;
+          if (!step && event.key !== 'Home' && event.key !== 'End') return;
           event.preventDefault();
-          const next = tabs[(index + step + tabs.length) % tabs.length];
+          const visible = tabs.filter((item) => !item.hidden);
+          const index = visible.indexOf(tab);
+          const next = event.key === 'Home' ? visible[0] : event.key === 'End' ? visible.at(-1) :
+            visible[(index + step + visible.length) % visible.length];
           select(next.dataset.target, true);
         });
       }
 
       root.classList.add('is-interactive');
-      bar.hidden = false;
+      picker.hidden = false;
 
       // A shared link points at one entry, which may sit in the panel that is not
       // open. Resolve the hash to its panel first; collection-key hashes open panels
       // directly, and the build refuses an entry slug that would collide with one.
-      const hash = decodeURIComponent(location.hash.slice(1));
-      const byKey = hash && document.getElementById('panel-' + hash);
-      const byEntry = hash && document.getElementById(hash)?.closest('.collection-panel');
-      select((byKey || byEntry || panels[0]).id);
-    })();
+      const hashEntry = () => {
+        try { return decodeURIComponent(location.hash.slice(1)); } catch { return ''; }
+      };
+      const hashPanel = () => {
+        const hash = hashEntry();
+        return panels.find((panel) => panel.id === 'panel-' + hash) ||
+          (hash ? document.getElementById(hash)?.closest('.collection-panel') : null);
+      };
+      const openHashPanel = () => {
+        const target = hashPanel();
+        select(target && !isLocked(target) ? target.id : panels[0].id);
+      };
+      const jumpToEntry = () => {
+        const entry = document.getElementById(hashEntry());
+        if (entry?.closest('.collection-panel')?.hidden === false) {
+          entry.scrollIntoView({ block: 'center' });
+        }
+      };
+      openHashPanel();
 
-    // The shuffle above moves the element the browser already scrolled to, so a
-    // shared #link lands at the wrong offset. Re-run the jump once layout settles.
-    addEventListener('DOMContentLoaded', () => {
-      const id = decodeURIComponent(location.hash.slice(1));
-      if (id) document.getElementById(id)?.scrollIntoView({ block: 'center' });
-    });
+      // A decorative gate for a static site. Keep unlock state in memory so a
+      // reload locks Philosophy again; neither this check nor hidden HTML is private.
+      const clearError = () => {
+        error.hidden = true;
+        error.textContent = '';
+        password.removeAttribute('aria-invalid');
+      };
+      lock.addEventListener('click', () => {
+        if (!unlocked) {
+          form.reset();
+          clearError();
+          dialog.showModal();
+          return;
+        }
+        const current = panels.find((panel) => !panel.hidden);
+        unlocked = false;
+        for (const tab of tabs) {
+          if (document.getElementById(tab.dataset.target).dataset.locked === 'true') tab.hidden = true;
+        }
+        select(current && !isLocked(current) ? current.id : panels[0].id);
+        if (hashPanel()?.dataset.locked === 'true') {
+          window.history.replaceState(null, '', location.pathname + location.search);
+        }
+        lock.setAttribute('aria-label', 'Unlock Philosophy');
+        lock.setAttribute('title', 'Unlock Philosophy');
+        lock.setAttribute('aria-haspopup', 'dialog');
+        lock.setAttribute('aria-controls', dialog.id);
+        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M8 10V7a4 4 0 0 1 8 0v3');
+      });
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (true /* historical password check removed */) {
+          error.textContent = 'Incorrect password. Try again.';
+          error.hidden = false;
+          password.setAttribute('aria-invalid', 'true');
+          password.select();
+          return;
+        }
+        unlocked = true;
+        for (const tab of tabs) tab.hidden = false;
+        dialog.close();
+        lock.setAttribute('aria-label', 'Lock Philosophy');
+        lock.setAttribute('title', 'Lock Philosophy');
+        lock.removeAttribute('aria-haspopup');
+        lock.setAttribute('aria-controls', 'panel-philosophy');
+        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M8 10V7a4 4 0 0 1 8 0');
+        const target = hashPanel();
+        select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);
+        jumpToEntry();
+      });
+      password.addEventListener('input', clearError);
+      dialog.querySelector('[data-unlock-cancel]').addEventListener('click', () => dialog.close());
+      dialog.addEventListener('close', () => {
+        form.reset();
+        clearError();
+      });
+
+      // The shuffle moves the browser's initial anchor target. Repeat the jump
+      // after layout settles, and open the right panel for subsequent hash changes.
+      addEventListener('DOMContentLoaded', jumpToEntry);
+      addEventListener('hashchange', () => {
+        openHashPanel();
+        jumpToEntry();
+      });
+    })();
 
     // Share controls copy an absolute link. They stay real anchors, so with no JS
     // (or no clipboard access) clicking still jumps to the entry and puts the
@@ -978,20 +1098,31 @@ const sections = collections.map((c) => ({
 </Base>
 
 <style>
-  /* Collection picker. Base state is both panels stacked under their own <h2>, so
+  /* Collection picker. Base state is public panels stacked under their own <h2>, so
      the page reads without JS; .is-interactive (added by the script) reveals the
      tab bar, drops the headings, and collapses to one panel at a time. */
-  .collection-tabs {
+  .collection-picker {
     display: flex;
-    gap: 1.25rem;
+    align-items: flex-start;
+    gap: 0.5rem;
     margin: 0 0 1.75rem;
     border-bottom: 1px solid var(--border);
   }
 
-  /* display: flex above would otherwise beat the browser's [hidden] rule, leaving
-     a dead tab bar on the page for readers without JS */
-  .collection-tabs[hidden] {
+  /* Explicit rules preserve hidden states when a component has its own display. */
+  .collection-picker[hidden],
+  .collection-tab[hidden],
+  .collection-panel[hidden],
+  .collection-unlock-error[hidden] {
     display: none;
+  }
+
+  .collection-tabs {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    min-width: 0;
+    gap: 0 1.25rem;
   }
 
   .collection-tab {
@@ -1004,6 +1135,7 @@ const sections = collections.map((c) => ({
     margin-bottom: -1px;
     padding: 0.45rem 0.15rem;
     cursor: pointer;
+    white-space: nowrap;
     transition: color 0.15s ease, border-color 0.15s ease;
   }
 
@@ -1018,10 +1150,95 @@ const sections = collections.map((c) => ({
     border-bottom-color: var(--link);
   }
 
-  .collection-tab:focus-visible {
+  .collection-tab:focus-visible,
+  .collection-lock:focus-visible,
+  .collection-dialog button:focus-visible,
+  .collection-dialog input:focus-visible {
     outline: 2px solid var(--link);
     outline-offset: 2px;
     border-radius: 4px;
+  }
+
+  .collection-lock {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-top: -0.2rem;
+    padding: 0;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .collection-lock:hover {
+    color: var(--heading);
+  }
+
+  .collection-dialog {
+    width: min(22rem, calc(100% - 3rem));
+    padding: 1.5rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .collection-dialog::backdrop {
+    background: rgb(0 0 0 / 40%);
+  }
+
+  .collection-dialog h2 {
+    margin: 0 0 1.25rem;
+    font-size: 1.15rem;
+  }
+
+  .collection-dialog label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+  }
+
+  .collection-dialog input {
+    width: 100%;
+    padding: 0.55rem 0.65rem;
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  .collection-unlock-error {
+    margin: 0.65rem 0 0;
+    font-size: 0.85rem;
+  }
+
+  .collection-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+  }
+
+  .collection-dialog button {
+    padding: 0.45rem 0.8rem;
+    font: inherit;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .collection-dialog .collection-unlock-submit {
+    color: var(--bg);
+    background: var(--link);
+    border-color: var(--link);
   }
 
   .collection-heading {

@@ -94,6 +94,14 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
   the element the browser already jumped to, landing a shared link at the wrong offset.
 
+- **Collections Philosophy lock** (`src/pages/collections.astro`): a small lock beside the
+  public tabs opens a native password dialog. The original password (redacted) reveals the `philosophy` array as a fourth
+  tab; the open lock hides it again. Unlock state lasts only until reload. Locked tabs and
+  panels ship with `hidden`, stay hidden without JS, and cannot be opened by a hash or keyboard
+  tab navigation until unlocked. This is only a UI reveal on the static site, not security:
+  both the password check and any Philosophy content are available in the delivered source.
+  Add entries to `philosophy` with the same `Entry` shape and stable slugs as other collections.
+
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
   after the rename). The per-field contract is in the comment block at the top of
