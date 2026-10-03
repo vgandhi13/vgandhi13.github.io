@@ -8,6 +8,8 @@ dist/
 # src/content/notes/ because git matching is case-insensitive on macOS)
 /Notes/
 /Context/
+/.private/
+/g.txt
 /prompt.txt
 /TODO.txt
 /*.jpg

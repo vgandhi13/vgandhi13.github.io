@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
+    "encrypt:philosophy": "node scripts/encrypt-philosophy.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },

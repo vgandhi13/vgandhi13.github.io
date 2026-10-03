@@ -94,13 +94,51 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
   the element the browser already jumped to, landing a shared link at the wrong offset.
 
-- **Collections Philosophy lock** (`src/pages/collections.astro`): a small lock beside the
-  public tabs opens a native password dialog. The original password (redacted) reveals the `philosophy` array as a fourth
-  tab; the open lock hides it again. Unlock state lasts only until reload. Locked tabs and
-  panels ship with `hidden`, stay hidden without JS, and cannot be opened by a hash or keyboard
-  tab navigation until unlocked. This is only a UI reveal on the static site, not security:
-  both the password check and any Philosophy content are available in the delivered source.
-  Add entries to `philosophy` with the same `Entry` shape and stable slugs as other collections.
+- **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
+  public tabs opens a native dialog headed "Private". One successful unlock reveals both
+  Philosophy and First Principles, with an open lock icon. Relocking hides both.
+  Philosophy's editable source is
+  **`.private/philosophy.json`**, an ignored JSON array, never `collections.astro`. Use the
+  same Entry fields as the public cards, but give each private entry an explicit stable `id`
+  and an `added` date. `.private/philosophy.password` holds the chosen password locally.
+  After edits to either private collection, run **`npm run encrypt:philosophy`**, then
+  `npm run build`. The command encrypts both collections in one payload. Commit only the
+  generated `src/data/philosophy.encrypted.json`; the build and GitHub CI use that ciphertext
+  and never require the local plaintext or password. Keep private raster images alongside
+  the JSON and use relative `image.src` paths: the encryption command embeds them in the
+  encrypted payload, not in `public/`. Inline SVG uses `svg.markup`. Body HTML is trusted
+  local authoring, just like public entries; avoid public image URLs inside it.
+  `src/lib/private-collection.js` uses AES-256-GCM, a fresh 16-byte salt and 12-byte IV per
+  encryption, and PBKDF2-HMAC-SHA256 (600,000 iterations). The browser derives a key from the
+  entered password and mounts cards only after authenticated decryption. Relocking clears
+  private DOM content and resets the icon; nothing is saved to browser storage. Canceling a
+  pending unlock must invalidate it so it cannot reveal content later. Shared card CSS is
+  global and namespaced under `.collections` because JS-created cards lack Astro's scoped
+  attributes. Private ids are checked against the public DOM after decrypting; ciphertext
+  reveals no entry ids at build time. Anyone can download the ciphertext and try passwords
+  locally without further requests to the site: **offline guessing cannot be rate-limited
+  by the website**. This is browser-side decryption, not server-side authentication. Relocking
+  cannot revoke downloaded ciphertext or copies of content someone has already decrypted.
+  The user chose to retain the earlier short password,
+  previously exposed in public Git history, so **encryption does not make it safe against
+  guessing or someone who knows that password**. Never commit `.private/`, including assets.
+  History cleanup does not erase existing clones, forks, or cached copies. Do not merge or
+  force-push old history back into a cleaned branch; rebase work onto the cleaned history.
+
+- **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
+  Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
+  `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
+  of public source files. The encryption command reads both private JSON files; its
+  `--first-principles PATH` flag overrides the notes input when testing with fixtures.
+  After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
+  cards in the First Principles tab. Pressing the summary expands a full reading surface;
+  native keyboard access works without a custom accordion script. Styles are global and
+  namespaced under `.collections`. A `#note-id` link opens its panel and expands the note
+  only after unlocking. Relocking removes the bodies and resets all disclosure states.
+  Private ids must be unique across both collections and must not collide with public ids.
+  Body images must be embedded data URIs or inline SVG, never public private-asset URLs.
+  Raw drafts supplied outside `.private/` must also be ignored or moved into that directory
+  before committing. Do not publish the plaintext source alongside its encrypted version.
 
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept

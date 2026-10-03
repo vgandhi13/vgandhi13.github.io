@@ -1,10 +1,12 @@
 ---
 import Base from '../layouts/Base.astro';
+import encryptedPhilosophy from '../data/philosophy.encrypted.json';
+import privateCollectionModuleUrl from '../lib/private-collection.js?url';
 
 // Collections on one page, picked with the tab bar: `quotes` (Ideas),
-// `history` (History), `cognitiveScience` (Cognitive Science), and `philosophy`.
-// Philosophy is hidden until the lock dialog is unlocked for this page visit.
-// This is a client-side reveal, not authentication; all content ships in the HTML.
+// `history` (History), `cognitiveScience` (Cognitive Science), and two private tabs.
+// Private collections are authored in ignored .private/ JSON files, then encrypted locally.
+// Only ciphertext ships here. The browser decrypts it after the password is entered.
 // All collections use the Entry shape below and the same card.
 // An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
 // whatever reads best, since the list is shuffled on load anyway.
@@ -715,9 +717,6 @@ const cognitiveScience: Entry[] = [
   },
 ];
 
-// Add Philosophy entries here, using the same Entry shape as the other collections.
-const philosophy: Entry[] = [];
-
 const addedOn = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -737,13 +736,15 @@ const slugify = (value: string) =>
 // the same entry no matter what gets added above it later. So a second entry under the
 // same name collides on purpose and fails the build, and you resolve it by pinning `id`
 // on the NEW one, which leaves the already-shared link on the old one untouched.
-// The map spans all collections, so moving an entry between them keeps its link, and a
-// slug can never be ambiguous about which panel it opens.
+// This map covers public entries. Private entries use explicit ids and check for
+// collisions when decrypted, without exposing their ids during the static build.
 const collections = [
   { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
   { key: 'history', label: 'History', items: history, shuffle: false },
   { key: 'cognitive-science', label: 'Cognitive Science', items: cognitiveScience, shuffle: false },
-  { key: 'philosophy', label: 'Philosophy', items: philosophy, shuffle: false, locked: true },
+  // Keep this empty: private content must never be authored in the public source.
+  { key: 'philosophy', label: 'Philosophy', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'first-principles', label: 'First Principles', items: [] as Entry[], shuffle: false, locked: true },
 ];
 
 const nameOf = (q: Entry) => q.author ?? q.subject ?? q.title;
@@ -807,10 +808,10 @@ const sections = collections.map((c) => ({
       <button
         type="button"
         class="collection-lock"
-        aria-label="Unlock Philosophy"
+        aria-label="Unlock private collections"
         aria-haspopup="dialog"
         aria-controls="collection-unlock"
-        title="Unlock Philosophy"
+        title="Unlock private collections"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -822,7 +823,9 @@ const sections = collections.map((c) => ({
     {sections.map((s) => (
       <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel" aria-labelledby={`tab-${s.key}`} data-locked={s.locked ? 'true' : undefined} hidden={s.locked}>
         <h2 class="collection-heading">{s.label}</h2>
-        {s.entries.length === 0 ? (
+        {s.locked ? (
+          <div id={`${s.key}-content`} data-private-content></div>
+        ) : s.entries.length === 0 ? (
           <p class="empty">Nothing here yet.</p>
         ) : (
           <ul class="quote-list" data-shuffle={s.shuffle ? 'true' : undefined}>
@@ -907,7 +910,7 @@ const sections = collections.map((c) => ({
       </section>
     ))}
     <dialog class="collection-dialog" id="collection-unlock" aria-labelledby="collection-unlock-title">
-      <form class="collection-unlock-form">
+      <form class="collection-unlock-form" data-crypto-module={privateCollectionModuleUrl}>
         <h2 id="collection-unlock-title">Private</h2>
         <label for="collection-password">Password</label>
         <input id="collection-password" type="password" autocomplete="off" aria-describedby="collection-unlock-error" required autofocus />
@@ -918,6 +921,7 @@ const sections = collections.map((c) => ({
         </div>
       </form>
     </dialog>
+    <script id="philosophy-payload" type="application/json" set:html={JSON.stringify(encryptedPhilosophy)} />
   </div>
   <script is:inline>
     // Fisher-Yates shuffle, run inline right after the list so it reorders before
@@ -947,7 +951,12 @@ const sections = collections.map((c) => ({
       const form = dialog.querySelector('form');
       const password = dialog.querySelector('input');
       const error = dialog.querySelector('.collection-unlock-error');
+      const submit = form.querySelector('[type="submit"]');
+      const privateContents = [...root.querySelectorAll('[data-private-content]')];
+      const payload = JSON.parse(root.querySelector('#philosophy-payload').textContent);
       let unlocked = false;
+      let unlocking = false;
+      let attempt = 0;
       if (tabs.length < 2) return;
 
       const isLocked = (panel) => panel.dataset.locked === 'true' && !unlocked;
@@ -998,17 +1007,31 @@ const sections = collections.map((c) => ({
       const jumpToEntry = () => {
         const entry = document.getElementById(hashEntry());
         if (entry?.closest('.collection-panel')?.hidden === false) {
+          if (entry.matches('.principle-note')) entry.open = true;
           entry.scrollIntoView({ block: 'center' });
         }
       };
       openHashPanel();
 
-      // A decorative gate for a static site. Keep unlock state in memory so a
-      // reload locks Philosophy again; neither this check nor hidden HTML is private.
+      // Only decrypted content is mounted. Relocking removes it from the DOM;
+      // no password, key, or plaintext is saved to browser storage.
       const clearError = () => {
         error.hidden = true;
         error.textContent = '';
         password.removeAttribute('aria-invalid');
+      };
+      const setBusy = (busy) => {
+        unlocking = busy;
+        form.setAttribute('aria-busy', String(busy));
+        password.readOnly = busy;
+        submit.disabled = busy;
+        submit.textContent = busy ? 'Unlocking…' : 'Unlock';
+      };
+      const clearPrivate = () => {
+        for (const content of privateContents) {
+          for (const share of content.querySelectorAll('.share')) clearTimeout(share.resetTimer);
+          content.replaceChildren();
+        }
       };
       lock.addEventListener('click', () => {
         if (!unlocked) {
@@ -1018,44 +1041,68 @@ const sections = collections.map((c) => ({
           return;
         }
         const current = panels.find((panel) => !panel.hidden);
+        const privateHash = hashPanel()?.dataset.locked === 'true';
         unlocked = false;
+        clearPrivate();
         for (const tab of tabs) {
           if (document.getElementById(tab.dataset.target).dataset.locked === 'true') tab.hidden = true;
         }
         select(current && !isLocked(current) ? current.id : panels[0].id);
-        if (hashPanel()?.dataset.locked === 'true') {
+        if (privateHash) {
           window.history.replaceState(null, '', location.pathname + location.search);
         }
-        lock.setAttribute('aria-label', 'Unlock Philosophy');
-        lock.setAttribute('title', 'Unlock Philosophy');
+        lock.setAttribute('aria-label', 'Unlock private collections');
+        lock.setAttribute('title', 'Unlock private collections');
         lock.setAttribute('aria-haspopup', 'dialog');
         lock.setAttribute('aria-controls', dialog.id);
         lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 10 0v4');
       });
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (true /* historical password check removed */) {
-          error.textContent = 'Incorrect password. Try again.';
+        if (unlocking) return;
+        const request = ++attempt;
+        const passphrase = password.value;
+        password.value = '';
+        clearError();
+        setBusy(true);
+        try {
+          if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
+          const { decryptEntries, renderEntries, renderPrinciples } = await import(form.dataset.cryptoModule);
+          const content = await decryptEntries(payload, passphrase);
+          if (request !== attempt || !dialog.open) return;
+          // Render both before mounting either: an invalid collection fails closed.
+          const philosophy = renderEntries(content.philosophy);
+          const principles = renderPrinciples(content.firstPrinciples);
+          root.querySelector('#philosophy-content').replaceChildren(philosophy);
+          root.querySelector('#first-principles-content').replaceChildren(principles);
+          unlocked = true;
+          for (const tab of tabs) tab.hidden = false;
+          dialog.close();
+          lock.setAttribute('aria-label', 'Lock private collections');
+          lock.setAttribute('title', 'Lock private collections');
+          lock.removeAttribute('aria-haspopup');
+          lock.setAttribute('aria-controls', 'panel-philosophy panel-first-principles');
+          lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 9.9-1');
+          const target = hashPanel();
+          select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);
+          jumpToEntry();
+        } catch (failure) {
+          if (request !== attempt || !dialog.open) return;
+          clearPrivate();
+          error.textContent = failure.name === 'OperationError' ?
+            'Incorrect password. Try again.' : 'Could not unlock the collection. Please try again.';
           error.hidden = false;
-          password.setAttribute('aria-invalid', 'true');
-          password.select();
-          return;
+          if (failure.name === 'OperationError') password.setAttribute('aria-invalid', 'true');
+          password.focus();
+        } finally {
+          if (request === attempt) setBusy(false);
         }
-        unlocked = true;
-        for (const tab of tabs) tab.hidden = false;
-        dialog.close();
-        lock.setAttribute('aria-label', 'Lock Philosophy');
-        lock.setAttribute('title', 'Lock Philosophy');
-        lock.removeAttribute('aria-haspopup');
-        lock.setAttribute('aria-controls', 'panel-philosophy');
-        lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 9.9-1');
-        const target = hashPanel();
-        select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);
-        jumpToEntry();
       });
       password.addEventListener('input', clearError);
       dialog.querySelector('[data-unlock-cancel]').addEventListener('click', () => dialog.close());
       dialog.addEventListener('close', () => {
+        attempt++;
+        setBusy(false);
         form.reset();
         clearError();
       });
@@ -1073,26 +1120,27 @@ const sections = collections.map((c) => ({
     // (or no clipboard access) clicking still jumps to the entry and puts the
     // shareable URL in the address bar.
     if (navigator.clipboard) {
-      for (const btn of document.querySelectorAll('.share')) {
-        btn.addEventListener('click', async (event) => {
-          event.preventDefault();
-          const slug = btn.dataset.slug;
-          try {
-            await navigator.clipboard.writeText(location.origin + location.pathname + '#' + slug);
-          } catch {
-            location.hash = slug;
-            return;
-          }
-          const label = btn.querySelector('.share-live');
-          btn.classList.add('copied');
-          label.textContent = 'Copied';
-          clearTimeout(btn.resetTimer);
-          btn.resetTimer = setTimeout(() => {
-            btn.classList.remove('copied');
-            label.textContent = 'Copy link';
-          }, 1600);
-        });
-      }
+      // Delegation also covers private entries added after decryption.
+      document.getElementById('collections').addEventListener('click', async (event) => {
+        const btn = event.target.closest('.share');
+        if (!btn) return;
+        event.preventDefault();
+        const slug = btn.dataset.slug;
+        try {
+          await navigator.clipboard.writeText(location.origin + location.pathname + '#' + slug);
+        } catch {
+          location.hash = slug;
+          return;
+        }
+        const label = btn.querySelector('.share-live');
+        btn.classList.add('copied');
+        label.textContent = 'Copied';
+        clearTimeout(btn.resetTimer);
+        btn.resetTimer = setTimeout(() => {
+          btn.classList.remove('copied');
+          label.textContent = 'Copy link';
+        }, 1600);
+      });
     }
   </script>
 </Base>
@@ -1260,19 +1308,147 @@ const sections = collections.map((c) => ({
     color: var(--text-muted);
     margin-bottom: 2rem;
   }
+</style>
 
-  .empty {
+{/* These shared card styles are global and namespaced: decrypted cards are created
+    by JS and cannot inherit Astro's scoped attributes. */}
+<style is:global>
+  /* First Principles reads as a notebook, not a list of quotations. Native
+     disclosures expand each title into a full reading surface. */
+  .collections .principle-note {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    scroll-margin-top: 2rem;
+    overflow-wrap: anywhere;
+  }
+
+  .collections .principle-note > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.3rem 1.5rem;
+    list-style: none;
+    cursor: pointer;
+    border-radius: 7px;
+  }
+
+  .collections .principle-note > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .collections .principle-note > summary:hover {
+    background: var(--surface);
+  }
+
+  .collections .principle-note > summary:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 3px;
+  }
+
+  .collections .principle-note[open] > summary {
+    border-bottom: 1px solid var(--border);
+    border-radius: 7px 7px 0 0;
+  }
+
+  .collections .principle-heading {
+    min-width: 0;
+  }
+
+  .collections .principle-title {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--heading);
+    line-height: 1.35;
+  }
+
+  .collections .principle-summary {
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .collections .principle-date {
+    display: block;
+    margin-top: 0.45rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .collections .principle-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .collections .principle-toggle svg {
+    flex-shrink: 0;
+  }
+
+  .collections .principle-close,
+  .collections .principle-note[open] .principle-read {
+    display: none;
+  }
+
+  .collections .principle-note[open] .principle-close {
+    display: inline;
+  }
+
+  .collections .principle-note[open] .principle-toggle svg {
+    transform: rotate(90deg);
+  }
+
+  .collections .principle-reading {
+    padding: 1.5rem;
+  }
+
+  .collections .principle-body > :first-child {
+    margin-top: 0;
+  }
+
+  .collections .principle-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .collections .principle-placeholder {
     color: var(--text-muted);
     font-style: italic;
   }
 
-  .quote-list {
+  .collections .principle-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 480px) {
+    .collections .principle-note > summary,
+    .collections .principle-reading {
+      padding: 1.1rem;
+    }
+  }
+
+  .collections .empty {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .collections .quote-list {
     list-style: none;
     padding: 0;
     margin: 0;
   }
 
-  .quote-list li {
+  .collections .quote-list li {
     margin-bottom: 1.5rem;
     padding: 1.25rem 1.5rem;
     background: var(--surface);
@@ -1283,20 +1459,20 @@ const sections = collections.map((c) => ({
     transition: border-color 0.15s ease, background-color 0.15s ease;
   }
 
-  .quote-list li:hover {
+  .collections .quote-list li:hover {
     border-color: var(--text-muted);
     border-left-color: var(--link);
   }
 
   /* the excerpt someone was linked to, so a shared link lands somewhere obvious */
-  .quote-list li:target {
+  .collections .quote-list li:target {
     border-color: var(--text-muted);
     border-left-color: var(--link);
   }
 
   /* Base.astro styles blockquotes as muted pull-quotes with a left rule; on this
      page the quote *is* the content, so it gets body color and no rule. */
-  blockquote {
+  .collections .quote-list blockquote {
     margin: 0;
     padding-left: 0;
     border-left: none;
@@ -1306,23 +1482,23 @@ const sections = collections.map((c) => ({
 
   /* history and cognitive-science entries are prose, not quotations, so they get
      ordinary body size rather than the slightly-raised pull-quote size */
-  .story {
+  .collections .story {
     font-size: 1rem;
   }
 
-  blockquote p,
-  .story p {
+  .collections .quote-list blockquote p,
+  .collections .story p {
     margin: 0 0 0.9rem;
   }
 
-  blockquote p:last-child,
-  .story p:last-child {
+  .collections .quote-list blockquote p:last-child,
+  .collections .story p:last-child {
     margin-bottom: 0;
   }
 
   /* the story subject or concept title. It sits above the body, where an idea's
      attribution sits below, because this is a heading rather than a speaker. */
-  .subject {
+  .collections .subject {
     margin: 0 0 0.75rem;
     font-size: 0.85rem;
     font-weight: 600;
@@ -1330,7 +1506,7 @@ const sections = collections.map((c) => ({
     color: var(--heading);
   }
 
-  .subject .year {
+  .collections .subject .year {
     font-weight: 400;
     color: var(--text-muted);
   }
@@ -1340,38 +1516,38 @@ const sections = collections.map((c) => ({
      either theme, so the flat background is blended away instead: multiply drops
      white onto --surface, and dark mode inverts first so screen drops the black.
      Both are lossless only while the art is grayscale, so keep it that way. */
-  .quote-figure {
+  .collections .quote-figure {
     margin: 1.1rem 0 0;
   }
 
-  .quote-figure img {
+  .collections .quote-figure img {
     display: block;
     width: min(100%, 460px);
     margin: 0 auto;
     mix-blend-mode: multiply;
   }
 
-  :global(:root[data-theme='dark']) .quote-figure img {
+  :root[data-theme='dark'] .collections .quote-figure img {
     filter: invert(1);
     mix-blend-mode: screen;
   }
 
   /* colored art on white: inverting it would hue-flip every fill, so it renders
      plainly and accepts the white panel in dark mode */
-  .quote-figure img.plain,
-  :global(:root[data-theme='dark']) .quote-figure img.plain {
+  .collections .quote-figure img.plain,
+  :root[data-theme='dark'] .collections .quote-figure img.plain {
     mix-blend-mode: normal;
     filter: none;
   }
 
-  .quote-figure figcaption {
+  .collections .quote-figure figcaption {
     text-align: center;
   }
 
   /* the share link tracks the BOTTOM of the text block, not the attribution line:
      with a `note` present the attribution is no longer the card's last row, and
      baseline-aligning left the link stranded halfway up the card */
-  .meta {
+  .collections .meta {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -1379,17 +1555,17 @@ const sections = collections.map((c) => ({
     margin-top: 0.9rem;
   }
 
-  .meta-text {
+  .collections .meta-text {
     min-width: 0;
   }
 
-  .attribution {
+  .collections .attribution {
     margin: 0;
     font-size: 0.9rem;
     color: var(--text-muted);
   }
 
-  .share {
+  .collections .share {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
@@ -1402,19 +1578,19 @@ const sections = collections.map((c) => ({
     transition: color 0.15s ease, background-color 0.15s ease;
   }
 
-  .share:hover,
-  .share:focus-visible {
+  .collections .share:hover,
+  .collections .share:focus-visible {
     color: var(--link);
     background: var(--bg);
   }
 
-  .share.copied,
-  .share.copied:hover {
+  .collections .share.copied,
+  .collections .share.copied:hover {
     color: var(--heading);
     background: var(--bg);
   }
 
-  .share svg {
+  .collections .share svg {
     flex-shrink: 0;
   }
 
@@ -1422,21 +1598,21 @@ const sections = collections.map((c) => ({
      one when the text swaps to "Copied". Without this the label narrows, .meta
      (space-between) hands the freed width to .meta-text, and the commentary
      re-wraps to fewer lines: the whole card visibly shrinks on click. */
-  .share-text {
+  .collections .share-text {
     display: inline-grid;
   }
 
-  .share-text > * {
+  .collections .share-text > * {
     grid-area: 1 / 1;
   }
 
-  .share-sizer {
+  .collections .share-sizer {
     visibility: hidden;
   }
 
   /* my own commentary, not the speaker's: the rule and the lighter register are
      what keep the two voices apart once the card is screenshotted or shared */
-  .commentary {
+  .collections .commentary {
     margin: 0.85rem 0 0;
     font-size: 0.85rem;
     font-style: italic;
@@ -1445,7 +1621,7 @@ const sections = collections.map((c) => ({
 
   /* a short rule rather than a full-width one: --border sits almost on top of
      --surface, so the hairline divider it would draw here is invisible */
-  .commentary::before {
+  .collections .commentary::before {
     content: '';
     display: block;
     width: 26px;
@@ -1455,34 +1631,34 @@ const sections = collections.map((c) => ({
   }
 
   /* the rule introduces the commentary block, so only the first paragraph draws it */
-  .commentary + .commentary {
+  .collections .commentary + .commentary {
     margin-top: 0.6rem;
   }
 
-  .commentary + .commentary::before {
+  .collections .commentary + .commentary::before {
     display: none;
   }
 
-  .added {
+  .collections .added {
     margin: 0.6rem 0 0;
     font-size: 0.75rem;
     color: var(--text-muted);
     opacity: 0.75;
   }
 
-  .attribution::before {
+  .collections .attribution::before {
     content: '\2014\00a0';
   }
 
-  .source {
+  .collections .source {
     font-style: italic;
   }
 
-  .source strong {
+  .collections .source strong {
     font-style: normal;
   }
 
-  .paraphrased {
+  .collections .paraphrased {
     font-style: normal;
   }
 </style>
