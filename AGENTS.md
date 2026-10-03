@@ -42,6 +42,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Conventions & gotchas
 
+- Use plain language, short sentences, and avoid dense or overly compressed phrasing.
 - **After adding any new feature or convention**, check whether it should be recorded for
   future sessions: update an existing skill (`.agents/skills/`), create a new one if it's a
   repeatable workflow, or add a line here — so the next agent can pick up where this one left
@@ -81,18 +82,31 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Ideas share links** (`src/pages/ideas.astro`, served at `/ideas/`): every idea renders as
-  `<li id={slug}>` with a "Copy link" control that copies an absolute `…/ideas/#slug`. The page
-  was renamed from Excerpts (`/quotes/`); `src/pages/quotes.astro` is a stub that redirects and
-  carries the `#fragment` across, which a config redirect would drop. Entries take an `added`
-  ISO date, shown as "Added Sep 9, 2026"; give every new one a date. Slugs come from the
-  author (`slugify`). Slugs are deliberately **not** position-derived: a second quote by the same
-  author throws at build time rather than silently taking `#author` and pushing the existing one
-  to `-2`, which would repoint links already shared. Resolve a clash by adding an explicit `id`
-  to the *newer* quote and leaving the older slug alone. Two things that look redundant are not: the control is a real `<a href="#slug">` so it
-  still works without JS or clipboard access (the address bar becomes the shareable thing), and
-  the script re-runs `scrollIntoView` on `DOMContentLoaded` because the pre-paint shuffle moves
-  the element the browser already jumped to, landing a shared link at the wrong offset.
+- **Collections** (`src/pages/collections.astro`, served at `/collections/`): three public
+  collections and two encrypted tabs (Philosophy and First Principles), picked with a tab bar. **Ideas** are
+  quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
+  pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
+  `.story` prose with the subject above it, never shuffled). **Cognitive Science** is explained
+  concepts (`title` set, body renders as `.story` prose with the title above it, never shuffled).
+  One `Entry` type and one `<li>` template serve the public collections; the private renderer
+  mirrors that card after decrypting. The picker bar ships `hidden`; without JS the public
+  panels stack under `<h2>`s and both private tabs remain hidden. `.is-interactive` on `#collections`
+  collapses to one panel. Explicit `.collection-tabs[hidden]` rules are required because
+  `display: flex` beats the browser's `[hidden]` rule. Selected tabs use colour plus a rule,
+  **never `font-weight`**, which would change their width and reflow the bar.
+- **Collection share links**: every entry renders as `<li id={slug}>` with a "Copy link"
+  control that copies an absolute `…/collections/#slug`. Renamed twice (Excerpts `/quotes/`
+  to Ideas `/ideas/` to Collections); `src/pages/quotes.astro` and `src/pages/ideas.astro`
+  redirect straight to `/collections/` and preserve the `#fragment`, which a config redirect
+  would drop. Entries take an `added` ISO date; give every new one a date. Public slugs come
+  from `author`, `subject`, or `title` (`slugify`) and are deliberately **not** position-derived:
+  duplicate names throw at build time rather than silently repointing existing shared links.
+  Resolve a clash by adding an explicit `id` to the *newer* entry and leaving the older slug
+  alone. The public `seen` map spans the public collections and reserves collection keys;
+  private ids are explicit and checked after decrypting. Three things are load-bearing:
+  the control is a real `<a href="#slug">` so it works without JS or clipboard access;
+  `scrollIntoView` runs again on `DOMContentLoaded` after the pre-paint shuffle; and the picker
+  opens the hash target's panel before that jump. Private share links still require unlocking.
 
 - **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
   public tabs opens a native dialog headed "Private". One successful unlock reveals both
@@ -143,7 +157,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
   after the rename). The per-field contract is in the comment block at the top of
-  `ideas.astro`; the load-bearing parts:
+  `collections.astro`; the load-bearing parts:
   - **Default treatment assumes grayscale line art on white.** A trimmed screenshot reads as a
     slab on the card, so the flat background is blended away: `mix-blend-mode: multiply` drops
     white onto `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black.
@@ -166,7 +180,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
     wins on the 100% side. The user has asked for smaller more than once: default low.
 
 - **`text` and `note` on an idea go through `set:html`**, so an entry can bold the term it defines
-  or link a citation inline. Safe only because every value is authored in `ideas.astro` and never
+  or link a citation inline. Safe only because every value is authored in `collections.astro` and never
   user input; nothing there contains a bare `&` or `<`. `note` also takes an array of paragraphs,
   and only the first draws the introducing rule.
 
@@ -231,12 +245,18 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   GFM footnotes (`[^name]`) work. Footnote sections are styled globally in Base.astro
   (`.footnotes`: divider + smaller muted text) and the auto-generated "Footnotes" h2 is
   **intentionally hidden** via `.sr-only` — its absence on the page is not a bug.
-- **Bibliographies**: notes and blog posts can declare a `bibliography` array in frontmatter;
-  `Entry.astro` renders it after the article's explanatory footnotes. Each entry takes `id`,
-  `authors`, `title`, `source`, `year`, `url`, plus optional `sourcePrefix` and `details`. Link
-  prose citations with `[[1]](#ref-<id>)` and keep their numbers aligned with array order. Use
-  bibliography entries for sources; reserve GFM footnotes for explanations, derivations, and
-  worked examples.
+- **Bibliographies**: notes and blog posts can declare a `bibliography` array in frontmatter
+  (schema in `src/content.config.ts`). `Entry.astro` renders a numbered section after the
+  article's explanatory footnotes, under `h2#bibliography`. Each entry takes `id`, `authors`,
+  `title`, `source`, `year`, `url`, plus optional `sourcePrefix` and `details`. Cite in prose
+  with `[[1]](#ref-<id>)`; array order is **citation order, not alphabetical**. `sourcePrefix: in`
+  gives the "in *NeurIPS*, 2023" form; a bare `source` gives the journal or preprint form.
+  Spell authors in full up to about four names, then `First Author et al.`. Titles keep their
+  own punctuation; the renderer omits the following comma for titles ending in `?` or `!`.
+  Use bibliography entries for sources and GFM footnotes for explanations, derivations, and
+  worked examples. Do not put a citation in a footnote or leave both numbering systems next to
+  each other. `rl-for-llms.md` is the reference example. Verify author lists against the arXiv
+  API rather than memory (`https://export.arxiv.org/api/query?id_list=<id>`, not plain HTTP).
 - **Images**: compress before adding — `sips -Z 640 -s format jpeg -s formatOptions 80 in.jpg
   --out public/...` for photos; note figures go in `public/images/notes/`. To size an image
   down in markdown, use an inline `<img width="450">` tag instead of `![]()`. Diagrams saved
@@ -334,6 +354,41 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `:root[data-theme='dark']` override) so it works in both themes. Styles live in the note, not
   Base.astro, so a one-off widget's CSS doesn't load on every page.
 
+- **Tabbed code blocks** (`.code-tabs` in the PPO section of `rl-for-llms.md`): keep code in
+  real fenced blocks so Astro's Shiki highlighting still applies. Deliberately break the raw
+  HTML block: `<div class="code-tabs-pane">` on its own line, a blank line, the fence, a blank
+  line, then `</div>`. Each HTML line is a separate CommonMark block; the output nests correctly.
+  Base state shows all panes with filename labels. `.is-interactive` reveals the tab bar,
+  hides labels, and collapses to one pane. Cap long listings at `max-height: 32rem`; a
+  `.code-scroll` wrapper shares the same cap for standalone code. Keep these gotchas:
+  `.code-tabs-bar[hidden] { display: none }` is needed to beat `display: flex`; Shiki uses
+  `github-dark` in both themes, so match the bar to its `#24292e` background with local `--ct-*`
+  variables; and scope stacked sibling spacing to `.code-tabs:not(.is-interactive)` because
+  a hidden pane is still a previous sibling. Check every tab, not just the first.
+
+- **Table of contents** (`Entry.astro`): built from Astro's `render()` headings, listing h2
+  and h3, filtering `footnote-label`, and appending the separately rendered bibliography.
+  Fewer than three entries means no TOC. One `<details id="entry-toc">` is a working disclosure
+  without JS; JS sets `open` and `.is-rail` at `min-width: 1320px` to match the CSS breakpoint.
+  On narrower screens it collapses after clicking a link. Keep both breakpoint values in sync.
+  Anchor the fixed rail with both `left` and `right` plus `max-width` so it fits the available
+  margin. Use `.toc li.toc-sub`, not a bare `.toc-sub`, to beat `.toc li` specificity. Mark the
+  active item with colour and a bullet, **never `font-weight`**, which would re-wrap the list.
+  Scroll-spy uses a rAF-throttled listener and the last heading past the trigger line, with a
+  bottom-of-page clamp, not IntersectionObserver. For long lists, nudge `toc.scrollTop` using
+  `getBoundingClientRect()`, not `offsetTop` (the fixed/relative offset parents make it wrong)
+  or `scrollIntoView()` (which also moves the page).
+  Wide figures would overlap the rail: Base.astro's `article.has-toc figure.wide` uses
+  `left: auto; transform: none` to grow right from the prose column and a `max-width` clamp
+  rather than competing with widths defined inside notes. Recheck figure-left versus rail-right
+  at 1920/1600/1440/1320/1319px after touching either feature.
+
+- **"Up next" list**: `src/components/UpNext.astro`, used by `notes/index.astro` and
+  `blog/index.astro`, each passing its own `planned` array of plain topic strings. These are
+  deliberately not links or content entries because no page exists yet. Remove a topic when
+  its note or post ships. Rows use a hollow `○` marker and no border; keep the styling shared
+  in the component rather than duplicating it on both pages.
+
 - **Logos** for timeline entries: `curl -sL -o public/logos/<domain>.png
   "https://www.google.com/s2/favicons?domain=<domain>&sz=128"`.
 - **A small logo/icon PNG with an opaque white background** (e.g. `public/logos/arxiv.org.png`,
@@ -356,11 +411,10 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 ## Current state / open TODOs
 
-- **LeetCode URL is a placeholder** in `src/pages/index.astro` (`YOUR_LEETCODE`) —
-  ask the user for the real username. (GitHub is set: vgandhi13.)
 - **Analytics undecided**: user wants per-page views + referrers; GoatCounter was
   recommended (free, no-cookie, one script tag in Base.astro). Wire it in when they decide.
-- Blog is intentionally empty (`draft: true` template at `src/content/blog/example-post.md`).
+- Blog contains the scheduling-RL post. `src/content/blog/example-post.md` remains a
+  `draft: true` template.
 - Motional logo is low-res (48px favicon upscale) — replace `public/logos/motional.com.png`
   if the user provides a better one.
 - Content tension the user hasn't resolved: the packing footnote in the instruction-finetuning
