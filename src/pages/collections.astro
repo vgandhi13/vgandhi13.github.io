@@ -459,6 +459,8 @@ const quotes: Entry[] = [
     paraphrased: true,
     // #andrej-karpathy belongs to the earlier excerpt; pinning keeps that link valid
     id: 'karpathy-jagged-intelligence',
+    note: 'Greg Brockman mentioned that AGI has turned out to be less a fixed finish line ' +
+      'and more a fuzzy spectrum you cross gradually.',
     image: {
       src: '/images/quotes/jagged-frontier.jpg',
       alt: 'Five stages of a growing, jagged salmon shape overlapping a pale blue circle of ' +
@@ -1086,12 +1088,14 @@ const sections = collections.map((c) => ({
         setBusy(true);
         try {
           if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
-          const { decryptEntries, renderEntries, renderPrinciples } = await import(form.dataset.cryptoModule);
+          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes } = await import(form.dataset.cryptoModule);
           const content = await decryptEntries(payload, passphrase);
           if (request !== attempt || !dialog.open) return;
-          // Render both before mounting either: an invalid collection fails closed.
-          const philosophy = renderEntries(content.philosophy);
+          // Render all before mounting any: an invalid collection fails closed.
+          const philosophy = content.philosophy.length || !content.philosophyNotes?.length ?
+            renderEntries(content.philosophy) : document.createDocumentFragment();
           const principles = renderPrinciples(content.firstPrinciples);
+          philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
           root.querySelector('#philosophy-content').replaceChildren(philosophy);
           root.querySelector('#first-principles-content').replaceChildren(principles);
           unlocked = true;
@@ -1100,7 +1104,7 @@ const sections = collections.map((c) => ({
           lock.setAttribute('aria-label', 'Lock private collections');
           lock.setAttribute('title', 'Lock private collections');
           lock.removeAttribute('aria-haspopup');
-          lock.setAttribute('aria-controls', 'panel-philosophy panel-first-principles');
+          lock.setAttribute('aria-controls', panels.filter(panel => panel.dataset.locked === 'true').map(panel => panel.id).join(' '));
           lock.querySelector('[data-lock-shackle]').setAttribute('d', 'M7 11V7a5 5 0 0 1 9.9-1');
           const target = hashPanel();
           select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);

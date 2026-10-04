@@ -142,17 +142,26 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
   Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
   `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads both private JSON files; its
+  of public source files. The encryption command reads all three private JSON files; its
   `--first-principles PATH` flag overrides the notes input when testing with fixtures.
   After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
   cards in the First Principles tab. Pressing the summary expands a full reading surface;
   native keyboard access works without a custom accordion script. Styles are global and
   namespaced under `.collections`. A `#note-id` link opens its panel and expands the note
   only after unlocking. Relocking removes the bodies and resets all disclosure states.
-  Private ids must be unique across both collections and must not collide with public ids.
+  Private ids must be unique across all private entries and notes and must not collide with public ids.
   Body images must be embedded data URIs or inline SVG, never public private-asset URLs.
   Raw drafts supplied outside `.private/` must also be ignored or moved into that directory
   before committing. Do not publish the plaintext source alongside its encrypted version.
+
+- **Philosophy notes and subcategories**: edit ignored `.private/philosophy-notes.json`.
+  Use the First Principles note fields plus optional `subcategory` (plain text, e.g. Spiritual).
+  Notes render in groups under subcategory headings inside the locked Philosophy tab, using
+  the same native disclosures as First Principles. Uncategorized notes default to General.
+  The encryption command includes this file in the shared payload and accepts
+  `--philosophy-notes PATH` for fixtures. Run encryption and build after editing. Titles,
+  subcategories, and bodies stay private; internal `#note-id` links open the destination tab
+  and expand its note after unlocking. Legacy Philosophy entries remain supported.
 
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept

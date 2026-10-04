@@ -65,10 +65,10 @@ export function validateEntries(entries) {
 }
 
 export function validatePrinciples(notes) {
-  if (!Array.isArray(notes)) throw new Error('First Principles must be an array of notes.');
+  if (!Array.isArray(notes)) throw new Error('Private notes must be an array.');
   const ids = new Set(reserved);
   for (const [index, note] of notes.entries()) {
-    const fail = message => { throw new Error(`First Principles note ${index + 1}: ${message}`); };
+    const fail = message => { throw new Error(`Private note ${index + 1}: ${message}`); };
     if (!note || typeof note !== 'object' || Array.isArray(note)) fail('expected an object.');
     if (typeof note.id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(note.id)) {
       fail('add an explicit id using lowercase words joined with hyphens.');
@@ -78,6 +78,7 @@ export function validatePrinciples(notes) {
     if (typeof note.title !== 'string' || !note.title.trim()) fail('a title is required.');
     if (typeof note.body !== 'string') fail('body must be an HTML string, which may be empty for a new note.');
     if (note.summary !== undefined && typeof note.summary !== 'string') fail('summary must be a string.');
+    if (note.subcategory !== undefined && (typeof note.subcategory !== 'string' || !note.subcategory.trim())) fail('subcategory must be nonempty text.');
     if (typeof note.added !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(note.added)) fail('added must be an ISO date.');
   }
 }
@@ -86,9 +87,11 @@ export function validatePrivateContent(content) {
   if (!content || typeof content !== 'object' || Array.isArray(content)) throw new Error('Invalid private collections.');
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
+  validatePrinciples(content.philosophyNotes ?? []);
   const ids = new Set(content.philosophy.map(entry => entry.id));
-  for (const note of content.firstPrinciples) {
-    if (ids.has(note.id)) throw new Error('Private ids must be unique across both collections.');
+  for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? [])]) {
+    if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
+    ids.add(note.id);
   }
 }
 
@@ -195,4 +198,24 @@ export function renderPrinciples(notes) {
       </article>
     </details>`).join('')}</div>` : '<p class="empty">Nothing here yet.</p>';
   return template.content;
+}
+
+export function renderPhilosophyNotes(notes) {
+  validatePrinciples(notes);
+  const groups = new Map();
+  for (const note of notes) {
+    const name = note.subcategory ?? 'General';
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(note);
+  }
+  const fragment = document.createDocumentFragment();
+  for (const [name, entries] of groups) {
+    const section = document.createElement('section');
+    section.className = 'philosophy-subcategory';
+    const heading = document.createElement('h3');
+    heading.textContent = name;
+    section.append(heading, renderPrinciples(entries));
+    fragment.append(section);
+  }
+  return fragment;
 }

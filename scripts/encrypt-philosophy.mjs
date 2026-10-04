@@ -7,22 +7,25 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const options = {
   source: resolve(root, '.private/philosophy.json'),
   'first-principles': resolve(root, '.private/first-principles.json'),
+  'philosophy-notes': resolve(root, '.private/philosophy-notes.json'),
   'password-file': resolve(root, '.private/philosophy.password'),
   output: resolve(root, 'src/data/philosophy.encrypted.json'),
 };
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i += 2) {
   const name = args[i].replace(/^--/, '');
-  if (!Object.hasOwn(options, name) || !args[i + 1]) throw new Error('Use --source, --first-principles, --password-file, or --output followed by a path.');
+  if (!Object.hasOwn(options, name) || !args[i + 1]) throw new Error('Use --source, --first-principles, --philosophy-notes, --password-file, or --output followed by a path.');
   options[name] = resolve(args[i + 1]);
 }
 
 try {
-  if ([options.source, options['first-principles'], options['password-file']].includes(options.output)) throw new Error('The encrypted output must be a separate file.');
+  if ([options.source, options['first-principles'], options['philosophy-notes'], options['password-file']].includes(options.output)) throw new Error('The encrypted output must be a separate file.');
   const entries = JSON.parse(await readFile(options.source, 'utf8'));
   const firstPrinciples = JSON.parse(await readFile(options['first-principles'], 'utf8'));
+  const philosophyNotes = JSON.parse(await readFile(options['philosophy-notes'], 'utf8'));
   validateEntries(entries);
   validatePrinciples(firstPrinciples);
+  validatePrinciples(philosophyNotes);
   const sourceDir = await realpath(dirname(options.source));
   const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif' };
   for (const [index, entry] of entries.entries()) {
@@ -40,10 +43,10 @@ try {
   }
   // Strip just the line ending, so spaces can still be part of a future passphrase.
   const password = (await readFile(options['password-file'], 'utf8')).replace(/\r?\n$/, '');
-  const payload = await encryptEntries({ philosophy: entries, firstPrinciples }, password);
+  const payload = await encryptEntries({ philosophy: entries, firstPrinciples, philosophyNotes }, password);
   await mkdir(dirname(options.output), { recursive: true });
   await writeFile(options.output, JSON.stringify(payload, null, 2) + '\n');
-  console.log(`Encrypted ${entries.length} Philosophy entries and ${firstPrinciples.length} First Principles notes. Only the encrypted output should be committed.`);
+  console.log(`Encrypted ${entries.length} Philosophy entries, ${firstPrinciples.length} First Principles notes, and ${philosophyNotes.length} Philosophy notes. Only the encrypted output should be committed.`);
 } catch (error) {
   // Do not print source content or include a JSON parser's plaintext excerpt in logs.
   console.error(error instanceof SyntaxError ? 'Invalid private JSON. Fix the local source and retry.' : error.message);
