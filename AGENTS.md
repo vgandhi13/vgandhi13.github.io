@@ -133,9 +133,10 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   locally without further requests to the site: **offline guessing cannot be rate-limited
   by the website**. This is browser-side decryption, not server-side authentication. Relocking
   cannot revoke downloaded ciphertext or copies of content someone has already decrypted.
-  The user chose to retain the earlier short password,
-  previously exposed in public Git history, so **encryption does not make it safe against
-  guessing or someone who knows that password**. Never commit `.private/`, including assets.
+  The password was rotated on October 4, 2026. Read the current password only from the
+  ignored local password file; never record it in public source or documentation. Earlier
+  ciphertext may still be decrypted with the old password exposed in public Git history.
+  Never commit `.private/`, including assets.
   History cleanup does not erase existing clones, forks, or cached copies. Do not merge or
   force-push old history back into a cleaned branch; rebase work onto the cleaned history.
 
