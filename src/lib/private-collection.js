@@ -3,7 +3,7 @@
 const iterations = 600_000;
 const encoder = new TextEncoder();
 const additionalData = encoder.encode('collections/philosophy/v1');
-const reserved = new Set(['ideas', 'history', 'cognitive-science', 'philosophy', 'first-principles']);
+const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'philosophy', 'first-principles']);
 const paragraphs = value => Array.isArray(value) ? value : [value];
 
 const toBase64 = bytes => {
@@ -43,7 +43,8 @@ export function validateEntries(entries) {
     }
     if (ids.has(entry.id)) fail('the id is duplicated or reserved for a collection.');
     ids.add(entry.id);
-    if (!entry.text || !paragraphs(entry.text).length || paragraphs(entry.text).some(text => typeof text !== 'string' || !text.trim())) {
+    const placeholder = entry.title && Array.isArray(entry.text) && entry.text.length === 0;
+    if (!placeholder && (!entry.text || !paragraphs(entry.text).length || paragraphs(entry.text).some(text => typeof text !== 'string' || !text.trim()))) {
       fail('text must be a nonempty string or array of paragraphs.');
     }
     if (['author', 'subject', 'title'].filter(key => entry[key] !== undefined).length > 1) {
@@ -88,8 +89,10 @@ export function validatePrivateContent(content) {
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
+  for (const key of ['history', 'psychology', 'neuroscience', 'communication']) validateEntries(content[key] ?? []);
   const ids = new Set(content.philosophy.map(entry => entry.id));
-  for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? [])]) {
+  for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? []),
+    ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.communication ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
   }

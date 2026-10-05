@@ -4,17 +4,17 @@ import encryptedPhilosophy from '../data/philosophy.encrypted.json';
 import privateCollectionModuleUrl from '../lib/private-collection.js?url';
 
 // Collections on one page, picked with the tab bar: `quotes` (Ideas),
-// `history` (History), `cognitiveScience` (Cognitive Science), and two private tabs.
+// Ideas are public; History, Psychology, Neuroscience, Communication, Philosophy, and First Principles are locked.
 // Private collections are authored in ignored .private/ JSON files, then encrypted locally.
 // Only ciphertext ships here. The browser decrypts it after the password is entered.
 // All collections use the Entry shape below and the same card.
 // An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
 // whatever reads best, since the list is shuffled on load anyway.
 // A HISTORY entry is a short retold story: { text: [...], subject: '...', year: '...' }.
-// A COGNITIVE SCIENCE entry is an explained concept: { text: [...], title: '...' }.
+// A PSYCHOLOGY entry is an explained concept: { text: [...], title: '...' }.
 // `subject` or `title` in place of `author` switches the card over: the body renders as
 // prose rather than a blockquote, and its heading sits above it instead of an em-dash
-// attribution below. History and Cognitive Science are NOT shuffled, so array order is
+// attribution below. History and Psychology are NOT shuffled, so array order is
 // display order.
 // `text` can be an array when several passages from the same person and occasion
 // belong together: each becomes its own paragraph under one attribution. The paragraph
@@ -666,78 +666,6 @@ const quotes: Entry[] = [
   },
 ];
 
-// History: a small moment that turned out to decide a lot. Same card as an idea, but
-// `subject` in place of `author`, so the body renders as prose rather than a quote and
-// the attribution moves above it. Everything else (note, added, figures, share link)
-// works exactly as it does for an idea.
-const history: Entry[] = [
-  {
-    subject: 'Morris Chang',
-    year: '1955',
-    text: [
-      'In 1955, Morris Chang suffered what he then considered the biggest failure of his life: ' +
-        'he failed his Ph.D. qualifying exams at MIT for the second time, meaning he could not ' +
-        'continue his doctorate. Forced to look for a job, he got two offers: Ford, the more ' +
-        'prestigious of the two, and Sylvania Electric Products, a lesser-known electronics ' +
-        'company working on a relatively new technology called \u201Ctransistors\u201D.',
-      'Ford offered Chang a salary of $479 a month. Sylvania offered him $480 a month. Chang ' +
-        'actually preferred the prestige and charm of Ford. However, finding it odd that ' +
-        'Ford\u2019s offer was exactly $1 less than Sylvania\u2019s, he decided to call the Ford ' +
-        'recruiter who had previously been very kind to him. He politely asked if Ford would ' +
-        'match Sylvania\u2019s offer so he could make an even $480 a month.',
-      'Instead of negotiating, the recruiter instantly turned hostile and dismissive. He snapped ' +
-        'at Chang, telling him that Ford\u2019s salary structure was set and that he would not get ' +
-        'a single cent more. Insulted by the recruiter\u2019s rude attitude, an angry Chang ' +
-        'rejected Ford\u2019s offer out of principle and signed with Sylvania. That is how he ' +
-        'entered the semiconductor industry. This $1 snub altered the course of tech history.',
-    ],
-    note: 'One of the most famous butterfly effect moments in modern tech history.',
-    added: '2026-09-10',
-  },
-  {
-    subject: 'Vasili Arkhipov',
-    year: '1962',
-    text: [
-      'A Soviet submarine named B-59 was hiding near Cuba. The U.S. Navy dropped non-lethal ' +
-        'depth charges to force the submarine to surface. The submarine was cut off from radio ' +
-        'contact. The crew felt the heat and shaking of the charges. They thought World War III ' +
-        'had started.',
-      'The captain and the political officer wanted to fire a nuclear-armed torpedo. Vasili ' +
-        'Arkhipov was second-in-command and the flotilla chief of staff. Rules required his ' +
-        'agreement to fire the weapon. He argued they were not under a real attack and ' +
-        'convinced the captain to surface instead.',
-    ],
-    note: 'This single decision prevented World War III and the nuclear winter that would likely have followed.',
-    added: '2026-09-10',
-  },
-];
-
-const cognitiveScience: Entry[] = [
-  {
-    title: 'Attention residue',
-    text: [
-      'Attention residue is the cognitive lag that happens when your brain keeps thinking ' +
-        'about an unfinished task even after you have moved on to a new one. You leave one ' +
-        'task, but part of your mind is still there. Or you return to it and need time to ' +
-        'rebuild the context you had before leaving.',
-      'A single interruption might seem too small to matter. Repeated throughout a day, those ' +
-        'interruptions change what kind of work you can do. You spend more time getting back ' +
-        'into things and less time moving them forward.',
-    ],
-    note: 'Coined in 2009 by Dr. Sophie Leroy.',
-    added: '2026-09-30',
-    image: {
-      src: '/images/quotes/attention-residue.gif',
-      alt: 'Animated chart contrasting multitasking, shown as several short focus bars, with ' +
-        'focused work, shown as fewer taller bars.',
-      plain: true,
-      credit: 'Source',
-      creditUrl: 'https://www.youtube.com/shorts/9lJCSz09QEI',
-      width: 280,
-    },
-  },
-];
-
 const addedOn = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -761,8 +689,10 @@ const slugify = (value: string) =>
 // collisions when decrypted, without exposing their ids during the static build.
 const collections = [
   { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
-  { key: 'history', label: 'History', items: history, shuffle: false },
-  { key: 'cognitive-science', label: 'Cognitive Science', items: cognitiveScience, shuffle: false },
+  { key: 'history', label: 'History', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'psychology', label: 'Psychology', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'neuroscience', label: 'Neuroscience', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'communication', label: 'Communication', items: [] as Entry[], shuffle: false, locked: true },
   // Keep this empty: private content must never be authored in the public source.
   { key: 'philosophy', label: 'Philosophy', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'first-principles', label: 'First Principles', items: [] as Entry[], shuffle: false, locked: true },
@@ -775,6 +705,7 @@ const firstWords = (q: Entry) =>
 // Seeded with the collection keys: the script opens a panel when the hash names one, so
 // an entry slugged "history" would be a link that lands on the wrong thing.
 const seen = new Map(collections.map((c) => [c.key, `the ${c.label} panel`]));
+seen.set('cognitive-science', 'the legacy Psychology panel link');
 
 const sections = collections.map((c) => ({
   ...c,
@@ -1017,7 +948,8 @@ const sections = collections.map((c) => ({
         try { return decodeURIComponent(location.hash.slice(1)); } catch { return ''; }
       };
       const hashPanel = () => {
-        const hash = hashEntry();
+        const entry = hashEntry();
+        const hash = entry === 'cognitive-science' ? 'psychology' : entry;
         return panels.find((panel) => panel.id === 'panel-' + hash) ||
           (hash ? document.getElementById(hash)?.closest('.collection-panel') : null);
       };
@@ -1096,8 +1028,13 @@ const sections = collections.map((c) => ({
             renderEntries(content.philosophy) : document.createDocumentFragment();
           const principles = renderPrinciples(content.firstPrinciples);
           philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
+          const otherCollections = ['history', 'psychology', 'neuroscience', 'communication'].map(key =>
+            [key, renderEntries(content[key] ?? [])]);
           root.querySelector('#philosophy-content').replaceChildren(philosophy);
           root.querySelector('#first-principles-content').replaceChildren(principles);
+          for (const [key, fragment] of otherCollections) {
+            root.querySelector('#' + key + '-content').replaceChildren(fragment);
+          }
           unlocked = true;
           for (const tab of tabs) tab.hidden = false;
           dialog.close();
@@ -1503,7 +1440,7 @@ const sections = collections.map((c) => ({
     font-size: 1.05rem;
   }
 
-  /* history and cognitive-science entries are prose, not quotations, so they get
+  /* history, psychology, and neuroscience entries are prose, not quotations, so they get
      ordinary body size rather than the slightly-raised pull-quote size */
   .collections .story {
     font-size: 1rem;

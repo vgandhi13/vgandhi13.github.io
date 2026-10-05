@@ -82,15 +82,18 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Collections** (`src/pages/collections.astro`, served at `/collections/`): three public
-  collections and two encrypted tabs (Philosophy and First Principles), picked with a tab bar. **Ideas** are
+- **Collections** (`src/pages/collections.astro`, served at `/collections/`): one public
+  collection (Ideas) and six encrypted tabs (History, Psychology, Neuroscience, Communication, Philosophy,
+  and First Principles), picked with a tab bar. **Ideas** are
   quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
   pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
-  `.story` prose with the subject above it, never shuffled). **Cognitive Science** is explained
+  `.story` prose with the subject above it, never shuffled). **Psychology** and **Neuroscience** are explained
   concepts (`title` set, body renders as `.story` prose with the title above it, never shuffled).
+  Psychology was renamed from Cognitive Science; the legacy `#cognitive-science` panel
+  link still opens Psychology. Entry anchors are unchanged. Neuroscience is a separate tab.
   One `Entry` type and one `<li>` template serve the public collections; the private renderer
   mirrors that card after decrypting. The picker bar ships `hidden`; without JS the public
-  panels stack under `<h2>`s and both private tabs remain hidden. `.is-interactive` on `#collections`
+  Ideas renders under its `<h2>` and all private tabs remain hidden. `.is-interactive` on `#collections`
   collapses to one panel. Explicit `.collection-tabs[hidden]` rules are required because
   `display: flex` beats the browser's `[hidden]` rule. Selected tabs use colour plus a rule,
   **never `font-weight`**, which would change their width and reflow the bar.
@@ -102,21 +105,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   from `author`, `subject`, or `title` (`slugify`) and are deliberately **not** position-derived:
   duplicate names throw at build time rather than silently repointing existing shared links.
   Resolve a clash by adding an explicit `id` to the *newer* entry and leaving the older slug
-  alone. The public `seen` map spans the public collections and reserves collection keys;
+  alone. The public `seen` map spans Ideas and reserves all collection keys;
   private ids are explicit and checked after decrypting. Three things are load-bearing:
   the control is a real `<a href="#slug">` so it works without JS or clipboard access;
   `scrollIntoView` runs again on `DOMContentLoaded` after the pre-paint shuffle; and the picker
   opens the hash target's panel before that jump. Private share links still require unlocking.
 
 - **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
-  public tabs opens a native dialog headed "Private". One successful unlock reveals both
-  Philosophy and First Principles, with an open lock icon. Relocking hides both.
+  public tabs opens a native dialog headed "Private". One successful unlock reveals all six private tabs, with an open lock icon. Relocking hides all six.
   Philosophy's editable source is
   **`.private/philosophy.json`**, an ignored JSON array, never `collections.astro`. Use the
   same Entry fields as the public cards, but give each private entry an explicit stable `id`
   and an `added` date. `.private/philosophy.password` holds the chosen password locally.
-  After edits to either private collection, run **`npm run encrypt:philosophy`**, then
-  `npm run build`. The command encrypts both collections in one payload. Commit only the
+  After edits to any private collection, run **`npm run encrypt:philosophy`**, then
+  `npm run build`. The command encrypts all private collections in one payload. Commit only the
   generated `src/data/philosophy.encrypted.json`; the build and GitHub CI use that ciphertext
   and never require the local plaintext or password. Keep private raster images alongside
   the JSON and use relative `image.src` paths: the encryption command embeds them in the
@@ -143,7 +145,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
   Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
   `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads all three private JSON files; its
+  of public source files. The encryption command reads all seven private JSON files; its
   `--first-principles PATH` flag overrides the notes input when testing with fixtures.
   After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
   cards in the First Principles tab. Pressing the summary expands a full reading surface;
@@ -154,6 +156,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   Body images must be embedded data URIs or inline SVG, never public private-asset URLs.
   Raw drafts supplied outside `.private/` must also be ignored or moved into that directory
   before committing. Do not publish the plaintext source alongside its encrypted version.
+
+- **Locked History, Psychology, and Neuroscience**: edit ignored `.private/history.json`,
+  `.private/psychology.json`, and `.private/neuroscience.json`. Use Entry fields and explicit
+  stable `id` values; title-only placeholders use `text: []`. These render with `renderEntries`.
+  Images live beside the private JSON and are embedded during `npm run encrypt:philosophy`.
+  The command accepts `--history`, `--psychology`, and `--neuroscience` fixture paths.
+  Only Ideas ships plaintext. Existing private entry links require unlocking; historical
+  public versions remain in Git history. Keep private source and assets out of public files.
+
+- **Communication**: a locked collection of communication excerpts and advice. Edit ignored
+  `.private/communication.json` using Entry fields, explicit stable ids, and added dates.
+  Quotes carry `author`, `source`, and `url`; mark polished wording as `paraphrased`.
+  `npm run encrypt:philosophy` includes it in the shared payload; `--communication PATH`
+  supports fixtures. It renders with `renderEntries` and shares the existing unlock/relock.
 
 - **Philosophy notes and subcategories**: edit ignored `.private/philosophy-notes.json`.
   Use the First Principles note fields plus optional `subcategory` (plain text, e.g. Spiritual).
