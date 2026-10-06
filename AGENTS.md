@@ -111,8 +111,12 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `scrollIntoView` runs again on `DOMContentLoaded` after the pre-paint shuffle; and the picker
   opens the hash target's panel before that jump. Private share links still require unlocking.
 
-- **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
-  public tabs opens a native dialog headed "Private". One successful unlock reveals all eight private tabs, with an open lock icon. Relocking hides all eight.
+- **Private collections lock** (`src/pages/collections.astro`): the unlock control is hidden while locked.
+  Click the Collections heading five times within three seconds to open the native Private
+  dialog (keyboard Enter/Space clicks on the heading button also work). One successful
+  unlock reveals all eight private tabs and an open-lock icon. Relocking clears the content
+  and hides the icon; repeating the heading gesture while unlocked also relocks.
+  The hidden trigger is only a discoverability choice, not additional encryption security.
   The unlock input uses `name="password"` and `autocomplete="current-password"` for
   password-manager recognition. Keep those hints; do not switch autocomplete off.
   Philosophy's editable source is
@@ -129,7 +133,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `src/lib/private-collection.js` uses AES-256-GCM, a fresh 16-byte salt and 12-byte IV per
   encryption, and PBKDF2-HMAC-SHA256 (600,000 iterations). The browser derives a key from the
   entered password and mounts cards only after authenticated decryption. Relocking clears
-  private DOM content and resets the icon; nothing is saved to browser storage. Canceling a
+  private DOM content and hides the open-lock control; nothing is saved to browser storage. Canceling a
   pending unlock must invalidate it so it cannot reveal content later. Shared card CSS is
   global and namespaced under `.collections` because JS-created cards lack Astro's scoped
   attributes. Private ids are checked against the public DOM after decrypting; ciphertext
