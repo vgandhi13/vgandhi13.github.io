@@ -692,7 +692,9 @@ const collections = [
   { key: 'history', label: 'History', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'psychology', label: 'Psychology', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'neuroscience', label: 'Neuroscience', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'communication', label: 'Communication', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'learnings', label: 'Learnings', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'proverbs', label: 'Proverbs', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'inspiration', label: 'Inspiration', items: [] as Entry[], shuffle: false, locked: true },
   // Keep this empty: private content must never be authored in the public source.
   { key: 'philosophy', label: 'Philosophy', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'first-principles', label: 'First Principles', items: [] as Entry[], shuffle: false, locked: true },
@@ -706,6 +708,7 @@ const firstWords = (q: Entry) =>
 // an entry slugged "history" would be a link that lands on the wrong thing.
 const seen = new Map(collections.map((c) => [c.key, `the ${c.label} panel`]));
 seen.set('cognitive-science', 'the legacy Psychology panel link');
+seen.set('communication', 'the legacy Learnings panel link');
 
 const sections = collections.map((c) => ({
   ...c,
@@ -949,7 +952,7 @@ const sections = collections.map((c) => ({
       };
       const hashPanel = () => {
         const entry = hashEntry();
-        const hash = entry === 'cognitive-science' ? 'psychology' : entry;
+        const hash = entry === 'cognitive-science' ? 'psychology' : entry === 'communication' ? 'learnings' : entry;
         return panels.find((panel) => panel.id === 'panel-' + hash) ||
           (hash ? document.getElementById(hash)?.closest('.collection-panel') : null);
       };
@@ -959,6 +962,12 @@ const sections = collections.map((c) => ({
       };
       const jumpToEntry = () => {
         const entry = document.getElementById(hashEntry());
+        if (entry?.hidden && entry.closest('#learnings-content')) {
+          root.querySelector('#learnings-content .learning-filter[data-learning-tag=""]').click();
+        }
+        if (entry?.closest('.philosophy-subcategory')?.hidden) {
+          root.querySelector('#philosophy-content [data-philosophy-category=""]').click();
+        }
         if (entry?.closest('.collection-panel')?.hidden === false) {
           if (entry.matches('.principle-note')) entry.open = true;
           entry.scrollIntoView({ block: 'center' });
@@ -1020,7 +1029,7 @@ const sections = collections.map((c) => ({
         setBusy(true);
         try {
           if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
-          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes } = await import(form.dataset.cryptoModule);
+          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings } = await import(form.dataset.cryptoModule);
           const content = await decryptEntries(payload, passphrase);
           if (request !== attempt || !dialog.open) return;
           // Render all before mounting any: an invalid collection fails closed.
@@ -1028,8 +1037,16 @@ const sections = collections.map((c) => ({
             renderEntries(content.philosophy) : document.createDocumentFragment();
           const principles = renderPrinciples(content.firstPrinciples);
           philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
-          const otherCollections = ['history', 'psychology', 'neuroscience', 'communication'].map(key =>
-            [key, renderEntries(content[key] ?? [])]);
+          const otherCollections = ['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].map(key => {
+            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? []) : renderEntries(content[key] ?? []);
+            if (content.descriptions?.[key]) {
+              const description = document.createElement('p');
+              description.className = 'collection-description';
+              description.textContent = content.descriptions[key];
+              fragment.prepend(description);
+            }
+            return [key, fragment];
+          });
           root.querySelector('#philosophy-content').replaceChildren(philosophy);
           root.querySelector('#first-principles-content').replaceChildren(principles);
           for (const [key, fragment] of otherCollections) {
@@ -1273,6 +1290,47 @@ const sections = collections.map((c) => ({
 {/* These shared card styles are global and namespaced: decrypted cards are created
     by JS and cannot inherit Astro's scoped attributes. */}
 <style is:global>
+  .collections .learning-filters,
+  .collections .learning-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .collections .learning-filter,
+  .collections .learning-tag {
+    font: inherit;
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+  }
+  .collections .learning-filter[aria-pressed='true'],
+  .collections .learning-tag[aria-pressed='true'] {
+    color: var(--link);
+    border-color: var(--link);
+    background: var(--surface);
+  }
+  .collections .learning-filter:focus-visible,
+  .collections .learning-tag:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 3px;
+  }
+  .collections .learning-tags { margin-top: 1rem; }
+  .collections .learning-status {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0.5rem 0 1.25rem;
+  }
+  .collections .quote-list > li[hidden] { display: none; }
+  .collections .philosophy-subcategory[hidden] { display: none; }
+  .collections .collection-description {
+    color: var(--text-muted);
+    margin: 0 0 1.25rem;
+  }
+
   /* First Principles reads as a notebook, not a list of quotations. Native
      disclosures expand each title into a full reading surface. */
   .collections .principle-note {

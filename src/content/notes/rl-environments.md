@@ -2,7 +2,7 @@
 title: RL Environments
 description: A reading list on reinforcement learning environments.
 date: 2026-09-12
-updated: 2026-10-01
+updated: 2026-10-05
 ---
 
 TODO: this note is a placeholder while I work through the material below and write it up
@@ -15,3 +15,5 @@ properly.
 3. ["One sandbox per rollout, or how labs run RL for agents in 2026"](https://huggingface.co/blog/sergiopaniego/rl-environments-2026), Sergio Paniego. Look at the suggested readings in this post.
 4. [XiaomiMiMo/verl](https://github.com/XiaomiMiMo/verl), reproduction code for five agentic RL environments.
 5. ["RL environments for LLM agents: Design, rewards, and validation"](https://snorkel.ai/blog/rl-environments-for-llm-agents-design-rewards-and-validation/), Aryan Kargwal and Jonathan Schlosser.
+6. ["Environments Hub: A Community Hub To Scale RL To Open AGI"](https://www.primeintellect.ai/blog/environments), Prime Intellect Team.
+7. [MiMo RL Environment Explorer](https://huggingface.co/spaces/FineEnvs/MiMo-RL-Envs-Explorer), FineEnvs.

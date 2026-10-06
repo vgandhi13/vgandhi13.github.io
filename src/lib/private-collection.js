@@ -3,7 +3,7 @@
 const iterations = 600_000;
 const encoder = new TextEncoder();
 const additionalData = encoder.encode('collections/philosophy/v1');
-const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'philosophy', 'first-principles']);
+const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'inspiration', 'philosophy', 'first-principles']);
 const paragraphs = value => Array.isArray(value) ? value : [value];
 
 const toBase64 = bytes => {
@@ -55,6 +55,7 @@ export function validateEntries(entries) {
     }
     if (entry.added && !/^\d{4}-\d{2}-\d{2}$/.test(entry.added)) fail('added must be an ISO date.');
     if (entry.note !== undefined && paragraphs(entry.note).some(text => typeof text !== 'string')) fail('note must contain text.');
+    if (entry.tags !== undefined && (!Array.isArray(entry.tags) || entry.tags.some(tag => typeof tag !== 'string' || !tag.trim()) || new Set(entry.tags).size !== entry.tags.length)) fail('tags must be unique nonempty strings.');
     if (entry.image && (typeof entry.image.src !== 'string' || typeof entry.image.alt !== 'string')) {
       fail('an image needs src and alt text.');
     }
@@ -89,10 +90,17 @@ export function validatePrivateContent(content) {
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
-  for (const key of ['history', 'psychology', 'neuroscience', 'communication']) validateEntries(content[key] ?? []);
+  for (const key of ['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration']) validateEntries(content[key] ?? []);
+  if (content.descriptions !== undefined) {
+    if (!content.descriptions || typeof content.descriptions !== 'object' || Array.isArray(content.descriptions) ||
+      Object.entries(content.descriptions).some(([key, value]) =>
+        !['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].includes(key) || typeof value !== 'string')) {
+      throw new Error('Invalid private collection descriptions.');
+    }
+  }
   const ids = new Set(content.philosophy.map(entry => entry.id));
   for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? []),
-    ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.communication ?? [])]) {
+    ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.proverbs ?? []), ...(content.inspiration ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
   }
@@ -147,7 +155,7 @@ const shareControl = (id, label) => `<a class="share" href="#${id}" data-slug="$
 
 // Body HTML and inline SVG are authored locally, like the public collection entries.
 // Metadata is escaped; private raster images must already be embedded in the payload.
-export function renderEntries(entries) {
+export function renderEntries(entries, { tags = false } = {}) {
   validateEntries(entries);
   for (const entry of entries) {
     if (document.getElementById(entry.id)) throw new Error('A private entry id collides with the public page.');
@@ -172,9 +180,54 @@ export function renderEntries(entries) {
     const note = entry.note === undefined ? '' : paragraphs(entry.note).map(text => `<p class="commentary">${text}</p>`).join('');
     const added = entry.added ? `<p class="added">Added <time datetime="${entry.added}">${addedOn(entry.added)}</time></p>` : '';
     const label = entry.author ? `Copy a link to this idea by ${entry.author}` : entry.subject ? `Copy a link to this story about ${entry.subject}` : entry.title ? `Copy a link to ${entry.title}` : 'Copy a link to this entry';
-    return `<li id="${entry.id}">${heading}${prose ? `<div class="story">${body}</div>` : `<blockquote>${body}</blockquote>`}${figures}<div class="meta"><div class="meta-text">${attribution}${note}${added}</div>${shareControl(entry.id, label)}</div></li>`;
+    const tagControls = tags && entry.tags?.length ? `<div class="learning-tags" aria-label="Entry tags">${entry.tags.map(tag => `<button type="button" class="learning-tag" data-learning-tag="${escape(tag)}" aria-pressed="false">${escape(tag)}</button>`).join('')}</div>` : '';
+    return `<li id="${entry.id}">${heading}${prose ? `<div class="story">${body}</div>` : `<blockquote>${body}</blockquote>`}${figures}${tagControls}<div class="meta"><div class="meta-text">${attribution}${note}${added}</div>${shareControl(entry.id, label)}</div></li>`;
   }).join('')}</ul>` : '<p class="empty">Nothing here yet.</p>';
   return template.content;
+}
+
+export function renderLearnings(entries) {
+  const cards = renderEntries(entries, { tags: true });
+  const wrapper = document.createElement('div');
+  wrapper.className = 'learning-list';
+  const tags = [...new Set(entries.flatMap(entry => entry.tags ?? []))];
+  const toolbar = document.createElement('div');
+  toolbar.className = 'learning-filters';
+  toolbar.setAttribute('role', 'group');
+  toolbar.setAttribute('aria-label', 'Filter learnings by tag');
+  for (const tag of ['', ...tags]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'learning-filter';
+    button.dataset.learningTag = tag;
+    button.textContent = tag || 'All';
+    button.setAttribute('aria-pressed', String(!tag));
+    toolbar.append(button);
+  }
+  const status = document.createElement('p');
+  status.className = 'learning-status';
+  status.setAttribute('role', 'status');
+  wrapper.append(toolbar, status, cards);
+  const filter = tag => {
+    let count = 0;
+    for (const entry of entries) {
+      const visible = !tag || entry.tags?.includes(tag);
+      wrapper.querySelector('#' + entry.id).hidden = !visible;
+      if (visible) count++;
+    }
+    for (const button of wrapper.querySelectorAll('[data-learning-tag]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.learningTag === tag));
+    }
+    status.textContent = `${count} ${count === 1 ? 'entry' : 'entries'}${tag ? ' tagged ' + tag : ''}`;
+  };
+  wrapper.addEventListener('click', event => {
+    const button = event.target.closest('button[data-learning-tag]');
+    if (button && wrapper.contains(button)) filter(button.dataset.learningTag);
+  });
+  filter('');
+  const fragment = document.createDocumentFragment();
+  fragment.append(wrapper);
+  return fragment;
 }
 
 // Notes are native disclosures, so opening, closing, and keyboard access need no
@@ -212,13 +265,49 @@ export function renderPhilosophyNotes(notes) {
     groups.get(name).push(note);
   }
   const fragment = document.createDocumentFragment();
+  if (!notes.length) return fragment;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'philosophy-notes';
+  const toolbar = document.createElement('div');
+  toolbar.className = 'learning-filters';
+  toolbar.setAttribute('role', 'group');
+  toolbar.setAttribute('aria-label', 'Filter philosophy by subcategory');
+  for (const name of ['', ...groups.keys()]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'learning-filter';
+    button.dataset.philosophyCategory = name;
+    button.textContent = name || 'All';
+    toolbar.append(button);
+  }
+  const status = document.createElement('p');
+  status.className = 'learning-status';
+  status.setAttribute('role', 'status');
+  wrapper.append(toolbar, status);
   for (const [name, entries] of groups) {
     const section = document.createElement('section');
     section.className = 'philosophy-subcategory';
+    section.dataset.subcategory = name;
     const heading = document.createElement('h3');
     heading.textContent = name;
     section.append(heading, renderPrinciples(entries));
-    fragment.append(section);
+    wrapper.append(section);
   }
+  const filter = name => {
+    for (const section of wrapper.querySelectorAll('.philosophy-subcategory')) {
+      section.hidden = !!name && section.dataset.subcategory !== name;
+    }
+    for (const button of toolbar.querySelectorAll('button')) {
+      button.setAttribute('aria-pressed', String(button.dataset.philosophyCategory === name));
+    }
+    const count = notes.filter(note => !name || (note.subcategory ?? 'General') === name).length;
+    status.textContent = `${count} ${count === 1 ? 'note' : 'notes'}${name ? ' in ' + name : ''}`;
+  };
+  toolbar.addEventListener('click', event => {
+    const button = event.target.closest('button[data-philosophy-category]');
+    if (button && toolbar.contains(button)) filter(button.dataset.philosophyCategory);
+  });
+  filter('');
+  fragment.append(wrapper);
   return fragment;
 }

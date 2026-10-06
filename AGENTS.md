@@ -83,7 +83,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
 - **Collections** (`src/pages/collections.astro`, served at `/collections/`): one public
-  collection (Ideas) and six encrypted tabs (History, Psychology, Neuroscience, Communication, Philosophy,
+  collection (Ideas) and eight encrypted tabs (History, Psychology, Neuroscience, Learnings, Proverbs, Inspiration, Philosophy,
   and First Principles), picked with a tab bar. **Ideas** are
   quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
   pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
@@ -112,7 +112,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   opens the hash target's panel before that jump. Private share links still require unlocking.
 
 - **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
-  public tabs opens a native dialog headed "Private". One successful unlock reveals all six private tabs, with an open lock icon. Relocking hides all six.
+  public tabs opens a native dialog headed "Private". One successful unlock reveals all eight private tabs, with an open lock icon. Relocking hides all eight.
   Philosophy's editable source is
   **`.private/philosophy.json`**, an ignored JSON array, never `collections.astro`. Use the
   same Entry fields as the public cards, but give each private entry an explicit stable `id`
@@ -145,7 +145,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
   Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
   `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads all seven private JSON files; its
+  of public source files. The encryption command reads all ten private JSON files; its
   `--first-principles PATH` flag overrides the notes input when testing with fixtures.
   After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
   cards in the First Principles tab. Pressing the summary expands a full reading surface;
@@ -165,11 +165,23 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   Only Ideas ships plaintext. Existing private entry links require unlocking; historical
   public versions remain in Git history. Keep private source and assets out of public files.
 
-- **Communication**: a locked collection of communication excerpts and advice. Edit ignored
-  `.private/communication.json` using Entry fields, explicit stable ids, and added dates.
-  Quotes carry `author`, `source`, and `url`; mark polished wording as `paraphrased`.
-  `npm run encrypt:philosophy` includes it in the shared payload; `--communication PATH`
-  supports fixtures. It renders with `renderEntries` and shares the existing unlock/relock.
+- **Learnings and Proverbs**: locked Entry collections authored in ignored
+  `.private/learnings.json` and `.private/proverbs.json`. Encryption accepts `--learnings`
+  and `--proverbs` fixture paths. Private descriptions live in ignored `.private/collection-descriptions.json`,
+  keyed by collection slug. They are encrypted and mounted above the cards only after
+  unlocking; `--descriptions PATH` overrides this input. Proverbs uses one for its definition. Both tabs share the private unlock/relock.
+
+- **Inspiration**: a separate locked category of personal stories and timelines, distinct
+  from Learnings. Edit ignored `.private/inspiration.json` with Entry fields and explicit ids.
+  It uses `renderEntries` and shares the private unlock. Encryption accepts `--inspiration PATH`.
+
+- **Learnings tags**: entries may have `tags: ["Communication", "Marketing"]`.
+  `renderLearnings` mounts an All/tag filter bar and clickable tags on each card after decrypting.
+  All is selected initially; one active tag filters by exact inclusion, with `aria-pressed`
+  and a live result count. A link to a filtered-out entry resets to All before jumping.
+  Relocking clears the filter DOM. Styles are global and namespaced under `.collections`.
+  Communication moved into Learnings; legacy `#communication` opens Learnings and the old
+  entry id is preserved. Tags live in the encrypted JSON, never public metadata.
 
 - **Philosophy notes and subcategories**: edit ignored `.private/philosophy-notes.json`.
   Use the First Principles note fields plus optional `subcategory` (plain text, e.g. Spiritual).
@@ -179,6 +191,9 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   `--philosophy-notes PATH` for fixtures. Run encryption and build after editing. Titles,
   subcategories, and bodies stay private; internal `#note-id` links open the destination tab
   and expand its note after unlocking. Legacy Philosophy entries remain supported.
+  A subcategory filter bar starts on All and switches to one group, with `aria-pressed`
+  and a live note count. A shared link into a hidden group resets to All before expanding.
+  Relocking clears the controls and resets the filter. It uses the Learnings filter styling.
 
 - **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
   `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
