@@ -868,7 +868,7 @@ const sections = collections.map((c) => ({
       <form class="collection-unlock-form" data-crypto-module={privateCollectionModuleUrl}>
         <h2 id="collection-unlock-title">Private</h2>
         <label for="collection-password">Password</label>
-        <input id="collection-password" type="password" autocomplete="off" aria-describedby="collection-unlock-error" required autofocus />
+        <input id="collection-password" name="password" type="password" autocomplete="current-password" aria-describedby="collection-unlock-error" required autofocus />
         <p class="collection-unlock-error" id="collection-unlock-error" role="status" hidden></p>
         <div class="collection-dialog-actions">
           <button type="button" data-unlock-cancel>Cancel</button>

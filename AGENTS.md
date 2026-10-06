@@ -113,6 +113,8 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 
 - **Private collections lock** (`src/pages/collections.astro`): a small lock beside the
   public tabs opens a native dialog headed "Private". One successful unlock reveals all eight private tabs, with an open lock icon. Relocking hides all eight.
+  The unlock input uses `name="password"` and `autocomplete="current-password"` for
+  password-manager recognition. Keep those hints; do not switch autocomplete off.
   Philosophy's editable source is
   **`.private/philosophy.json`**, an ignored JSON array, never `collections.astro`. Use the
   same Entry fields as the public cards, but give each private entry an explicit stable `id`
@@ -174,6 +176,9 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Inspiration**: a separate locked category of personal stories and timelines, distinct
   from Learnings. Edit ignored `.private/inspiration.json` with Entry fields and explicit ids.
   It uses `renderEntries` and shares the private unlock. Encryption accepts `--inspiration PATH`.
+
+- **Source labels**: use neutral labels such as “Source: Video” (with Video linked).
+  Never use calls to action such as “Watch the source video” in source credits.
 
 - **Learnings tags**: entries may have `tags: ["Communication", "Marketing"]`.
   `renderLearnings` mounts an All/tag filter bar and clickable tags on each card after decrypting.
