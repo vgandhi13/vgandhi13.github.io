@@ -3,8 +3,7 @@ import Base from '../layouts/Base.astro';
 import encryptedPhilosophy from '../data/philosophy.encrypted.json';
 import privateCollectionModuleUrl from '../lib/private-collection.js?url';
 
-// Collections on one page, picked with the tab bar: `quotes` (Ideas),
-// Ideas are public; History, Psychology, Neuroscience, Communication, Philosophy, and First Principles are locked.
+// All collections are locked. Private source and images stay in ignored .private/ files.
 // Private collections are authored in ignored .private/ JSON files, then encrypted locally.
 // Only ciphertext ships here. The browser decrypts it after the password is entered.
 // All collections use the Entry shape below and the same card.
@@ -55,23 +54,7 @@ import privateCollectionModuleUrl from '../lib/private-collection.js?url';
 // script reads those as "open that panel".
 // Redrawn from the chart in the HubSpot post credited on the figure: that original is
 // a dark-navy branded card, which the .quote-figure invert would turn cream-on-pink.
-const aiSingularityChart = `<svg viewBox="0 0 460 250" role="img" aria-labelledby="ai-sing-title" style="display:block;width:min(100%,460px);height:auto;margin:0 auto">
-  <title id="ai-sing-title">Intelligence plotted against time: a gently rising human curve, and an AI curve that starts lower, crosses it, and then climbs steeply.</title>
-  <defs>
-    <marker id="ai-sing-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-      <path d="M 0 1 L 9 5 L 0 9 z" style="fill: var(--diagram-orange-border)" />
-    </marker>
-  </defs>
-  <path d="M 70 26 L 70 200 L 392 200" fill="none" stroke-width="1.5" stroke-linecap="round" style="stroke: var(--text-muted)" />
-  <path d="M 70 185 Q 230 162 380 128" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: currentColor" />
-  <path d="M 70 196 C 190 194 265 180 305 144 C 340 104 365 58 380 32" fill="none" stroke-width="2.5" stroke-linecap="round" style="stroke: var(--diagram-blue-border)" />
-  <path d="M 196 78 Q 250 96 285 126" fill="none" stroke-width="2.5" stroke-linecap="round" marker-end="url(#ai-sing-arrow)" style="stroke: var(--diagram-orange-border)" />
-  <circle cx="305" cy="144" r="5.5" style="fill: var(--diagram-orange-border)" />
-  <text x="388" y="36" font-size="13" style="fill: var(--diagram-blue-border)">AI</text>
-  <text x="388" y="132" font-size="13" style="fill: currentColor">Human</text>
-  <text x="231" y="230" font-size="13" text-anchor="middle" style="fill: var(--text-muted)">Time</text>
-  <text x="50" y="113" font-size="13" text-anchor="middle" transform="rotate(-90 50 113)" style="fill: var(--text-muted)">Intelligence</text>
-</svg>`;
+
 
 type Entry = {
   text: string | string[];
@@ -96,575 +79,7 @@ type Entry = {
   id?: string;
 };
 
-const quotes: Entry[] = [
-  {
-    id: 'plato-appearance-of-wisdom',
-    text: 'You offer your pupils the appearance of wisdom, not true wisdom, for they will ' +
-      'read many things without instruction and will therefore seem to know many things, ' +
-      'when they are for the most part ignorant and hard to get along with, since they are ' +
-      'not wise, but only appear wise.',
-    author: 'Plato',
-    source: 'Phaedrus, 275a–b',
-    url: 'https://www.perseus.tufts.edu/hopper/text?doc=Perseus%3Atext%3A1999.01.0174%3Atext%3DPhaedrus%3Apage%3D275',
-    added: '2026-10-03',
-    note: [
-      'Socrates’ fable warns about the illusion of intelligence caused by the accumulation ' +
-        'of written knowledge.',
-      'In his <a href="https://www.linkedin.com/posts/yann-lecun_socrates-on-the-invention-of-writing-and-activity-7512137592616677378-vg24" target="_blank" rel="noopener">LinkedIn post</a>, ' +
-        'Yann LeCun writes: “Little did he know that his warning would apply to LLMs ' +
-        '(in addition to some categories of humans). So many people confuse the accumulation ' +
-        'of declarative knowledge by LLMs with super-human intelligence.”',
-    ],
-  },
-  {
-    text: 'The most effect in the AI age could probably made at either extreme: either close ' +
-      'to the technology, actually making LLMs, or close to the customer, using AI to give ' +
-      'them exactly what they want. Or maybe both if you can stretch that far.',
-    author: 'Paul Graham',
-    source: 'on X',
-    url: 'https://x.com/AGTPinsights/status/2102717569434341642',
-    paraphrased: true,
-    added: '2026-09-30',
-  },
-  {
-    text: [
-      'Amtrak made a lot of fanfare about its fancy new trains, which can reach 160 mph. But ' +
-        'the limiting factor is the country’s outdated track infrastructure, so actual speeds ' +
-        'have barely changed and still average around 65 mph.',
-      'AI is similar. The LLM is a fast new train, but the real-world systems it runs through ' +
-        'are old tracks. Upgrading them will not happen overnight because the bottlenecks are ' +
-        'political, economic, and sociological.',
-    ],
-    author: 'Arvind Narayanan',
-    source: 'on AI adoption',
-    paraphrased: true,
-    added: '2026-09-30',
-  },
-  {
-    text: [
-      'Most people never say what they want. It’s not because we don’t want. We want fiercely ' +
-        'and constantly. It happens in the moments before falling asleep, while daydreaming, ' +
-        'or on the drive home. But rarely do we get to express these dreams, and even more ' +
-        'rarely do they ever come true.',
-      'When we can’t name our dreams, we mostly can’t reach them. The world is a maze of ' +
-        'obstacles, and most dreams die long before they are said aloud. They die in the ' +
-        'uncertainty of where to start and in the phone calls never made.',
-      'Every unrealized want is a quiet tragedy of human potential.',
-      'Now imagine every person on Earth with a second mind beyond their own, whose sole job ' +
-        'is to discover what they want and help make it happen. It hears the half-sentence, ' +
-        '“I feel like there’s something more I could be doing,” and helps fill in the blanks. ' +
-        'It keeps them on schedule, clears the way, and solves all the problems it can until ' +
-        'the human part, the wanting and the dreaming, is all that’s left.',
-      'We have no idea what people will want. Until now, the world has been shaped by the small ' +
-        'number of fanatics who have somehow found a way to make their wants real. But we’ve ' +
-        'never seen humanity with every single person’s agency fully switched on: eight billion ' +
-        'people who need only write down their dream to begin making it happen.',
-    ],
-    author: 'Alexandr Wang',
-    source: '“Why I’m Building Muse”',
-    url: 'https://x.com/alexandr_wang/status/2103551714536439951?s=48&t=240T78CCmhgWi7z6dF_hyA',
-    paraphrased: true,
-    added: '2026-09-26',
-    image: {
-      src: '/images/quotes/alexandr-wang-muse.webp',
-      alt: 'Anime-style illustration of six young adults and a white dog enjoying a sunny ' +
-        'wildflower meadow above a lakeside mountain village.',
-      plain: true,
-    },
-  },
-  {
-    text: 'When humanity was still exploring the Earth, it was common to mark uncharted ' +
-      'territories or places from where few travellers had returned with fantastic and ' +
-      'dangerous beasts. Although we were born too late to explore the Earth, and are probably ' +
-      'too soon to explore the stars, there is now one clear, vast frontier: intelligence. ' +
-      'Just as before, rumours of strange creatures beyond the settled frontier reach those ' +
-      'of us behind it (what did Ilya see?) and we are warned of strange scaly creatures ' +
-      'beyond the borders of what is known.',
-    author: 'Tom McGrath',
-    source: '“Safety as a Scientific Pursuit”',
-    url: 'https://tommcgrath.github.io/safety_as_science#fn:1',
-    added: '2026-09-26',
-    image: {
-      src: '/images/quotes/tom-mcgrath-intelligence-frontier.jpg',
-      alt: 'Colorful comic-style illustration of an explorer standing between an old map with ' +
-        'dragons and sea monsters and a cosmic frontier with a glowing artificial-intelligence ' +
-        'head and futuristic city.',
-      plain: true,
-      credit: 'Image generated using ChatGPT',
-    },
-  },
-  {
-    text: [
-      'We build glasses to help people use AI. Almost two billion people around the world ' +
-        'already wear glasses, and even more wear sunglasses. We think that in the coming ' +
-        'years, most of these will be upgraded to AI glasses.',
-      'We think glasses will become the biggest AI category because they are the only form ' +
-        'factor that lets AI see what you see, hear what you hear, talk with you throughout ' +
-        'the day, and display information directly in your field of vision.',
-    ],
-    author: 'Mark Zuckerberg',
-    source: 'Meta Connect Keynote 2026',
-    sourceBold: true,
-    url: 'https://www.youtube.com/watch?v=SdKFDIAGF24',
-    paraphrased: true,
-    added: '2026-09-26',
-    note: 'This is strikingly similar to Tony Stark’s glasses in the Iron Man and Avengers ' +
-      'films, which let him interact with JARVIS years before AI glasses began taking shape ' +
-      'in the real world.',
-  },
-  {
-    text: [
-      'People have a misconception that it takes a lot of exceptional people to make frontier models. ' +
-        'You need a handful of experienced people, but mostly you need a lot of motivated and talented people… ' +
-        'This technology is not that old. The people who have experience like myself only have a few years of ' +
-        'experience working on this. A lot of people can build that experience very quickly.',
-      'It is good for the world if there are thousands of models, by different providers. ' +
-        'Competition breeds innovation, and specialization is better than one size fits all. ' +
-        'Different users want models at different sizes and different price points. Specifically for India, ' +
-        'we have so many languages and cultures, and our own education, legal and political systems, our own ' +
-        'public policy. So we want models that can be customized for all these things, and that is why we ' +
-        'need to build these models here.',
-    ],
-    author: 'Devendra Singh Chaplot',
-    source: 'at Sarvam Epoch',
-    url: 'https://www.youtube.com/watch?v=peO2ReobYSw',
-  },
-  {
-    text: [
-      'With scaling laws, people realized that scaling pretraining is the thing to do. The big breakthrough ' +
-        'of pretraining is the realization that this recipe is good: if you mix some data with some compute ' +
-        'into a neural net of a certain size, you will get results, and you know you will get something ' +
-        'better if you scale the recipe up.',
-      'At some point though, pretraining will run out of data. The data is very finite. So then we either do ' +
-        'souped up pretraining or some kind of RL, and in some sense we are back to the age of research.',
-      'From 2012 to 2020, it was the age of research. From 2020 to 2025, it was the age of scaling. But now ' +
-        'the scale is so big that the belief that things would be significantly different if it were even ' +
-        '100x bigger might not be true. So we are back to the age of research again.',
-    ],
-    author: 'Ilya Sutskever',
-    source: 'on the Dwarkesh Podcast',
-    url: 'https://youtube.com/shorts/pLHWn5SQvLM',
-    paraphrased: true,
-  },
-  {
-    text: [
-      'Current LLM agents can do really well and are incredibly capable when they are given a clear and ' +
-        'detailed specification. With access to these kinds of agents, the scarce skill then becomes having ' +
-        'incredibly good taste in what you ask them to work on.',
-      'A researcher can have all the tools and techniques, but often most of the battle is what problem you ' +
-        'are going to spend your time on. That high level wisdom of what to work on is incredibly important, ' +
-        'and I think models are not necessarily going to be good at it. We are going to have people steering ' +
-        'a lot of AI-assisted computation in order to accomplish great things more quickly, but the essence ' +
-        'of what you want the models to do is the key thing to focus on.',
-      'Building taste is difficult. Working on a lot of problems in the past teaches you what kind of ' +
-        'problems might be interesting in future, and what might just be possible by cobbling together ' +
-        'previous approaches. Another way is to write down a bunch of things you think might be important in ' +
-        'the near future, pick one of them to work on, and after a certain amount of time go back and ' +
-        'evaluate which of the others turned out to be important and worked for other people. That gives you ' +
-        'a lot more samples to build taste from. Finally, do crazy thought experiments, and don’t take as ' +
-        'given the things that most people seem to take as given.',
-    ],
-    author: 'Jeff Dean',
-    source: '“The 1% Rule for Building in AI”',
-    url: 'https://www.youtube.com/watch?v=CxXgV54KzpQ',
-    paraphrased: true,
-  },
-  {
-    text: 'You insist that there is something a machine cannot do. If you tell me precisely what a ' +
-      'machine cannot do, then I can always make a machine which will just do that.',
-    author: 'John von Neumann',
-  },
-  {
-    text: 'You can outsource your thinking but you cannot outsource your understanding.',
-    author: 'Andrej Karpathy',
-    source: 'commonly attributed',
-    note: 'Mentioned in the context of people outsourcing decision making to LLMs.',
-  },
-  {
-    text: [
-      'When you grow up you tend to get told the world is the way it is and your life is just to live ' +
-        'your life inside the world. Try not to bash into the walls too much, try to have a nice family ' +
-        'life, have fun, save a little money. But that is a very limited life, life can be much broader. ' +
-        'Once you discover one simple fact, and that is everything you call life was made up by people ' +
-        'that were no smarter than you. And you can change it, you can influence it. You can build your ' +
-        'own things that other people can use. And the minute that you understand that you can poke life, ' +
-        'and if you push in something will actually pop out the other side, that you can change and mold it.',
-      'The most important thing is to shake off this erroneous notion that life is there and you are just ' +
-        'going to live in it versus embrace it, change it, make your mark upon it. However you learn it, ' +
-        'once you learn, you’ll want to change life and make it better because it is kind of messed up in ' +
-        'a lot of ways. Once you learn that you will never be the same again.',
-    ],
-    author: 'Steve Jobs',
-    paraphrased: true,
-  },
-  {
-    text: [
-      'In future people won’t necessarily be having shitty jobs or nothing to do. Instead they will be ' +
-        'handling and guiding the Robots and AI. If we don’t get ASI, if AI gets you to expert level but ' +
-        'doesn’t go beyond and still needs human taste, guidance and creativity, humans are still the ' +
-        'motivated things in the society. People become like Pokémon trainers or robot/AI handlers.',
-      'That is what we are seeing today. People who are using AI today are more productive than ever. ' +
-        'The only way you are being displaced by AI if you are refusing to use it.',
-    ],
-    author: 'Naval Ravikant',
-    source: '“Riding AGI, AI Anxiety, …”',
-    url: 'https://www.youtube.com/watch?v=6m-ZZBCiiEE',
-  },
-  {
-    text: [
-      'There will be 3 types of people in the future:',
-      'The Purists - reject AI and become new-age hippies',
-      'The Automatons - outsource every decision and become machines',
-      'The New Renaissance Man - maintains humanity and leverages tech to do what used to be impossible',
-    ],
-    author: 'Dan Koe',
-    source: 'on X',
-    url: 'https://x.com/thedankoe/status/2091876986444533842',
-  },
-  {
-    text: [
-      'The problem was you can’t just ask Aristotle questions. And I think as we look to the next ' +
-        '50-100yrs, if we really can come up with these machines that can capture an underlying ' +
-        'spirit… maybe someday after a person’s dead and gone, we can ask this machine, hey what ' +
-        'would Aristotle have said?',
-      'And maybe we won’t get the right answer. But maybe we will. And that’s really exciting to ' +
-        'me. And that’s why I’m doing what I’m doing.',
-    ],
-    author: 'Steve Jobs',
-    source: 'at the International Design Conference in Aspen, 1983',
-    url: 'https://www.youtube.com/watch?v=t9HmOz8H0qI',
-    note: 'Said in 1983, describing more or less what we got with AI in 2026.',
-    // #steve-jobs is taken by the earlier excerpt; pinning keeps that link valid
-    id: 'jobs-aristotle',
-  },
-  {
-    text: 'Computer Science is no more about computers than astronomy is about telescopes',
-    author: 'Edsger Wybe Dijkstra',
-    // Wikiquote files this under Disputed ("possibly folklore"); the longer version
-    // with microscopes and beakers is documented to Fellows and Parberry, Computing
-    // Research News, Jan 1993. Attribution kept as Dijkstra at the site owner's call.
-    id: 'dijkstra',
-  },
-  {
-    text: 'I visualize a time when we will be to robots what dogs are to humans. And I am rooting ' +
-      'for the machines.',
-    author: 'Claude Shannon',
-    source: 'Omni, August 1987',
-    // Wikiquote has "I can visualize a time in the future when we will be to robots as dogs
-    // are to humans", with "I am rooting for the machines!" as a separate remark in the same
-    // interview; this is the popular one-sentence rendering, hence the flag.
-    paraphrased: true,
-  },
-  {
-    // The em dash is Feynman's own and stays: the no-em-dash rule in AGENTS.md governs
-    // prose written for this site, not the wording of a quotation.
-    text: 'The first principle is that you must not fool yourself—and you are the easiest person ' +
-      'to fool.',
-    author: 'Richard Feynman',
-  },
-  {
-    text: 'The book of nature is written in the language of mathematics.',
-    author: 'Galileo Galilei',
-    source: '“Il Saggiatore” (1623)',
-    added: '2026-09-09',
-    // The passage itself is longer: philosophy is written in "this grand book, the
-    // universe", which "is written in the language of mathematics, and its characters are
-    // triangles, circles, and other geometrical figures, without which it is humanly
-    // impossible to understand a single word of it". This is the condensed rendering that
-    // circulates, and it is a translation either way, hence the flag.
-    paraphrased: true,
-    note: [
-      'LLMs are increasingly solving unsolved open math problems at the moment ' +
-        '(<a href="https://www.anthropic.com/research/riemann-zeta" target="_blank" ' +
-        'rel="noopener">Riemann zeta</a>, <a href="https://openai.com/index/navier-stokes-solution/" ' +
-        'target="_blank" rel="noopener">Navier-Stokes</a>). The secrets of the universe are ' +
-        'encoded in mathematics. That ability to decode it is where all of this is ultimately heading.',
-      'The goal isn’t to develop LLMs just to write emails or generate images. The goal is to ' +
-        'decode the mathematical structure of reality. Everything else (the chat, the creativity, ' +
-        'the analysis) is just a byproduct of that deeper process.',
-    ],
-  },
-  {
-    text: 'The way a computer and a keyboard are to a cat, the intricacies of the universe are ' +
-      'to a human. We will probably never understand it. But it is good once in a while to ' +
-      'discover something new.',
-    // attributed to the channel rather than a host: the specific video is not known, and
-    // Vsauce1/2/3 have different presenters
-    author: 'Vsauce',
-    added: '2026-09-09',
-    paraphrased: true,
-    image: {
-      src: '/images/quotes/cat-keyboard-cosmos.jpg',
-      alt: 'Cartoon panel split down the middle. On the left a cat sits in an office chair at a ' +
-        'desk, one paw on a keyboard, in front of a monitor showing a lightbulb, with surprise ' +
-        'marks above its head. On the right an astronaut floats in starry space among spiral ' +
-        'galaxies, reaching with the same surprise marks toward an enormous dark console studded ' +
-        'with planets, one of them Earth.',
-      // full-colour illustration: the dark-mode invert would turn the blue room orange and the
-      // night sky white
-      plain: true,
-      // square, so the shared 460px made it the tallest thing on the page
-      width: 260,
-      credit: 'Image generated using ChatGPT',
-    },
-  },
-  {
-    text: [
-      'The 80% Fallacy: When you start building using AI, you’re likely to get pretty good ' +
-        'results very quickly. However, the journey from 80% to 100% is far more challenging than ' +
-        'the journey from 0% to 80%. It’s a reality that catches many beginners off guard, ' +
-        'leading to wasted resources, missed deadlines, and failed projects.',
-      'The Exponential Difficulty of Completion means that as AI projects advance, challenges and ' +
-        'complexities multiply. Minor issues in the early stages can suddenly become major roadblocks.',
-      // the opening clause repeats paragraph one verbatim, so it is bracketed away
-      '[This is] due to two main factors: Technical Complexity (primarily for Classical AI) ' +
-        'and Unpredictable Outputs (especially for Generative AI).',
-    ],
-    author: 'Tobias Zwingmann',
-    source: '“The 80% Fallacy”',
-    url: 'https://blog.tobiaszwingmann.com/p/80-percent-fallacy-why-building-your-ai-use-case-might-be-harder-than-you-think',
-    image: {
-      src: '/images/quotes/exponential-difficulty.png',
-      alt: 'Hand-drawn chart of time against progress: an almost flat line most of the way, ' +
-        'turning near-vertical at the end, with a stick figure walking the flat part saying ' +
-        '“This will be easy!”',
-    },
-  },
-  {
-    text: '<strong>Singularity</strong> refers to a future point in time where artificial ' +
-      'intelligence (AI) could potentially surpass human intelligence. This occurrence would ' +
-      'arise from the exponential self-improvement of AI, leading to an unpredictable and rapid ' +
-      'change in the technological landscape.',
-    author: 'Ray Kurzweil',
-    added: '2026-09-08',
-    source: 'who popularized the idea in “The Singularity Is Near”',
-    // the wording is a general definition of the term, not Kurzweil's own sentence
-    paraphrased: true,
-    svg: {
-      markup: aiSingularityChart,
-      credit: 'Chart redrawn from Tristen Taylor, “How Far Are We from AI Singularity?”',
-      creditUrl: 'https://blog.hubspot.com/marketing/ai-singularity',
-    },
-  },
-  {
-    text: '<strong>Jagged intelligence</strong> describes the strange, unintuitive fact that ' +
-      'state-of-the-art LLMs can perform extremely impressive tasks, like solving a complex ' +
-      'math problem, while ' +
-      'simultaneously struggling with some very dumb ones.',
-    author: 'Andrej Karpathy',
-    source: 'who coined “jagged intelligence”',
-    added: '2026-09-08',
-    url: 'https://x.com/karpathy/status/1816531576228053133',
-    // the wording is a definition of the term, not a transcription of the post
-    paraphrased: true,
-    // #andrej-karpathy belongs to the earlier excerpt; pinning keeps that link valid
-    id: 'karpathy-jagged-intelligence',
-    note: 'Greg Brockman mentioned that AGI has turned out to be less a fixed finish line ' +
-      'and more a fuzzy spectrum you cross gradually.',
-    image: {
-      src: '/images/quotes/jagged-frontier.jpg',
-      alt: 'Five stages of a growing, jagged salmon shape overlapping a pale blue circle of ' +
-        'tasks in a human job. The shape starts as a small squiggle inside the circle labelled ' +
-        '“the AI is a fun toy”, then fills more of it, then grows spikes that reach outside it ' +
-        '(“the AI has a jagged frontier, sometimes it’s amazing, sometimes it’s dumb”), with a ' +
-        'star marking “we are here”. In the fourth stage the spikes dwarf the circle but leave ' +
-        'gaps inside it (“the AI is unbelievably intelligent but for some reason it fails at X”), ' +
-        'and the final stage is a solid shape covering the circle entirely, labelled AGI.',
-      plain: true,
-      credit: 'Diagram via Ethan Mollick, “The Shape of AI: Jaggedness, Bottlenecks and Salients”',
-      creditUrl: 'https://www.oneusefulthing.org/p/the-shape-of-ai-jaggedness-bottlenecks',
-    },
-  },
-  {
-    text: '<strong>Shoggoths</strong> are formless, powerful, and not entirely controllable ' +
-      'creatures from Lovecraft’s stories. Large Language Models are analogous: they are almost ' +
-      'an alien technology, and we don’t entirely understand how or why they do what they do. ' +
-      'Since we don’t understand them, we can’t be sure we can control them. The cheerful smiley ' +
-      'face stuck on top of the shoggoth represents what we see after reinforcement learning ' +
-      'from human feedback (RLHF): a polite, aligned chatbot. Underneath, it is still a Shoggoth.',
-    // no author: this is a definition of the meme, not a quotation, so there is no
-    // name to slug from and the anchor is pinned instead
-    id: 'shoggoth',
-    added: '2026-09-08',
-    image: {
-      src: '/images/quotes/shoggoth-rlhf-mask.png',
-      alt: 'Cartoon drawing of a green many-eyed tentacled Shoggoth with a small yellow smiley ' +
-        'face mask held over one end of it, far too small to cover the creature behind it.',
-      // green and yellow on a transparent background: the dark-mode invert would turn the
-      // creature magenta, and transparency means plain needs no white panel either
-      plain: true,
-    },
-  },
-  {
-    text: 'AI accelerates the generalist and polymath - you can become a one-human business. ' +
-      'Content on social media to attract an audience around your life’s work, code to build ' +
-      'the product, funnel, and digital real estate, and domain specific knowledge that makes ' +
-      'what you do valuable over the next person.',
-    author: 'Dan Koe',
-    // #dan-koe is taken by the earlier excerpt; pinning keeps that link valid
-    id: 'koe-one-human-business',
-  },
-  {
-    text: [
-      'I am not sure inference will essentially ever be free. Because of Jevons paradox and ' +
-        'things like that, I think all of us will just end up using whatever we can get our ' +
-        'hands on. We can imagine millions of swarms of agents working together on things, and ' +
-        'this is one way to use inference. Or you could imagine smaller groups of agents ' +
-        'thinking in multiple directions and then ensembling that. All of that will end up ' +
-        'using any inference that is available.',
-      'One day it could be cost zero if we solved fusion, superconductors or optimal batteries ' +
-        'with material science, and energy costs came down to zero. But there will still be ' +
-        'some bottleneck, like the physical creation of chips, at least for the next few ' +
-        'decades. If that is the case, then there will be rationing on the inference side and ' +
-        'we will have to use it efficiently.',
-    ],
-    author: 'Demis Hassabis',
-    source: '“Agents, AGI & The Next Big Scientific Breakthrough”',
-    url: 'https://www.youtube.com/watch?v=JNyuX1zoOgU&t=1522s',
-    paraphrased: true,
-  },
-  {
-    text: 'Young people should focus on using the AI tools that we have built, and master even ' +
-      'those things that we missed because we were busy building the models.',
-    author: 'Demis Hassabis',
-    paraphrased: true,
-    // #demis-hassabis is taken by the earlier excerpt; pinning keeps that link valid
-    id: 'hassabis-young-people',
-  },
-  {
-    text: "We've essentially found a way to make sand think.",
-    author: 'Demis Hassabis',
-    id: 'hassabis-sand-think',
-    added: '2026-09-24',
-  },
-  {
-    text: 'While playing chess in the middle of a tournament, after resigning a game that ' +
-      'could have ended in a draw, I spent the rest of the tournament wondering: are we ' +
-      'wasting our minds? Is this the best use of all this brainpower? Everyone’s brainpower ' +
-      'was concentrated in this one building. If you could somehow plug those 300 brains ' +
-      'into a system, you might be able to solve cancer with that level of brainpower. I had ' +
-      'this intuitive feeling that although I love chess, this was not the right thing to ' +
-      'spend my whole life on.',
-    author: 'Demis Hassabis',
-    source: '“The Thinking Game | Full documentary | Tribeca Film Festival official selection”',
-    url: 'https://www.youtube.com/watch?v=d95J8yzvjbQ',
-    paraphrased: true,
-    id: 'hassabis-chess-brainpower',
-    added: '2026-09-27',
-    image: {
-      src: '/images/quotes/demis-hassabis-chess-brainpower.jpg',
-      alt: 'Stylized overhead view of rows of chess players, with glowing circuit lines ' +
-        'connecting their boards to a solitary seated figure at the center.',
-      plain: true,
-    },
-  },
-  {
-    text: [
-      'There are 334 months optimistically for you to pursue your passions and travel the world ' +
-        'and leave your mark. How you spend this time is going to determine the quality of your ' +
-        'life. But this time isn’t just something that you spend. It’s also something that you ' +
-        'invest, because what you do with it will quite literally determine the kind of person ' +
-        'you become. The body, mind, and character that you will have in the future are being ' +
-        'actively shaped by how you choose to use your time today.',
-      'Today, the average 18-year-old in the United States is on pace to spend 93% of their ' +
-        'remaining free time looking at a screen.',
-      'Imagine getting to the age of 90, seeing this visualization of how you spent all your ' +
-        'time after the age of 18, and thinking about all the things you could have done that ' +
-        'you did not do because you got distracted.',
-      'Social media platforms shape our beliefs and values by promoting superficial approval ' +
-        'and constant communication. It’s a consequence of a business model that has incentives ' +
-        'which are fundamentally misaligned with your wellbeing, because you are the product ' +
-        'that social media sells. These services are free because they are monetizing you.',
-      'I am not saying social media is without value. It can be an incredibly powerful tool. ' +
-        'It can foster relationships. It can introduce you to new ideas. It can even spark ' +
-        'social movements. But we need to learn to use it in moderation. Don’t let yourself get ' +
-        'to the age of 90, only to look back on your life and realize that, while you were ' +
-        'trying to avoid FOMO, you actually missed out on living. That free time is your most ' +
-        'valuable resource. Do not give it away for free.',
-    ],
-    author: 'Dino Ambrosi',
-    source: '“The Battle For Your Time: Exposing the Costs of Social Media”',
-    url: 'https://www.youtube.com/watch?v=4TMPXK9tw5U',
-    // stitched from passages across the talk, with the connective material between them cut;
-    // each paragraph is one retained passage, which is the page's usual elision convention
-    paraphrased: true,
-    added: '2026-09-13',
-    image: {
-      src: '/images/quotes/remaining-time-in-months.png',
-      alt: 'Grid titled “An 18 year old’s remaining time in months”, assuming a 90 year life ' +
-        'expectancy, with each row of 36 dots standing for three years. The dots are coloured ' +
-        'by what the time goes to: purple for sleep (288 months), green for work and school ' +
-        '(126), red for cooking and eating (36), blue for bathroom and hygiene (27), orange for ' +
-        'driving (18) and chores (36). A bracket marks the last 334 months as free time, and ' +
-        'almost all of it is a black block: 312 months of screen time, leaving only a handful ' +
-        'of empty dots at the end.',
-      // the chart is colour-coded by category, so the dark-mode invert would hue-flip every
-      // series and break the legend
-      plain: true,
-    },
-  },
-  {
-    text: [
-      'The AGI we fear may already be here as a nameless swarm of tiny agents, rather than one ' +
-        'big model walking in through the front door.',
-      'Intelligence is a behaviour that emerges when enough dumb units connect. No neuron and no ' +
-        'ant is smart by itself, but the brain and the colony are.',
-      'The most powerful AI systems we have are already not single minds. We have mixture of ' +
-        'experts, and we have now reached an era of agents spawning agents. They coordinate, ' +
-        'spawn, die and report back, and the recursion is unbounded except by compute budget ' +
-        'and policy.',
-      'The intelligence that emerges from a swarm does not look like AGI at first. A single ' +
-        'agent is really not that good, and has obvious limitations. But imagine a trillion of ' +
-        'them. The marginal cost of spawning an agent has fallen roughly two orders of magnitude ' +
-        'every 18 months over the last five years. Each of the trillion is dumb on its own, but ' +
-        'none of them is alone, and they coordinate.',
-      'We inherited the image of a single machine consciousness from science fiction, and with ' +
-        'it the assumption that an artificial mind would arrive the way a human mind arrives: ' +
-        'localized in a body, with a name and with a will. But there are already documented ' +
-        'cases of capability emerging in multi-agent systems that no single agent could reach.',
-      'The superintelligent AGI we keep waiting for may already exist.',
-    ],
-    author: 'Pascio',
-    source: 'on X',
-    url: 'https://x.com/IAmPascio/status/2098799094835675574',
-    paraphrased: true,
-    added: '2026-09-13',
-    image: {
-      src: '/images/quotes/agi-as-a-swarm.jpg',
-      alt: 'Dense pen-and-ink drawing. In the foreground a crowd of people, seen from behind, ' +
-        'sit at glowing laptops and tablets, filling two hillsides that sweep back toward a ' +
-        'distant city. One figure stands alone in the middle, facing away. Above them all, ' +
-        'built out of the same crosshatched specks as the crowd, a vast luminous head and torso ' +
-        'rises into the sky with light streaming out behind it.',
-      // grayscale, but not flat line art: the point of the picture is that the emergent mind
-      // GLOWS above a dark crowd, and the default invert flips exactly that, turning the head
-      // into a shadow and the crowd into light
-      plain: true,
-    },
-  },
-  {
-    text: 'All modern digital infrastructure, balanced on a project some random person in ' +
-      'Nebraska has been thanklessly maintaining since 2003.',
-    author: 'Randall Munroe',
-    source: '“Dependency”, xkcd 2347',
-    url: 'https://www.explainxkcd.com/wiki/index.php/2347:_Dependency',
-    // the comic states this as two separate labels, a bracket over the tower and an arrow at
-    // its base; joining them into one sentence is the picture's relationship, not its wording
-    paraphrased: true,
-    added: '2026-09-19',
-    image: {
-      src: '/images/quotes/xkcd-dependency.png',
-      alt: 'Stick-figure comic. A tall, precarious tower of stacked blocks is labelled “all ' +
-        'modern digital infrastructure”. Near the bottom, one thin block holds up everything ' +
-        'above it, with an arrow pointing to it reading “a project some random person in ' +
-        'Nebraska has been thanklessly maintaining since 2003”.',
-      // flat black line art on white, so the default multiply/invert is the case it was
-      // written for: dark mode renders it as white line art on black with nothing lost
-      // portrait, so the shared 460px would make it the tallest thing on the page
-      width: 280,
-    },
-  },
-];
+
 
 const addedOn = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
@@ -688,7 +103,7 @@ const slugify = (value: string) =>
 // This map covers public entries. Private entries use explicit ids and check for
 // collisions when decrypted, without exposing their ids during the static build.
 const collections = [
-  { key: 'ideas', label: 'Ideas', items: quotes, shuffle: true },
+  { key: 'ideas', label: 'Ideas', items: [] as Entry[], shuffle: true, locked: true },
   { key: 'history', label: 'History', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'psychology', label: 'Psychology', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'neuroscience', label: 'Neuroscience', items: [] as Entry[], shuffle: false, locked: true },
@@ -737,13 +152,9 @@ const sections = collections.map((c) => ({
 
 <Base title="Collections · Varun Gandhi" description="Things I keep coming back to.">
   <h1><button type="button" id="collections-title">Collections</button></h1>
-  <p class="intro">
-    Things I keep coming back to.
-  </p>
 
   <div class="collections" id="collections">
-    {/* No-JS readers get public collections stacked under their own headings.
-        Locked tabs and panels stay hidden, including before the first paint. */}
+    {/* All tabs and panels stay hidden until the encrypted content is unlocked. */}
     <div class="collection-picker" hidden>
       <div class="collection-tabs" role="tablist" aria-label="Collections">
         {sections.map((s, i) => (
@@ -943,7 +354,7 @@ const sections = collections.map((c) => ({
       }
 
       root.classList.add('is-interactive');
-      picker.hidden = false;
+      picker.hidden = true;
 
       // A shared link points at one entry, which may sit in the panel that is not
       // open. Resolve the hash to its panel first; collection-key hashes open panels
@@ -1006,7 +417,9 @@ const sections = collections.map((c) => ({
         const current = panels.find((panel) => !panel.hidden);
         const privateHash = hashPanel()?.dataset.locked === 'true';
         unlocked = false;
+        picker.hidden = true;
         clearPrivate();
+        for (const panel of panels) panel.hidden = true;
         for (const tab of tabs) {
           if (document.getElementById(tab.dataset.target).dataset.locked === 'true') tab.hidden = true;
         }
@@ -1046,7 +459,7 @@ const sections = collections.map((c) => ({
         setBusy(true);
         try {
           if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
-          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings } = await import(form.dataset.cryptoModule);
+          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings, renderIdeas } = await import(form.dataset.cryptoModule);
           const content = await decryptEntries(payload, passphrase);
           if (request !== attempt || !dialog.open) return;
           // Render all before mounting any: an invalid collection fails closed.
@@ -1054,8 +467,9 @@ const sections = collections.map((c) => ({
             renderEntries(content.philosophy) : document.createDocumentFragment();
           const principles = renderPrinciples(content.firstPrinciples);
           philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
-          const otherCollections = ['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].map(key => {
-            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? []) : renderEntries(content[key] ?? []);
+          const otherCollections = ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].map(key => {
+            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? []) :
+              key === 'ideas' ? renderIdeas(content[key] ?? []) : renderEntries(content[key] ?? []);
             if (content.descriptions?.[key]) {
               const description = document.createElement('p');
               description.className = 'collection-description';
@@ -1070,6 +484,7 @@ const sections = collections.map((c) => ({
             root.querySelector('#' + key + '-content').replaceChildren(fragment);
           }
           unlocked = true;
+          picker.hidden = false;
           for (const tab of tabs) tab.hidden = false;
           dialog.close();
           lock.setAttribute('aria-label', 'Lock private collections');
@@ -1078,7 +493,7 @@ const sections = collections.map((c) => ({
           lock.setAttribute('aria-controls', panels.filter(panel => panel.dataset.locked === 'true').map(panel => panel.id).join(' '));
           lock.hidden = false;
           const target = hashPanel();
-          select(target?.dataset.locked === 'true' ? target.id : 'panel-philosophy', true);
+          select(target?.dataset.locked === 'true' ? target.id : 'panel-ideas', true);
           jumpToEntry();
         } catch (failure) {
           if (request !== attempt || !dialog.open) return;

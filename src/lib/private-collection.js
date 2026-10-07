@@ -90,17 +90,17 @@ export function validatePrivateContent(content) {
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
-  for (const key of ['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration']) validateEntries(content[key] ?? []);
+  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration']) validateEntries(content[key] ?? []);
   if (content.descriptions !== undefined) {
     if (!content.descriptions || typeof content.descriptions !== 'object' || Array.isArray(content.descriptions) ||
       Object.entries(content.descriptions).some(([key, value]) =>
-        !['history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].includes(key) || typeof value !== 'string')) {
+        !['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].includes(key) || typeof value !== 'string')) {
       throw new Error('Invalid private collection descriptions.');
     }
   }
   const ids = new Set(content.philosophy.map(entry => entry.id));
   for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? []),
-    ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.proverbs ?? []), ...(content.inspiration ?? [])]) {
+    ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.proverbs ?? []), ...(content.inspiration ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
   }
@@ -227,6 +227,20 @@ export function renderLearnings(entries) {
   filter('');
   const fragment = document.createDocumentFragment();
   fragment.append(wrapper);
+  return fragment;
+}
+
+export function renderIdeas(entries) {
+  const fragment = renderEntries(entries);
+  const list = fragment.querySelector('.quote-list');
+  if (list) {
+    const items = [...list.children];
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    list.replaceChildren(...items);
+  }
   return fragment;
 }
 

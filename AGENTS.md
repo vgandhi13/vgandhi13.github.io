@@ -82,8 +82,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Collections** (`src/pages/collections.astro`, served at `/collections/`): one public
-  collection (Ideas) and eight encrypted tabs (History, Psychology, Neuroscience, Learnings, Proverbs, Inspiration, Philosophy,
+- **Collections** (`src/pages/collections.astro`, served at `/collections/`): nine encrypted tabs (Ideas, History, Psychology, Neuroscience, Learnings, Proverbs, Inspiration, Philosophy,
   and First Principles), picked with a tab bar. **Ideas** are
   quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
   pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
@@ -91,9 +90,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   concepts (`title` set, body renders as `.story` prose with the title above it, never shuffled).
   Psychology was renamed from Cognitive Science; the legacy `#cognitive-science` panel
   link still opens Psychology. Entry anchors are unchanged. Neuroscience is a separate tab.
-  One `Entry` type and one `<li>` template serve the public collections; the private renderer
-  mirrors that card after decrypting. The picker bar ships `hidden`; without JS the public
-  Ideas renders under its `<h2>` and all private tabs remain hidden. `.is-interactive` on `#collections`
+  The private renderer uses the shared Entry card after decrypting. The picker bar ships `hidden`; without JS all tabs and panels remain hidden. `.is-interactive` on `#collections`
   collapses to one panel. Explicit `.collection-tabs[hidden]` rules are required because
   `display: flex` beats the browser's `[hidden]` rule. Selected tabs use colour plus a rule,
   **never `font-weight`**, which would change their width and reflow the bar.
@@ -105,7 +102,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   from `author`, `subject`, or `title` (`slugify`) and are deliberately **not** position-derived:
   duplicate names throw at build time rather than silently repointing existing shared links.
   Resolve a clash by adding an explicit `id` to the *newer* entry and leaving the older slug
-  alone. The public `seen` map spans Ideas and reserves all collection keys;
+  alone. The build reserves collection keys;
   private ids are explicit and checked after decrypting. Three things are load-bearing:
   the control is a real `<a href="#slug">` so it works without JS or clipboard access;
   `scrollIntoView` runs again on `DOMContentLoaded` after the pre-paint shuffle; and the picker
@@ -114,7 +111,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Private collections lock** (`src/pages/collections.astro`): the unlock control is hidden while locked.
   Click the Collections heading five times within three seconds to open the native Private
   dialog (keyboard Enter/Space clicks on the heading button also work). One successful
-  unlock reveals all eight private tabs and an open-lock icon. Relocking clears the content
+  unlock reveals all nine private tabs and an open-lock icon. Relocking clears the content
   and hides the icon; repeating the heading gesture while unlocked also relocks.
   The hidden trigger is only a discoverability choice, not additional encryption security.
   The unlock input uses `name="password"` and `autocomplete="current-password"` for
@@ -151,7 +148,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
   Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
   `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads all ten private JSON files; its
+  of public source files. The encryption command reads all eleven private JSON files; its
   `--first-principles PATH` flag overrides the notes input when testing with fixtures.
   After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
   cards in the First Principles tab. Pressing the summary expands a full reading surface;
@@ -163,12 +160,20 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   Raw drafts supplied outside `.private/` must also be ignored or moved into that directory
   before committing. Do not publish the plaintext source alongside its encrypted version.
 
+- **Locked Ideas**: edit ignored `.private/ideas.json`, with explicit stable ids and added
+  dates. Keep its raster assets in `.private/ideas-assets/` and use relative paths; encryption
+  embeds them. Inline SVG remains in the private JSON. `renderIdeas` shuffles cards after
+  decrypting and before mounting. With all collections locked, the picker stays hidden until
+  unlock and hides on relock. Unlock defaults to Ideas unless a shared link targets another
+  panel. Old public Ideas content and images remain in Git history. Encryption accepts
+  `--ideas PATH`. Never restore their plaintext or images to public source.
+
 - **Locked History, Psychology, and Neuroscience**: edit ignored `.private/history.json`,
   `.private/psychology.json`, and `.private/neuroscience.json`. Use Entry fields and explicit
   stable `id` values; title-only placeholders use `text: []`. These render with `renderEntries`.
   Images live beside the private JSON and are embedded during `npm run encrypt:philosophy`.
   The command accepts `--history`, `--psychology`, and `--neuroscience` fixture paths.
-  Only Ideas ships plaintext. Existing private entry links require unlocking; historical
+  No collection content ships plaintext. Existing private entry links require unlocking; historical
   public versions remain in Git history. Keep private source and assets out of public files.
 
 - **Learnings and Proverbs**: locked Entry collections authored in ignored
