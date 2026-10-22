@@ -16,8 +16,29 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // be sitting at the top of the list above.
 const planned = [
   {
+    topic: 'LLM Agents: Harness, Context, Loop, and Graph engineering',
+    refs: [
+      {
+        url: 'https://lilianweng.github.io/posts/2023-06-23-agent/',
+        label: 'Lilian Weng: LLM Powered Autonomous Agents',
+      },
+      {
+        url: 'https://github.com/walkinglabs/learn-harness-engineering',
+        label: 'Learn Harness Engineering (GitHub)',
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=1a1VXDdIyrk',
+        label: 'Agent Harness explained in 8min (Video)',
+      },
+    ],
+  },
+  {
     topic: 'LLM Post-training',
     refs: [
+      {
+        url: 'https://bespokelabs.ai/blog/teaching-nvidias-nemotron-ml-engineering',
+        label: 'Bespoke Labs: Teaching NVIDIA’s Nemotron 3.5 Super-VL ML Engineering',
+      },
       {
         url: 'https://www.perplexity.ai/hub/blog/learning-from-real-world-experience',
         label: 'Perplexity',
@@ -26,9 +47,26 @@ const planned = [
         url: 'https://arxiv.org/pdf/2505.07608',
         label: 'MiMo technical report (PDF)',
       },
+      {
+        url: 'https://www.linkedin.com/posts/aleksagordic_very-excited-to-announce-our-new-models-share-7516517658532417537-E0Ts/',
+        label: 'Aleksa Gordić: model announcement (LinkedIn)',
+      },
     ],
   },
-  'vLLM',
+  {
+    topic: 'DL',
+    refs: [
+      {
+        url: 'https://alisawuffles.notion.site/alisa-s-book-of-llms?pvs=97#2d17eb873605800a9149c2c8aec7252c',
+        label: 'Alisa’s Book of LLMs',
+      },
+    ],
+  },
+  {
+    topic: 'Transformers',
+    refs: [{ url: 'https://lnkd.in/p/gACRvcWM', label: 'LinkedIn post' }],
+  },
+  'Math: probability, linear algebra, and calculus',
   {
     topic: 'Continual learning',
     refs: [{ url: 'https://nrehiew.github.io/blog/sft_rl_opd/', label: 'nrehiew' }],
@@ -40,12 +78,36 @@ const planned = [
       { url: 'https://thinkingmachines.ai/blog/lora/', label: 'Thinking Machines' },
       { url: 'https://www.tensortonic.com/llm-internals/lora', label: 'Tensortonic: LoRA' },
       { url: 'https://www.tensortonic.com/llm-internals/qlora', label: 'Tensortonic: QLoRA' },
+      { url: 'https://bearbearyu1223.github.io/posts/llm-architectures-lora/', label: 'Han Yu: LoRA' },
     ],
   },
   'Scaling book exercises',
   {
-    topic: 'Prefill decode, KV Cache, Paged Attention, Radix Attention, speculative decoding',
+    topic: 'LLM Inference',
     refs: [
+      { url: 'https://lnkd.in/p/eMn6Q95X', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/ezBZi-WT', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/ehPTUUdp', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/emQ_Ppr9', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/ewYwx2Bz', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/eYKVBKkX', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/ez4HiyQH', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/eb2JCshe', label: 'LinkedIn post' },
+      { url: 'https://cs336.stanford.edu/lectures/?trace=lecture_10', label: 'CS336 Lecture 10' },
+      {
+        url: 'https://jax-ml.github.io/scaling-book/inference/',
+        label: 'Scaling Book: All About Transformer Inference',
+      },
+      { url: 'https://github.com/sgl-project/mini-sglang', label: 'mini-sglang' },
+      { url: 'https://handbook.modular.com/', label: 'Modular: LLM Inference Handbook' },
+      {
+        url: 'https://www.aleksagordic.com/blog/vllm',
+        label: 'Aleksa Gordić: Inside vLLM',
+      },
+      {
+        url: 'https://huggingface.co/blog/continuous_batching',
+        label: 'Hugging Face: Continuous batching',
+      },
       { url: 'https://www.tensortonic.com/llm-internals/kv-cache', label: 'Tensortonic: KV cache' },
       {
         url: 'https://www.tensortonic.com/llm-internals/speculative-decoding',

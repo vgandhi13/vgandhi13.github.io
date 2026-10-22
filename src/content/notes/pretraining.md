@@ -2,7 +2,7 @@
 title: LLM Pre-training
 description: "How language models learn next-token prediction: the chain rule, why we optimize log-likelihood instead of raw probability, and the resulting cross-entropy loss."
 date: 2026-07-11
-updated: 2026-09-24
+updated: 2026-10-16
 ---
 
 Pretraining teaches the model what the world and language look like.
@@ -94,3 +94,5 @@ Suppose the true next token is "cat":
 3. Scaling laws: [CS336 Lecture 9](https://github.com/stanford-cs336/lectures/blob/main/lecture_09.pdf) (PDF).
 4. [CS336 Assignment 3: Scaling](https://github.com/stanford-cs336/assignment3-scaling). Understand the function of each component of the Transformer, and query a training API to fit a scaling law that projects how a model scales.
 5. [CS336 Assignment 4: Data](https://github.com/stanford-cs336/assignment4-data). Convert raw Common Crawl dumps into usable pretraining data, filtering and deduplicating it to improve model performance.
+6. [Frontier Pre-training at Microsoft AI](https://microsoft.ai/news/frontier-pre-training-at-microsoft-ai/). A practical account of MAI-Base-2 pretraining, covering scaling laws, hyperparameter selection, MoE infrastructure, Muon, activation gradient clipping, and data pipelines.
+7. [Aleksa Gordić: model announcement (LinkedIn)](https://www.linkedin.com/posts/aleksagordic_very-excited-to-announce-our-new-models-share-7516517658532417537-E0Ts/).

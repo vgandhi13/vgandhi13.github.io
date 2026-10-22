@@ -13,16 +13,22 @@ const options = {
   psychology: resolve(root, '.private/psychology.json'),
   neuroscience: resolve(root, '.private/neuroscience.json'),
   learnings: resolve(root, '.private/learnings.json'),
-  proverbs: resolve(root, '.private/proverbs.json'),
+  'learning-categories': resolve(root, '.private/learning-categories.json'),
+  thoughts: resolve(root, '.private/thoughts.json'),
+  'thoughts-categories': resolve(root, '.private/thoughts-categories.json'),
   inspiration: resolve(root, '.private/inspiration.json'),
+  finance: resolve(root, '.private/finance.json'),
+  'social-sciences': resolve(root, '.private/social-sciences.json'),
+  'social-sciences-categories': resolve(root, '.private/social-sciences-categories.json'),
   descriptions: resolve(root, '.private/collection-descriptions.json'),
   'password-file': resolve(root, '.private/philosophy.password'),
   output: resolve(root, 'src/data/philosophy.encrypted.json'),
 };
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i += 2) {
-  const name = args[i].replace(/^--/, '');
-  if (!Object.hasOwn(options, name) || !args[i + 1]) throw new Error('Use --source, --first-principles, --philosophy-notes, --ideas, --history, --psychology, --neuroscience, --learnings, --proverbs, --inspiration, --descriptions, --password-file, or --output followed by a path.');
+  const flag = args[i].replace(/^--/, '');
+  const name = flag === 'proverbs' ? 'thoughts' : flag;
+  if (!Object.hasOwn(options, name) || !args[i + 1]) throw new Error('Use --source, --first-principles, --philosophy-notes, --ideas, --history, --psychology, --neuroscience, --learnings, --learning-categories, --thoughts, --thoughts-categories, --proverbs (legacy alias), --inspiration, --finance, --social-sciences, --social-sciences-categories, --descriptions, --password-file, or --output followed by a path.');
   options[name] = resolve(args[i + 1]);
 }
 
@@ -35,11 +41,14 @@ try {
   validatePrinciples(firstPrinciples);
   validatePrinciples(philosophyNotes);
   const otherCollections = {};
-  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration']) {
+  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences']) {
     otherCollections[key] = JSON.parse(await readFile(options[key], 'utf8'));
     validateEntries(otherCollections[key]);
   }
   const descriptions = JSON.parse(await readFile(options.descriptions, 'utf8'));
+  const learningCategories = JSON.parse(await readFile(options['learning-categories'], 'utf8'));
+  const socialScienceCategories = JSON.parse(await readFile(options['social-sciences-categories'], 'utf8'));
+  const thoughtCategories = JSON.parse(await readFile(options['thoughts-categories'], 'utf8'));
   const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif' };
   for (const [key, collection] of Object.entries({ source: entries, ...otherCollections })) {
     const sourceDir = await realpath(dirname(options[key]));
@@ -59,10 +68,10 @@ try {
   }
   // Strip just the line ending, so spaces can still be part of a future passphrase.
   const password = (await readFile(options['password-file'], 'utf8')).replace(/\r?\n$/, '');
-  const payload = await encryptEntries({ philosophy: entries, firstPrinciples, philosophyNotes, ...otherCollections, descriptions }, password);
+  const payload = await encryptEntries({ philosophy: entries, firstPrinciples, philosophyNotes, ...otherCollections, descriptions, learningCategories, socialScienceCategories, thoughtCategories }, password);
   await mkdir(dirname(options.output), { recursive: true });
   await writeFile(options.output, JSON.stringify(payload, null, 2) + '\n');
-  console.log(`Encrypted ${entries.length} Philosophy entries, ${firstPrinciples.length} First Principles notes, and ${philosophyNotes.length} Philosophy notes. Ideas, History, Psychology, Neuroscience, Learnings, Proverbs, and Inspiration are included. Only the encrypted output should be committed.`);
+  console.log(`Encrypted ${entries.length} Philosophy entries, ${firstPrinciples.length} First Principles notes, and ${philosophyNotes.length} Philosophy notes. Ideas, History, Psychology, Neuroscience, Learnings, Thoughts, Inspiration, Finance, and Social Sciences are included. Only the encrypted output should be committed.`);
 } catch (error) {
   // Do not print source content or include a JSON parser's plaintext excerpt in logs.
   console.error(error instanceof SyntaxError ? 'Invalid private JSON. Fix the local source and retry.' : error.message);

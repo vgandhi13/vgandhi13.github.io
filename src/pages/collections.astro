@@ -108,8 +108,10 @@ const collections = [
   { key: 'psychology', label: 'Psychology', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'neuroscience', label: 'Neuroscience', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'learnings', label: 'Learnings', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'proverbs', label: 'Proverbs', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'thoughts', label: 'Thoughts', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'inspiration', label: 'Inspiration', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'finance', label: 'Finance', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'social-sciences', label: 'Social Sciences', items: [] as Entry[], shuffle: false, locked: true },
   // Keep this empty: private content must never be authored in the public source.
   { key: 'philosophy', label: 'Philosophy', items: [] as Entry[], shuffle: false, locked: true },
   { key: 'first-principles', label: 'First Principles', items: [] as Entry[], shuffle: false, locked: true },
@@ -334,7 +336,13 @@ const sections = collections.map((c) => ({
           const on = tab.dataset.target === panelId;
           tab.setAttribute('aria-selected', String(on));
           tab.tabIndex = on ? 0 : -1;
-          if (on && focus) tab.focus();
+          if (on) {
+            if (focus) tab.focus({ preventScroll: true });
+            const tabRect = tab.getBoundingClientRect();
+            const barRect = bar.getBoundingClientRect();
+            if (tabRect.left < barRect.left) bar.scrollLeft += tabRect.left - barRect.left;
+            else if (tabRect.right > barRect.right) bar.scrollLeft += tabRect.right - barRect.right;
+          }
         }
         for (const panel of panels) panel.hidden = panel.id !== panelId;
       };
@@ -364,7 +372,7 @@ const sections = collections.map((c) => ({
       };
       const hashPanel = () => {
         const entry = hashEntry();
-        const hash = entry === 'cognitive-science' ? 'psychology' : entry === 'communication' ? 'learnings' : entry;
+        const hash = entry === 'cognitive-science' ? 'psychology' : entry === 'communication' ? 'learnings' : entry === 'proverbs' ? 'thoughts' : entry;
         return panels.find((panel) => panel.id === 'panel-' + hash) ||
           (hash ? document.getElementById(hash)?.closest('.collection-panel') : null);
       };
@@ -374,14 +382,15 @@ const sections = collections.map((c) => ({
       };
       const jumpToEntry = () => {
         const entry = document.getElementById(hashEntry());
-        if (entry?.hidden && entry.closest('#learnings-content')) {
-          root.querySelector('#learnings-content .learning-filter[data-learning-tag=""]').click();
+        if (entry?.hidden && entry.closest('.learning-list')) {
+          entry.closest('.learning-list').querySelector('.learning-filter[data-learning-tag=""]').click();
         }
         if (entry?.closest('.philosophy-subcategory')?.hidden) {
           root.querySelector('#philosophy-content [data-philosophy-category=""]').click();
         }
         if (entry?.closest('.collection-panel')?.hidden === false) {
           if (entry.matches('.principle-note')) entry.open = true;
+          entry.querySelector('.entry-read-more[aria-expanded="false"]')?.click();
           entry.scrollIntoView({ block: 'center' });
         }
       };
@@ -459,7 +468,7 @@ const sections = collections.map((c) => ({
         setBusy(true);
         try {
           if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
-          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings, renderIdeas } = await import(form.dataset.cryptoModule);
+          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings, renderTaggedEntries, renderIdeas } = await import(form.dataset.cryptoModule);
           const content = await decryptEntries(payload, passphrase);
           if (request !== attempt || !dialog.open) return;
           // Render all before mounting any: an invalid collection fails closed.
@@ -467,8 +476,11 @@ const sections = collections.map((c) => ({
             renderEntries(content.philosophy) : document.createDocumentFragment();
           const principles = renderPrinciples(content.firstPrinciples);
           philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
-          const otherCollections = ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].map(key => {
-            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? []) :
+          const otherCollections = ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].map(key => {
+            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? [], content.learningCategories ?? []) :
+              key === 'thoughts' ? renderTaggedEntries(content[key] ?? [], content.thoughtCategories ?? [], 'thoughts', { multiple: false }) :
+              key === 'social-sciences' ? renderTaggedEntries(content[key] ?? [], content.socialScienceCategories ?? [], 'social sciences') :
+              key === 'finance' ? renderTaggedEntries(content[key] ?? [], [], 'finance') :
               key === 'ideas' ? renderIdeas(content[key] ?? []) : renderEntries(content[key] ?? []);
             if (content.descriptions?.[key]) {
               const description = document.createElement('p');
@@ -591,12 +603,16 @@ const sections = collections.map((c) => ({
   .collection-tabs {
     display: flex;
     flex: 1;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-width: 0;
     gap: 0 1.25rem;
+    overflow-x: auto;
+    padding: 0.2rem 0.2rem 0.35rem;
+    scrollbar-width: thin;
   }
 
   .collection-tab {
+    flex-shrink: 0;
     font: inherit;
     font-size: 0.95rem;
     color: var(--text-muted);
@@ -738,6 +754,34 @@ const sections = collections.map((c) => ({
 {/* These shared card styles are global and namespaced: decrypted cards are created
     by JS and cannot inherit Astro's scoped attributes. */}
 <style is:global>
+  .collections .entry-reading.is-collapsed {
+    max-height: 11.5em;
+    overflow: hidden;
+  }
+
+  .collections .entry-read-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0;
+    margin-top: 0.25rem;
+    border: 0;
+    background: none;
+    color: var(--link);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .collections .entry-read-more:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 3px;
+  }
+
+  .collections .entry-read-more[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+
   .collections .learning-filters,
   .collections .learning-tags {
     display: flex;
@@ -781,6 +825,23 @@ const sections = collections.map((c) => ({
 
   /* First Principles reads as a notebook, not a list of quotations. Native
      disclosures expand each title into a full reading surface. */
+  .collections .philosophy-aside {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+
+  .collections .philosophy-aside blockquote {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
   .collections .principle-note {
     margin-bottom: 1rem;
     border: 1px solid var(--border);

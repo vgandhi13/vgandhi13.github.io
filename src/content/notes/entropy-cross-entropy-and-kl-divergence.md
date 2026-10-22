@@ -2,7 +2,7 @@
 title: Negative Log-Likelihood, Entropy, Cross-Entropy, and KL Divergence
 description: A guide to entropy, cross-entropy, forward and reverse KL divergence, and their connection to SFT and KL-regularized RL.
 date: 2026-09-12
-updated: 2026-09-24
+updated: 2026-10-21
 bibliography:
   - id: chen2025
     authors: Howard Chen, Noam Razin, Karthik Narasimhan, and Danqi Chen
@@ -257,7 +257,11 @@ Mode covering and mode seeking describe tendencies, not guarantees. The practica
 
 ## TODO
 
-- Jensen-Shannon divergence
+- [Nathan Lambert: Regularization in RL, KL Penalty and Generalization (Video)](https://www.youtube.com/watch?v=IwpYxANrpUs)
+
+- Jensen–Shannon divergence
+- Mode seeking
+- Mode covering
 
 [^kl-discrete-example]: Take two distributions over three outcomes:
 

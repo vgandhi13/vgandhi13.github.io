@@ -3,7 +3,7 @@
 const iterations = 600_000;
 const encoder = new TextEncoder();
 const additionalData = encoder.encode('collections/philosophy/v1');
-const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'inspiration', 'philosophy', 'first-principles']);
+const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'philosophy', 'first-principles']);
 const paragraphs = value => Array.isArray(value) ? value : [value];
 
 const toBase64 = bytes => {
@@ -80,6 +80,7 @@ export function validatePrinciples(notes) {
     if (typeof note.title !== 'string' || !note.title.trim()) fail('a title is required.');
     if (typeof note.body !== 'string') fail('body must be an HTML string, which may be empty for a new note.');
     if (note.summary !== undefined && typeof note.summary !== 'string') fail('summary must be a string.');
+    if (note.presentation !== undefined && note.presentation !== 'aside') fail('presentation must be aside when set.');
     if (note.subcategory !== undefined && (typeof note.subcategory !== 'string' || !note.subcategory.trim())) fail('subcategory must be nonempty text.');
     if (typeof note.added !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(note.added)) fail('added must be an ISO date.');
   }
@@ -87,20 +88,28 @@ export function validatePrinciples(notes) {
 
 export function validatePrivateContent(content) {
   if (!content || typeof content !== 'object' || Array.isArray(content)) throw new Error('Invalid private collections.');
+  for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories']) {
+    const categories = content[key];
+    if (categories !== undefined && (!Array.isArray(categories) ||
+      categories.some(tag => typeof tag !== 'string' || !tag.trim()) ||
+      new Set(categories).size !== categories.length)) {
+      throw new Error('Invalid private collection categories.');
+    }
+  }
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
-  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration']) validateEntries(content[key] ?? []);
+  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences']) validateEntries(content[key] ?? []);
   if (content.descriptions !== undefined) {
     if (!content.descriptions || typeof content.descriptions !== 'object' || Array.isArray(content.descriptions) ||
       Object.entries(content.descriptions).some(([key, value]) =>
-        !['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'proverbs', 'inspiration'].includes(key) || typeof value !== 'string')) {
+        !['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].includes(key) || typeof value !== 'string')) {
       throw new Error('Invalid private collection descriptions.');
     }
   }
   const ids = new Set(content.philosophy.map(entry => entry.id));
   for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? []),
-    ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.proverbs ?? []), ...(content.inspiration ?? [])]) {
+    ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.thoughts ?? []), ...(content.inspiration ?? []), ...(content.finance ?? []), ...(content['social-sciences'] ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
   }
@@ -181,20 +190,48 @@ export function renderEntries(entries, { tags = false } = {}) {
     const added = entry.added ? `<p class="added">Added <time datetime="${entry.added}">${addedOn(entry.added)}</time></p>` : '';
     const label = entry.author ? `Copy a link to this idea by ${entry.author}` : entry.subject ? `Copy a link to this story about ${entry.subject}` : entry.title ? `Copy a link to ${entry.title}` : 'Copy a link to this entry';
     const tagControls = tags && entry.tags?.length ? `<div class="learning-tags" aria-label="Entry tags">${entry.tags.map(tag => `<button type="button" class="learning-tag" data-learning-tag="${escape(tag)}" aria-pressed="false">${escape(tag)}</button>`).join('')}</div>` : '';
-    return `<li id="${entry.id}">${heading}${prose ? `<div class="story">${body}</div>` : `<blockquote>${body}</blockquote>`}${figures}${tagControls}<div class="meta"><div class="meta-text">${attribution}${note}${added}</div>${shareControl(entry.id, label)}</div></li>`;
+    return `<li id="${entry.id}">${heading}<div class="entry-reading" id="${entry.id}-reading">${prose ? `<div class="story">${body}</div>` : `<blockquote>${body}</blockquote>`}${figures}</div>${tagControls}<div class="meta"><div class="meta-text">${attribution}${note}${added}</div>${shareControl(entry.id, label)}</div></li>`;
   }).join('')}</ul>` : '<p class="empty">Nothing here yet.</p>';
+  for (const reading of template.content.querySelectorAll('.entry-reading')) {
+    if (reading.textContent.trim().length <= 650) continue;
+    reading.classList.add('is-collapsed');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'entry-read-more';
+    button.setAttribute('aria-controls', reading.id);
+    button.setAttribute('aria-expanded', 'false');
+    const links = [...reading.querySelectorAll('a[href]')].map(link => [link, link.getAttribute('tabindex')]);
+    for (const [link] of links) link.setAttribute('tabindex', '-1');
+    button.innerHTML = '<span>Read more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+    button.addEventListener('click', () => {
+      const expanded = button.getAttribute('aria-expanded') !== 'true';
+      button.setAttribute('aria-expanded', String(expanded));
+      reading.classList.toggle('is-collapsed', !expanded);
+      for (const [link, original] of links) {
+        if (!expanded) link.setAttribute('tabindex', '-1');
+        else if (original === null) link.removeAttribute('tabindex');
+        else link.setAttribute('tabindex', original);
+      }
+      button.querySelector('span').textContent = expanded ? 'Read less' : 'Read more';
+    });
+    reading.after(button);
+  }
   return template.content;
 }
 
-export function renderLearnings(entries) {
+export function renderLearnings(entries, categories = []) {
+  return renderTaggedEntries(entries, categories, 'learnings');
+}
+
+export function renderTaggedEntries(entries, categories = [], label = 'entries', { multiple = true } = {}) {
   const cards = renderEntries(entries, { tags: true });
   const wrapper = document.createElement('div');
   wrapper.className = 'learning-list';
-  const tags = [...new Set(entries.flatMap(entry => entry.tags ?? []))];
+  const tags = [...new Set([...entries.flatMap(entry => entry.tags ?? []), ...categories])];
   const toolbar = document.createElement('div');
   toolbar.className = 'learning-filters';
   toolbar.setAttribute('role', 'group');
-  toolbar.setAttribute('aria-label', 'Filter learnings by tag');
+  toolbar.setAttribute('aria-label', `Filter ${label} by tag`);
   for (const tag of ['', ...tags]) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -208,17 +245,26 @@ export function renderLearnings(entries) {
   status.className = 'learning-status';
   status.setAttribute('role', 'status');
   wrapper.append(toolbar, status, cards);
+  const selected = new Set();
   const filter = tag => {
+    if (!tag) selected.clear();
+    else if (!multiple) {
+      selected.clear();
+      selected.add(tag);
+    }
+    else if (selected.has(tag)) selected.delete(tag);
+    else selected.add(tag);
     let count = 0;
     for (const entry of entries) {
-      const visible = !tag || entry.tags?.includes(tag);
+      const visible = [...selected].every(tag => entry.tags?.includes(tag));
       wrapper.querySelector('#' + entry.id).hidden = !visible;
       if (visible) count++;
     }
     for (const button of wrapper.querySelectorAll('[data-learning-tag]')) {
-      button.setAttribute('aria-pressed', String(button.dataset.learningTag === tag));
+      const value = button.dataset.learningTag;
+      button.setAttribute('aria-pressed', String(value ? selected.has(value) : !selected.size));
     }
-    status.textContent = `${count} ${count === 1 ? 'entry' : 'entries'}${tag ? ' tagged ' + tag : ''}`;
+    status.textContent = `${count} ${count === 1 ? 'entry' : 'entries'}${selected.size ? ' tagged ' + [...selected].join(' and ') : ''}`;
   };
   wrapper.addEventListener('click', event => {
     const button = event.target.closest('button[data-learning-tag]');
@@ -272,6 +318,19 @@ export function renderPrinciples(notes) {
 
 export function renderPhilosophyNotes(notes) {
   validatePrinciples(notes);
+  if (notes.some(note => note.presentation === 'aside')) {
+    const fragment = renderPhilosophyNotes(notes.filter(note => note.presentation !== 'aside'));
+    for (const note of notes.filter(note => note.presentation === 'aside')) {
+      if (document.getElementById(note.id)) throw new Error('A private note id collides with the public page.');
+      const aside = document.createElement('aside');
+      aside.className = 'philosophy-aside';
+      aside.id = note.id;
+      aside.setAttribute('aria-label', note.title);
+      aside.innerHTML = note.body;
+      fragment.append(aside);
+    }
+    return fragment;
+  }
   const groups = new Map();
   for (const note of notes) {
     const name = note.subcategory ?? 'General';
@@ -307,15 +366,20 @@ export function renderPhilosophyNotes(notes) {
     section.append(heading, renderPrinciples(entries));
     wrapper.append(section);
   }
+  const selected = new Set();
   const filter = name => {
+    if (!name) selected.clear();
+    else if (selected.has(name)) selected.delete(name);
+    else selected.add(name);
     for (const section of wrapper.querySelectorAll('.philosophy-subcategory')) {
-      section.hidden = !!name && section.dataset.subcategory !== name;
+      section.hidden = ![...selected].every(name => section.dataset.subcategory === name);
     }
     for (const button of toolbar.querySelectorAll('button')) {
-      button.setAttribute('aria-pressed', String(button.dataset.philosophyCategory === name));
+      const value = button.dataset.philosophyCategory;
+      button.setAttribute('aria-pressed', String(value ? selected.has(value) : !selected.size));
     }
-    const count = notes.filter(note => !name || (note.subcategory ?? 'General') === name).length;
-    status.textContent = `${count} ${count === 1 ? 'note' : 'notes'}${name ? ' in ' + name : ''}`;
+    const count = notes.filter(note => [...selected].every(name => (note.subcategory ?? 'General') === name)).length;
+    status.textContent = `${count} ${count === 1 ? 'note' : 'notes'}${selected.size ? ' in ' + [...selected].join(' and ') : ''}`;
   };
   toolbar.addEventListener('click', event => {
     const button = event.target.closest('button[data-philosophy-category]');

@@ -74,18 +74,21 @@ const news = [
 
 <Base
   title="Varun Gandhi"
-  description="Varun Gandhi — MS CS student at UMass Amherst working on AI research, engineering, and LLM post-training."
+  description="Varun Gandhi, MS CS student at UMass Amherst working on LLM alignment, capabilities, and post-training."
   hideSiteName
 >
   <section class="hero">
-    <img src="/profile.jpg" alt="Varun Gandhi" class="profile-pic" width="150" height="150" />
+    <div class="profile-frame">
+      <img src="/profile.jpg" alt="Varun Gandhi" class="profile-pic" width="150" height="150" />
+    </div>
     <div class="hero-text">
       <h1>Varun Gandhi</h1>
       <p>
-        I'm an MS Computer Science student at UMass Amherst, interested in AI research and
-        engineering, with a focus on LLM post-training. I have experience across both research
-        and industry. Outside of research, I write <a href="/notes/">notes</a> on things I'm
-        learning and share them along the way!
+        I'm an MS Computer Science student at UMass Amherst, working at the intersection of
+        research and engineering to advance LLM capabilities and alignment, with a focus on
+        post-training. I'm an engineer who thinks like a researcher, with experience in both
+        research and industry. I also write <a href="/notes/">notes</a> on what I'm learning
+        and share them along the way.
       </p>
       <ul class="socials">
         {socials.map((s) => (
@@ -388,13 +391,22 @@ const news = [
     flex-wrap: wrap;
   }
 
-  .profile-pic {
+  .profile-frame {
     width: 150px;
     height: 150px;
-    object-fit: cover;
     border-radius: 50%;
     border: 1px solid var(--border);
+    overflow: hidden;
     flex-shrink: 0;
+  }
+
+  .profile-pic {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 33%;
+    transform: scale(2.8);
   }
 
   .hero-text {

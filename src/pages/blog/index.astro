@@ -12,7 +12,17 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
 
 // Posts lined up to write next. Same contract as the notes page: plain strings,
 // removed once the post ships.
-const planned = ['Implementing Nanochat'];
+const planned = [
+  {
+    topic: 'Implementing Nanochat',
+    refs: [
+      {
+        url: 'https://github.com/FareedKhan-dev/train-llm-from-scratch',
+        label: 'Fareed Khan: Train LLM From Scratch (GitHub)',
+      },
+    ],
+  },
+];
 ---
 
 <Base title="Blog · Varun Gandhi">

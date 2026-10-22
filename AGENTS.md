@@ -20,6 +20,11 @@ default so the user can manually look at the result in a browser.
 github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 (withastro/action → GitHub Pages).
 
+**Gemma 4 publishing restriction**: Do not commit or push the Gemma 4 notes/blog post
+(`src/content/blog/gemma-4-developer-agent-kaggle-competition.md`) or related content until
+the user explicitly asks to push Gemma 4. A general "push" request applies only to other
+changes; leave Gemma 4 work local and exclude it from those commits.
+
 ## Layout of the repo
 
 - `src/pages/index.astro` — the entire homepage: hero (profile pic, bio, social icon links),
@@ -82,7 +87,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Collections** (`src/pages/collections.astro`, served at `/collections/`): nine encrypted tabs (Ideas, History, Psychology, Neuroscience, Learnings, Proverbs, Inspiration, Philosophy,
+- **Collections** (`src/pages/collections.astro`, served at `/collections/`): eleven encrypted tabs (Ideas, History, Psychology, Neuroscience, Learnings, Thoughts, Inspiration, Finance, Social Sciences, Philosophy,
   and First Principles), picked with a tab bar. **Ideas** are
   quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
   pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
@@ -92,7 +97,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   link still opens Psychology. Entry anchors are unchanged. Neuroscience is a separate tab.
   The private renderer uses the shared Entry card after decrypting. The picker bar ships `hidden`; without JS all tabs and panels remain hidden. `.is-interactive` on `#collections`
   collapses to one panel. Explicit `.collection-tabs[hidden]` rules are required because
-  `display: flex` beats the browser's `[hidden]` rule. Selected tabs use colour plus a rule,
+  `display: flex` beats the browser's `[hidden]` rule. The tab bar stays on one horizontally scrollable row, with nonshrinking tabs; selecting a tab scrolls only the bar to reveal it, including keyboard and shared-link navigation. Selected tabs use colour plus a rule,
   **never `font-weight`**, which would change their width and reflow the bar.
 - **Collection share links**: every entry renders as `<li id={slug}>` with a "Copy link"
   control that copies an absolute `…/collections/#slug`. Renamed twice (Excerpts `/quotes/`
@@ -111,7 +116,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Private collections lock** (`src/pages/collections.astro`): the unlock control is hidden while locked.
   Click the Collections heading five times within three seconds to open the native Private
   dialog (keyboard Enter/Space clicks on the heading button also work). One successful
-  unlock reveals all nine private tabs and an open-lock icon. Relocking clears the content
+  unlock reveals all eleven private tabs and an open-lock icon. Relocking clears the content
   and hides the icon; repeating the heading gesture while unlocked also relocks.
   The hidden trigger is only a discoverability choice, not additional encryption security.
   The unlock input uses `name="password"` and `autocomplete="current-password"` for
@@ -148,7 +153,7 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
   Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
   `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads all eleven private JSON files; its
+  of public source files. The encryption command reads the private JSON files; its
   `--first-principles PATH` flag overrides the notes input when testing with fixtures.
   After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
   cards in the First Principles tab. Pressing the summary expands a full reading surface;
@@ -176,11 +181,21 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
   No collection content ships plaintext. Existing private entry links require unlocking; historical
   public versions remain in Git history. Keep private source and assets out of public files.
 
-- **Learnings and Proverbs**: locked Entry collections authored in ignored
-  `.private/learnings.json` and `.private/proverbs.json`. Encryption accepts `--learnings`
-  and `--proverbs` fixture paths. Private descriptions live in ignored `.private/collection-descriptions.json`,
-  keyed by collection slug. They are encrypted and mounted above the cards only after
-  unlocking; `--descriptions PATH` overrides this input. Proverbs uses one for its definition. Both tabs share the private unlock/relock.
+- **Learnings and Thoughts**: locked Entry collections authored in ignored
+  `.private/learnings.json` and `.private/thoughts.json`. Thoughts was renamed from Proverbs;
+  legacy `#proverbs` opens Thoughts, and entry ids remain unchanged. Unattributed
+  reflections can use `tags: ["Observations"]`; follow the user’s chosen classification. Thoughts subcategories (Quotes, Proverbs,
+  Observations, Realizations, Reflections) live in ignored `.private/thoughts-categories.json`, encrypted as
+  `thoughtCategories`. It uses `renderTaggedEntries` with All, card tags, shared-link filter
+  reset, and relock cleanup. Encryption accepts `--learnings`, `--thoughts`, and
+  `--thoughts-categories` fixture paths; `--proverbs` is a legacy alias for `--thoughts`.
+  Private descriptions live in ignored `.private/collection-descriptions.json`, keyed by
+  collection slug, including `thoughts`. They mount only after unlocking; `--descriptions PATH`
+  overrides the input. Run encryption and build after edits.
+
+- **Social Sciences**: a locked Entry collection in ignored `.private/social-sciences.json`, with explicit stable ids and added dates. Subcategories are entry `tags`; empty filter names live in ignored `.private/social-sciences-categories.json` (unique nonempty strings), encrypted as `socialScienceCategories`. It uses `renderTaggedEntries`, including All, clickable card tags, shared-link filter reset, and relock cleanup. Encryption accepts `--social-sciences PATH` and `--social-sciences-categories PATH`; descriptions use the `social-sciences` key. Run encryption and build after edits.
+
+- **Finance**: a locked Entry collection authored in ignored `.private/finance.json`, with explicit stable ids and added dates. It uses `renderTaggedEntries` with entry `tags` as subcategory filters (All initially selected), shares Learnings filter/card-tag styling, and shares unlock/relock. Filtered-out entry links reset to All before jumping. Encryption accepts `--finance PATH`; optional descriptions use the `finance` key in the private descriptions file. Run encryption and build after editing.
 
 - **Inspiration**: a separate locked category of personal stories and timelines, distinct
   from Learnings. Edit ignored `.private/inspiration.json` with Entry fields and explicit ids.
@@ -189,9 +204,11 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - **Source labels**: use neutral labels such as “Source: Video” (with Video linked).
   Never use calls to action such as “Watch the source video” in source credits.
 
+- **Learnings categories**: optional empty categories live in ignored `.private/learning-categories.json`, a JSON array of unique nonempty names. The encryption command includes them as `learningCategories` and accepts `--learning-categories PATH`. They appear alongside entry-derived tags after unlocking, even with zero entries. Run encryption and build after edits; category names stay encrypted.
+
 - **Learnings tags**: entries may have `tags: ["Communication", "Marketing"]`.
   `renderLearnings` mounts an All/tag filter bar and clickable tags on each card after decrypting.
-  All is selected initially; one active tag filters by exact inclusion, with `aria-pressed`
+  All is selected initially; category buttons toggle independently and show entries matching every selected tag, with `aria-pressed`
   and a live result count. A link to a filtered-out entry resets to All before jumping.
   Relocking clears the filter DOM. Styles are global and namespaced under `.collections`.
   Communication moved into Learnings; legacy `#communication` opens Learnings and the old
@@ -480,3 +497,9 @@ github.com/vgandhi13/vgandhi13.github.io triggers `.github/workflows/deploy.yml`
 - The CS231n learning-rate figure in the instruction-finetuning note credits its source only
   in alt text; the newer convention is a visible `<figcaption>` (see policy-gradients note).
   User was offered the retrofit but hasn't decided.
+
+- **Philosophy asides**: notes in ignored `.private/philosophy-notes.json` may set `presentation: "aside"` to render as a smaller standalone footnote beneath the Philosophy notes, outside subcategory filters. The title becomes an accessible label; the body stays visible after unlocking. Keep the stable id and added date. Encrypt and build after edits.
+
+- **Category filter toggles**: Learnings, Finance, Social Sciences, and Philosophy subcategories support multiple selections (intersection / AND matching). Thoughts alone uses single selection via `renderTaggedEntries(..., { multiple: false })`: clicking a category replaces the previous choice; All resets the list. In the collections with multiple selections, clicking another category keeps existing selections; clicking a selected category removes it. All clears selections, and deselecting the last category returns to All. Card tags share the toggle state. Shared-link resets and relocking still clear filters.
+
+- **Long collection entries**: `renderEntries` collapses bodies over 650 visible text characters to an 11.5em preview, with a Read more/down-arrow button and Read less on expansion. Short cards stay unchanged. Attribution, tags, source, and share controls remain outside the preview. Shared links expand the target before scrolling; relock removes disclosure state with private DOM. Collapsed body links leave the Tab order until expansion. Styles are global under `.collections`.
