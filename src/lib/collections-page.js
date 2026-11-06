@@ -166,20 +166,9 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     lock.hidden = true;
     document.getElementById('collections-title').focus({ preventScroll: true });
   });
-  let titleClicks = 0;
-  let titleClickStart = 0;
   document.getElementById('collections-title').addEventListener('click', () => {
     if (dialog.open) return;
-    const now = performance.now();
-    if (!titleClicks || now - titleClickStart > 3000) {
-      titleClicks = 0;
-      titleClickStart = now;
-    }
-    if (++titleClicks === 5) {
-      titleClicks = 0;
-      titleClickStart = 0;
-      lock.click();
-    }
+    lock.click();
   });
   const signIn = async (method = 'password') => {
     if (unlocking) return;
@@ -313,6 +302,8 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     openHashPanel();
     jumpToEntry();
   });
+  // Entering Collections from the footer or a shared link goes straight to login.
+  lock.click();
 })();
 
 // Share controls copy an absolute link. They stay real anchors, so with no JS

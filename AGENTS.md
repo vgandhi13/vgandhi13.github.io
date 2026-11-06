@@ -102,8 +102,9 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   History and Inspiration source collections. Legacy `#history` and `#inspiration` open Stories,
   `#cognitive-science` opens Psychology, `#communication` opens Learnings, and `#proverbs`
   opens Thoughts. Entry ids stay stable. Database keys and authoring are in the Supabase skill.
-- **Collections access**: click the 🧠 heading five times within three seconds to open
-  the login dialog; keyboard Enter/Space clicks work too. Successful login reveals the tabs
+- **Collections access**: entering `/collections/` opens the login dialog immediately.
+  After canceling, one click on the 🧠 heading opens it again; keyboard Enter/Space works too.
+  Clicking the heading while signed in relocks. Successful login reveals the tabs
   and lock icon. Relocking clears private DOM, hides the hourglass, and signs out the
   in-memory session. Canceling or superseding a login invalidates its pending result.
   The gesture is a discoverability choice, not security. Preserve password-manager hints:

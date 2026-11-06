@@ -31,7 +31,7 @@ The user created a confirmed email/password account through Authentication > Use
 
 The setup guide recommended disabling public signups, but that setting was not verified during the initial setup. Do not claim it is disabled. The allowlist remains the database access boundary regardless.
 
-The 🧠 heading's five-click gesture opens the login dialog. One successful login mounts all the existing panels. It is a discoverability choice, not an access-control mechanism. The password field keeps `name="password"` and `autocomplete="current-password"`; email uses the username autofill hint.
+Entering `/collections/` opens the login dialog immediately, including navigation from the footer's 🧠 link and shared entry links. After canceling, one click on the heading opens it again; pressing Enter or Space on the heading button also works. Clicking the heading while signed in relocks. One successful login mounts all the existing panels. The password field keeps `name="password"` and `autocomplete="current-password"`; email uses the username autofill hint.
 
 The SDK uses `persistSession: false`, `autoRefreshToken: false`, and `detectSessionInUrl: false`. Sessions remain in memory. Relock disposes of the client and signs out locally without revoking the user's sessions on other devices. A stale, canceled, or superseded login must not mount content. Passkey enrollment after session expiry requires signing in again.
 
