@@ -1,0 +1,197 @@
+<div class="life-hourglass" data-life-hourglass hidden>
+  <svg class="hourglass" viewBox="0 0 160 244" width="112" height="171" role="img" aria-labelledby="hourglass-title">
+    <title id="hourglass-title">Hourglass</title>
+    <defs>
+      <clipPath id="hourglass-chambers">
+        <path d="M38 22H122Q136 22 136 36C136 70 82 100 82 122C82 144 136 174 136 208Q136 222 122 222H38Q24 222 24 208C24 174 78 144 78 122C78 100 24 70 24 36Q24 22 38 22Z" />
+      </clipPath>
+    </defs>
+    <g clip-path="url(#hourglass-chambers)">
+      <path class="hourglass-sand" data-upper-sand />
+      <path class="hourglass-sand" data-lower-sand />
+      <path class="hourglass-stream" d="M80 122V222" data-sand-stream />
+    </g>
+    <path class="hourglass-outline" d="M38 22H122Q136 22 136 36C136 70 82 100 82 122C82 144 136 174 136 208Q136 222 122 222H38Q24 222 24 208C24 174 78 144 78 122C78 100 24 70 24 36Q24 22 38 22Z" />
+  </svg>
+  <div class="hourglass-reflection">
+    <blockquote class="hourglass-quote">
+      <p data-hourglass-quote></p>
+      <footer><a data-hourglass-author></a></footer>
+    </blockquote>
+    <p class="hourglass-question" data-hourglass-prompt></p>
+  </div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-life-hourglass]');
+  if (root) {
+    type Settings = { start: string; end: string; quote: string; author: string; authorUrl: string; prompt: string };
+    let settings: Settings | null = null;
+    let start = 0;
+    let end = 0;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const endpointFormat = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short',
+    });
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const day = 24 * 60 * 60 * 1000;
+    const upper = root.querySelector('[data-upper-sand]')!;
+    const lower = root.querySelector('[data-lower-sand]')!;
+    const stream = root.querySelector('[data-sand-stream]')!;
+
+    // Integrate the curved upper bulb once. Each sample stores the area above its
+    // height; the lower bulb is its mirror. This keeps the sand's filled area
+    // proportional to time even though the bulb's width changes nonlinearly.
+    const profile = [{ y: 22, area: 0 }];
+    const curves = [
+      [[122, 22], [122 + 28 / 3, 22], [136, 22 + 14 / 3], [136, 36]],
+      [[136, 36], [136, 70], [82, 100], [82, 122]],
+    ];
+    let previousWidth = 84;
+    for (const points of curves) {
+      for (let i = 1; i <= 400; i++) {
+        const t = i / 400;
+        const u = 1 - t;
+        const coordinate = (axis: number) => u ** 3 * points[0][axis] +
+          3 * u ** 2 * t * points[1][axis] + 3 * u * t ** 2 * points[2][axis] + t ** 3 * points[3][axis];
+        const y = coordinate(1);
+        const width = 2 * (coordinate(0) - 80);
+        const previous = profile[profile.length - 1];
+        profile.push({ y, area: previous.area + (previousWidth + width) * (y - previous.y) / 2 });
+        previousWidth = width;
+      }
+    }
+    const totalArea = profile[profile.length - 1].area;
+    const surfaceAt = (fraction: number) => {
+      const target = fraction * totalArea;
+      const index = profile.findIndex(point => point.area >= target);
+      if (index <= 0) return 22;
+      const before = profile[index - 1];
+      const after = profile[index];
+      return before.y + (after.y - before.y) * (target - before.area) / (after.area - before.area);
+    };
+
+    // Whole calendar years, months and days in IST, rather than 365-day "years".
+    const duration = (from: number, to: number) => {
+      const a = new Date(from + istOffset);
+      const b = new Date(to + istOffset);
+      const anchor = (months: number) => {
+        const first = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth() + months, 1));
+        const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+        return Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(a.getUTCDate(), lastDay),
+          a.getUTCHours(), a.getUTCMinutes(), a.getUTCSeconds(), a.getUTCMilliseconds());
+      };
+      let months = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth();
+      if (anchor(months) > b.getTime()) months--;
+      const years = Math.floor(months / 12);
+      const days = Math.floor((b.getTime() - anchor(months)) / day);
+      const units: [number, string][] = [[years, 'year'], [months % 12, 'month'], [days, 'day']];
+      return units.filter(([n]) => n > 0).map(([n, unit]) => `${n} ${unit}${n === 1 ? '' : 's'}`).join(', ') || '0 days';
+    };
+
+    const update = () => {
+      if (!settings) return;
+      const now = Date.now();
+      const clamped = Math.max(start, Math.min(end, now));
+      const elapsed = (clamped - start) / (end - start);
+      const upperY = surfaceAt(elapsed);
+      const lowerY = 244 - upperY;
+      const upperPath = `M0 ${upperY}H160V122H0Z`;
+      const lowerPath = `M0 ${lowerY}H160V222H0Z`;
+      upper.setAttribute('d', upperPath);
+      lower.setAttribute('d', lowerPath);
+      stream.setAttribute('d', `M80 122V${lowerY}`);
+      root.classList.toggle('is-flowing', now >= start && now < end);
+      const percent = `${(elapsed * 100).toFixed(2)}%`;
+      root.querySelector('title')!.textContent = `Hourglass: ${percent} elapsed, ${duration(clamped, end)} remaining. ${endpointFormat.format(start)} to ${endpointFormat.format(end)} IST.`;
+    };
+
+    const clear = () => {
+      root.hidden = true;
+      clearInterval(timer);
+      timer = undefined;
+      settings = null;
+      start = end = 0;
+      root.classList.remove('is-flowing');
+      upper.removeAttribute('d');
+      lower.removeAttribute('d');
+      stream.removeAttribute('d');
+      root.querySelector('[data-hourglass-quote]')!.textContent = '';
+      root.querySelector('[data-hourglass-prompt]')!.textContent = '';
+      const author = root.querySelector('a')!;
+      author.textContent = '';
+      author.removeAttribute('href');
+      root.querySelector('title')!.textContent = 'Hourglass';
+    };
+    document.addEventListener('collections:lock', clear);
+    document.addEventListener('collections:unlock', (event) => {
+      clear();
+      settings = (event as CustomEvent<Settings | undefined>).detail ?? null;
+      if (!settings) return;
+      start = Date.parse(settings.start);
+      end = Date.parse(settings.end);
+      root.querySelector('[data-hourglass-quote]')!.textContent = settings.quote;
+      root.querySelector('[data-hourglass-prompt]')!.textContent = settings.prompt;
+      const author = root.querySelector('a')!;
+      author.textContent = settings.author;
+      author.href = settings.authorUrl;
+      update();
+      root.hidden = false;
+      timer = setInterval(update, 1000);
+    });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) update(); });
+  }
+</script>
+
+<style>
+  .life-hourglass {
+    --hourglass-ink: #777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2.25rem;
+    max-width: 45rem;
+    margin: 2.75rem auto 3.75rem;
+    color: var(--hourglass-ink);
+  }
+  .life-hourglass[hidden] { display: none; }
+  :global([data-theme='dark']) .life-hourglass { --hourglass-ink: #aaa; }
+  .hourglass { flex: 0 0 auto; overflow: visible; }
+  .hourglass-sand { fill: currentColor; }
+  .hourglass-outline {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    opacity: 0.7;
+  }
+  .hourglass-stream {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-dasharray: 0.5 9.5;
+    visibility: hidden;
+  }
+  .is-flowing .hourglass-stream {
+    visibility: visible;
+    animation: falling-sand 2s linear infinite;
+  }
+  @keyframes falling-sand { to { stroke-dashoffset: -10; } }
+  .hourglass-reflection { flex: 1; min-width: 0; }
+  .hourglass-quote {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .hourglass-quote p { margin: 0; }
+  .hourglass-quote footer { margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted); }
+  .hourglass-question { margin: 1.1rem 0 0; font-size: 0.95rem; font-weight: 500; color: var(--heading); }
+  @media (max-width: 540px) {
+    .life-hourglass { flex-direction: column; gap: 1.5rem; margin: 2rem 0 3rem; }
+    .hourglass { width: 104px; height: auto; }
+  }
+</style>

@@ -2,6 +2,9 @@ node_modules/
 dist/
 .astro/
 .DS_Store
+.env
+.env.*
+!.env.example
 
 # personal working files — never publish (repo is public)
 # (leading / anchors to repo root; plain "Notes/" would also ignore
@@ -17,3 +20,7 @@ dist/
 /*.webp
 /*.jpeg
 /*.mov
+
+# Private collection draft
+/notes.txt
+/teachingexpblog.txt

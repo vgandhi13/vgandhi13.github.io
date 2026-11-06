@@ -1,568 +1,78 @@
 ---
 import Base from '../layouts/Base.astro';
-import encryptedPhilosophy from '../data/philosophy.encrypted.json';
-import privateCollectionModuleUrl from '../lib/private-collection.js?url';
+import LifeHourglass from '../components/LifeHourglass.astro';
 
-// All collections are locked. Private source and images stay in ignored .private/ files.
-// Private collections are authored in ignored .private/ JSON files, then encrypted locally.
-// Only ciphertext ships here. The browser decrypts it after the password is entered.
-// All collections use the Entry shape below and the same card.
-// An IDEA is a quotation: { text: '...', author: '...', source?: '...' }. Order is
-// whatever reads best, since the list is shuffled on load anyway.
-// A HISTORY entry is a short retold story: { text: [...], subject: '...', year: '...' }.
-// A PSYCHOLOGY entry is an explained concept: { text: [...], title: '...' }.
-// `subject` or `title` in place of `author` switches the card over: the body renders as
-// prose rather than a blockquote, and its heading sits above it instead of an em-dash
-// attribution below. History and Psychology are NOT shuffled, so array order is
-// display order.
-// `text` can be an array when several passages from the same person and occasion
-// belong together: each becomes its own paragraph under one attribution. The paragraph
-// break IS the elision mark: when a talk is stitched from passages with the connective
-// material cut, split at every cut and let the gap show it. Do not write ellipses at the
-// seams (…like this…) and do not join two passages inside one paragraph; the ellipses
-// only add visual noise to something the layout already says, and they read as the
-// speaker trailing off. Set `paraphrased` alongside, so the card says so in words too.
-// `source` is optional context (a book, talk, or paper) shown after the name, and
-// links to `url` when one is given. Set `paraphrased` when the wording is recalled
-// rather than transcribed, so the page never passes it off as verbatim.
-// `note` is your own commentary on the excerpt. It renders below the attribution,
-// under a rule and in a lighter register, so it reads as annotation and never as
-// something the speaker said. A line is the usual size; pass an array when it needs
-// more than one paragraph, and only the first gets the rule. Like `text` it goes
-// through set:html, so it can carry an inline link.
-// `image` hangs a figure from the same source under the quote. Keep it grayscale
-// line art: dark mode inverts the image rather than punching a white slab into the
-// card, which is lossless for black-on-white and wrong for anything colored.
-// Set `plain` when the figure is colored but on a white background: it keeps the
-// multiply/invert off so the art renders as-is, which costs a white slab in dark mode
-// but is the same trade the white-background note figures already make, and is much
-// better than an invert that hue-flips salmon to teal. `credit`/`creditUrl` add a
-// figcaption, for when the figure comes from somewhere other than the quote itself.
-// `width` caps one figure below the shared 460px, for art that is tall or square and
-// would otherwise eat the whole card. It keeps the min(100%, …) form so a phone still
-// wins on the 100% side.
-// `svg` is the escape hatch for a source figure that is neither: a colored or
-// dark-background diagram would come out hue-flipped under that invert, so redraw it
-// as inline SVG on the --diagram-*-border tokens instead. It is injected with
-// `set:html`, which means Astro's scoped styles never reach it, so its sizing and
-// colors live inline on the element (and `var()` needs `style=`, not a presentation
-// attribute, to resolve).
-// Every entry gets a shareable #anchor, slugged from `author`, `subject`, or `title`. A second
-// entry under the same name fails the build; give that one an explicit `id` (short and
-// memorable, e.g. id: 'karpathy-understanding') so the first one's shared link keeps
-// working. The check spans all collections, and every collection key is reserved: the
-// script reads those as "open that panel".
-// Redrawn from the chart in the HubSpot post credited on the figure: that original is
-// a dark-navy branded card, which the .quote-figure invert would turn cream-on-pink.
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL?.trim() ?? '';
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
+if (!supabaseUrl || !supabaseKey) throw new Error('Set PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
+if (!supabaseKey.startsWith('sb_publishable_')) throw new Error('Use a Supabase publishable key, never a secret or service role key.');
+if (!supabaseUrl.startsWith('https://') || new URL(supabaseUrl).pathname !== '/') throw new Error('Use the HTTPS Supabase project URL without a path.');
+const passkeys = import.meta.env.PUBLIC_SUPABASE_PASSKEYS === 'true';
 
-
-type Entry = {
-  text: string | string[];
-  // `author` marks an idea: the body renders as a quote, attributed with an em dash.
-  // `subject` marks a history entry instead: the body renders as prose, and the
-  // person and `year` the story is about sit above it rather than below. `title`
-  // likewise marks an explained concept in another collection. The slug comes from
-  // whichever of the three is set.
-  author?: string;
-  subject?: string;
-  title?: string;
-  year?: string;
-  source?: string;
-  sourceBold?: boolean;
-  url?: string;
-  paraphrased?: boolean;
-  note?: string | string[];
-  image?: { src: string; alt: string; plain?: boolean; credit?: string; creditUrl?: string; width?: number };
-  // ISO date this went up. Everything added from Sep 2026 on carries one.
-  added?: string;
-  svg?: { markup: string; credit?: string; creditUrl?: string };
-  id?: string;
-};
-
-
-
-const addedOn = (iso: string) =>
-  new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-// Slugs are never derived from array position: a shared link has to keep pointing at
-// the same entry no matter what gets added above it later. So a second entry under the
-// same name collides on purpose and fails the build, and you resolve it by pinning `id`
-// on the NEW one, which leaves the already-shared link on the old one untouched.
-// This map covers public entries. Private entries use explicit ids and check for
-// collisions when decrypted, without exposing their ids during the static build.
+// Only public panel labels live here. Content loads from Supabase after login.
 const collections = [
-  { key: 'ideas', label: 'Ideas', items: [] as Entry[], shuffle: true, locked: true },
-  { key: 'history', label: 'History', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'psychology', label: 'Psychology', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'neuroscience', label: 'Neuroscience', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'learnings', label: 'Learnings', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'thoughts', label: 'Thoughts', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'inspiration', label: 'Inspiration', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'finance', label: 'Finance', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'social-sciences', label: 'Social Sciences', items: [] as Entry[], shuffle: false, locked: true },
-  // Keep this empty: private content must never be authored in the public source.
-  { key: 'philosophy', label: 'Philosophy', items: [] as Entry[], shuffle: false, locked: true },
-  { key: 'first-principles', label: 'First Principles', items: [] as Entry[], shuffle: false, locked: true },
+  { key: 'ideas', label: 'Ideas' },
+  { key: 'stories', label: 'Stories' },
+  { key: 'psychology', label: 'Psychology' },
+  { key: 'neuroscience', label: 'Neuroscience' },
+  { key: 'learnings', label: 'Learnings' },
+  { key: 'thoughts', label: 'Thoughts' },
+  { key: 'finance', label: 'Finance' },
+  { key: 'social-sciences', label: 'Social Sciences' },
+  { key: 'philosophy', label: 'Philosophy' },
+  { key: 'first-principles', label: 'First Principles' },
 ];
-
-const nameOf = (q: Entry) => q.author ?? q.subject ?? q.title;
-const firstWords = (q: Entry) =>
-  slugify((Array.isArray(q.text) ? q.text[0] : q.text).split(' ').slice(0, 3).join(' '));
-
-// Seeded with the collection keys: the script opens a panel when the hash names one, so
-// an entry slugged "history" would be a link that lands on the wrong thing.
-const seen = new Map(collections.map((c) => [c.key, `the ${c.label} panel`]));
-seen.set('cognitive-science', 'the legacy Psychology panel link');
-seen.set('communication', 'the legacy Learnings panel link');
-
-const sections = collections.map((c) => ({
-  ...c,
-  entries: c.items.map((q) => {
-    const name = nameOf(q);
-    if (!q.id && !name) {
-      throw new Error(
-        `An entry with no author, subject, or title has no name to slug from, so it needs an ` +
-          `explicit id. Add one, e.g. id: '${firstWords(q)}'.`
-      );
-    }
-    const slug = q.id ?? slugify(name!);
-    const clash = seen.get(slug);
-    if (clash) {
-      throw new Error(
-        `Duplicate anchor "#${slug}" (${clash} and ${name ?? `#${slug}`}). Add an explicit id ` +
-          `to the newer entry, e.g. id: '${slug}-${firstWords(q)}'. Do not renumber the ` +
-          `existing one: its link is already out in the world.`
-      );
-    }
-    seen.set(slug, name ?? `#${slug}`);
-    return { ...q, slug };
-  }),
-}));
 ---
 
-<Base title="Collections · Varun Gandhi" description="Things I keep coming back to.">
-  <h1><button type="button" id="collections-title">Collections</button></h1>
-
-  <div class="collections" id="collections">
-    {/* All tabs and panels stay hidden until the encrypted content is unlocked. */}
+<Base title="🧠 · Varun Gandhi" description="Things I keep coming back to.">
+  <h1><button type="button" id="collections-title" aria-label="Collections">🧠</button></h1>
+  <LifeHourglass />
+  <div class="collections" id="collections" data-supabase-url={supabaseUrl} data-supabase-key={supabaseKey} data-passkeys={passkeys ? 'true' : undefined}>
     <div class="collection-picker" hidden>
       <div class="collection-tabs" role="tablist" aria-label="Collections">
-        {sections.map((s, i) => (
-          <button
-            type="button"
-            class="collection-tab"
-            role="tab"
-            id={`tab-${s.key}`}
-            aria-controls={`panel-${s.key}`}
-            aria-selected={i === 0 ? 'true' : 'false'}
-            tabindex={i === 0 ? 0 : -1}
-            data-target={`panel-${s.key}`}
-            hidden={s.locked}
-          >{s.label}</button>
+        {collections.map((s, i) => (
+          <button type="button" class="collection-tab" role="tab" id={`tab-${s.key}`}
+            aria-controls={`panel-${s.key}`} aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1} data-target={`panel-${s.key}`} hidden>{s.label}</button>
         ))}
       </div>
-      <button
-        type="button"
-        class="collection-lock"
-        aria-label="Unlock private collections"
-        aria-haspopup="dialog"
-        aria-controls="collection-unlock"
-        title="Unlock private collections"
-        hidden
-      >
+      <button type="button" class="collection-lock" aria-label="Unlock private collections"
+        aria-haspopup="dialog" aria-controls="collection-unlock" title="Unlock private collections" hidden>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="11" width="18" height="10" rx="2" />
           <path d="M7 11V7a5 5 0 0 1 9.9-1" />
         </svg>
       </button>
     </div>
-
-    {sections.map((s) => (
-      <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel" aria-labelledby={`tab-${s.key}`} data-locked={s.locked ? 'true' : undefined} hidden={s.locked}>
+    {collections.map(s => (
+      <section class="collection-panel" id={`panel-${s.key}`} role="tabpanel"
+        aria-labelledby={`tab-${s.key}`} data-locked="true" hidden>
         <h2 class="collection-heading">{s.label}</h2>
-        {s.locked ? (
-          <div id={`${s.key}-content`} data-private-content></div>
-        ) : s.entries.length === 0 ? (
-          <p class="empty">Nothing here yet.</p>
-        ) : (
-          <ul class="quote-list" data-shuffle={s.shuffle ? 'true' : undefined}>
-            {s.entries.map((q) => (
-              <li id={q.slug}>
-                {/* prose entries name their subject or concept above the body; an idea
-                    attributes below, in .attribution, where the em dash belongs */}
-                {(q.subject || q.title) && (
-                  <p class="subject">{q.subject ?? q.title}{q.year && <span class="year">, {q.year}</span>}</p>
-                )}
-                {/* set:html so an entry can bold the term it defines. Safe because every
-                    `text` value is authored in this file, never user input. */}
-                {(q.subject || q.title) ? (
-                  <div class="story">
-                    {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
-                  </div>
-                ) : (
-                  <blockquote>
-                    {(Array.isArray(q.text) ? q.text : [q.text]).map((para) => <p set:html={para} />)}
-                  </blockquote>
-                )}
-                {q.image && (
-                  <figure class="quote-figure">
-                    <img
-                      src={q.image.src}
-                      alt={q.image.alt}
-                      class={q.image.plain ? 'plain' : undefined}
-                      style={q.image.width ? `width: min(100%, ${q.image.width}px)` : undefined}
-                      loading="lazy"
-                    />
-                    {q.image.credit && (
-                      <figcaption>
-                        {q.image.creditUrl
-                          ? <a href={q.image.creditUrl} target="_blank" rel="noopener">{q.image.credit}</a>
-                          : q.image.credit}
-                      </figcaption>
-                    )}
-                  </figure>
-                )}
-                {q.svg && (
-                  <figure class="quote-figure">
-                    <Fragment set:html={q.svg.markup} />
-                    {q.svg.credit && (
-                      <figcaption>
-                        {q.svg.creditUrl
-                          ? <a href={q.svg.creditUrl} target="_blank" rel="noopener">{q.svg.credit}</a>
-                          : q.svg.credit}
-                      </figcaption>
-                    )}
-                  </figure>
-                )}
-                <div class="meta">
-                  <div class="meta-text">
-                    {/* an idea with no author renders no attribution line, and the em dash
-                        goes with it since it lives on .attribution::before */}
-                    {q.author && (
-                      /* kept on one line: a line break here renders as a space before the comma */
-                      <p class="attribution">
-                        {q.author}{q.source && <span class="source">, {q.url ? <a href={q.url} target="_blank" rel="noopener">{q.sourceBold ? <strong>{q.source}</strong> : q.source}</a> : q.sourceBold ? <strong>{q.source}</strong> : q.source}</span>}{q.paraphrased && <span class="paraphrased"> (paraphrased)</span>}
-                      </p>
-                    )}
-                    {q.note && (Array.isArray(q.note) ? q.note : [q.note]).map((n) => <p class="commentary" set:html={n} />)}
-                    {q.added && (
-                      <p class="added">Added <time datetime={q.added}>{addedOn(q.added)}</time></p>
-                    )}
-                  </div>
-                  <a class="share" href={`#${q.slug}`} data-slug={q.slug} aria-label={q.author ? `Copy a link to this idea by ${q.author}` : q.subject ? `Copy a link to this story about ${q.subject}` : q.title ? `Copy a link to ${q.title}` : 'Copy a link to this entry'}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </svg>
-                    <span class="share-text">
-                      <span class="share-sizer" aria-hidden="true">Copy link</span>
-                      <span class="share-live">Copy link</span>
-                    </span>
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div id={`${s.key}-content`} data-private-content></div>
       </section>
     ))}
     <dialog class="collection-dialog" id="collection-unlock" aria-labelledby="collection-unlock-title">
-      <form class="collection-unlock-form" data-crypto-module={privateCollectionModuleUrl}>
+      <form class="collection-unlock-form">
         <h2 id="collection-unlock-title">Private</h2>
+        <label for="collection-email">Email</label>
+        <input id="collection-email" name="email" type="email" autocomplete="username" required autofocus />
         <label for="collection-password">Password</label>
-        <input id="collection-password" name="password" type="password" autocomplete="current-password" aria-describedby="collection-unlock-error" required autofocus />
+        <input id="collection-password" name="password" type="password" autocomplete="current-password" aria-describedby="collection-unlock-error" required />
         <p class="collection-unlock-error" id="collection-unlock-error" role="status" hidden></p>
         <div class="collection-dialog-actions">
           <button type="button" data-unlock-cancel>Cancel</button>
-          <button type="submit" class="collection-unlock-submit">Unlock</button>
+          <button type="submit" class="collection-unlock-submit">Sign in</button>
         </div>
+        {passkeys && <button type="button" class="collection-passkey-signin" data-passkey-signin hidden>Sign in with passkey</button>}
       </form>
     </dialog>
-    <script id="philosophy-payload" type="application/json" set:html={JSON.stringify(encryptedPhilosophy)} />
+    {passkeys && <div class="collection-account" hidden>
+      <button type="button" data-passkey-register>Add passkey</button>
+      <p data-passkey-status role="status" hidden></p>
+    </div>}
   </div>
-  <script is:inline>
-    // Fisher-Yates shuffle, run inline right after the list so it reorders before
-    // first paint (same pre-paint trick as the theme script in Base.astro). Only
-    // lists that opted in: History is a set of dated stories and reads in order.
-    // No-JS visitors simply get the authored order.
-    for (const list of document.querySelectorAll('.quote-list[data-shuffle]')) {
-      const items = Array.from(list.children);
-      for (let i = items.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [items[i], items[j]] = [items[j], items[i]];
-      }
-      for (const item of items) list.append(item);
-    }
-
-    // Collection picker. Runs before DOMContentLoaded so the right panel is already
-    // open when the hash jump below fires.
-    (() => {
-      const root = document.getElementById('collections');
-      const bar = root && root.querySelector('.collection-tabs');
-      if (!bar) return;
-      const tabs = [...bar.querySelectorAll('.collection-tab')];
-      const panels = [...root.querySelectorAll('.collection-panel')];
-      const picker = root.querySelector('.collection-picker');
-      const lock = root.querySelector('.collection-lock');
-      const dialog = root.querySelector('.collection-dialog');
-      const form = dialog.querySelector('form');
-      const password = dialog.querySelector('input');
-      const error = dialog.querySelector('.collection-unlock-error');
-      const submit = form.querySelector('[type="submit"]');
-      const privateContents = [...root.querySelectorAll('[data-private-content]')];
-      const payload = JSON.parse(root.querySelector('#philosophy-payload').textContent);
-      let unlocked = false;
-      let unlocking = false;
-      let attempt = 0;
-      if (tabs.length < 2) return;
-
-      const isLocked = (panel) => panel.dataset.locked === 'true' && !unlocked;
-      const select = (panelId, focus) => {
-        const target = panels.find((panel) => panel.id === panelId);
-        if (!target || isLocked(target)) return;
-        for (const tab of tabs) {
-          const on = tab.dataset.target === panelId;
-          tab.setAttribute('aria-selected', String(on));
-          tab.tabIndex = on ? 0 : -1;
-          if (on) {
-            if (focus) tab.focus({ preventScroll: true });
-            const tabRect = tab.getBoundingClientRect();
-            const barRect = bar.getBoundingClientRect();
-            if (tabRect.left < barRect.left) bar.scrollLeft += tabRect.left - barRect.left;
-            else if (tabRect.right > barRect.right) bar.scrollLeft += tabRect.right - barRect.right;
-          }
-        }
-        for (const panel of panels) panel.hidden = panel.id !== panelId;
-      };
-
-      for (const tab of tabs) {
-        tab.addEventListener('click', () => select(tab.dataset.target));
-        tab.addEventListener('keydown', (event) => {
-          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-          if (!step && event.key !== 'Home' && event.key !== 'End') return;
-          event.preventDefault();
-          const visible = tabs.filter((item) => !item.hidden);
-          const index = visible.indexOf(tab);
-          const next = event.key === 'Home' ? visible[0] : event.key === 'End' ? visible.at(-1) :
-            visible[(index + step + visible.length) % visible.length];
-          select(next.dataset.target, true);
-        });
-      }
-
-      root.classList.add('is-interactive');
-      picker.hidden = true;
-
-      // A shared link points at one entry, which may sit in the panel that is not
-      // open. Resolve the hash to its panel first; collection-key hashes open panels
-      // directly, and the build refuses an entry slug that would collide with one.
-      const hashEntry = () => {
-        try { return decodeURIComponent(location.hash.slice(1)); } catch { return ''; }
-      };
-      const hashPanel = () => {
-        const entry = hashEntry();
-        const hash = entry === 'cognitive-science' ? 'psychology' : entry === 'communication' ? 'learnings' : entry === 'proverbs' ? 'thoughts' : entry;
-        return panels.find((panel) => panel.id === 'panel-' + hash) ||
-          (hash ? document.getElementById(hash)?.closest('.collection-panel') : null);
-      };
-      const openHashPanel = () => {
-        const target = hashPanel();
-        select(target && !isLocked(target) ? target.id : panels[0].id);
-      };
-      const jumpToEntry = () => {
-        const entry = document.getElementById(hashEntry());
-        if (entry?.hidden && entry.closest('.learning-list')) {
-          entry.closest('.learning-list').querySelector('.learning-filter[data-learning-tag=""]').click();
-        }
-        if (entry?.closest('.philosophy-subcategory')?.hidden) {
-          root.querySelector('#philosophy-content [data-philosophy-category=""]').click();
-        }
-        if (entry?.closest('.collection-panel')?.hidden === false) {
-          if (entry.matches('.principle-note')) entry.open = true;
-          entry.querySelector('.entry-read-more[aria-expanded="false"]')?.click();
-          entry.scrollIntoView({ block: 'center' });
-        }
-      };
-      openHashPanel();
-
-      // Only decrypted content is mounted. Relocking removes it from the DOM;
-      // no password, key, or plaintext is saved to browser storage.
-      const clearError = () => {
-        error.hidden = true;
-        error.textContent = '';
-        password.removeAttribute('aria-invalid');
-      };
-      const setBusy = (busy) => {
-        unlocking = busy;
-        form.setAttribute('aria-busy', String(busy));
-        password.readOnly = busy;
-        submit.disabled = busy;
-        submit.textContent = busy ? 'Unlocking…' : 'Unlock';
-      };
-      const clearPrivate = () => {
-        for (const content of privateContents) {
-          for (const share of content.querySelectorAll('.share')) clearTimeout(share.resetTimer);
-          content.replaceChildren();
-        }
-      };
-      lock.addEventListener('click', () => {
-        if (!unlocked) {
-          form.reset();
-          clearError();
-          dialog.showModal();
-          return;
-        }
-        const current = panels.find((panel) => !panel.hidden);
-        const privateHash = hashPanel()?.dataset.locked === 'true';
-        unlocked = false;
-        picker.hidden = true;
-        clearPrivate();
-        for (const panel of panels) panel.hidden = true;
-        for (const tab of tabs) {
-          if (document.getElementById(tab.dataset.target).dataset.locked === 'true') tab.hidden = true;
-        }
-        select(current && !isLocked(current) ? current.id : panels[0].id);
-        if (privateHash) {
-          window.history.replaceState(null, '', location.pathname + location.search);
-        }
-        lock.setAttribute('aria-label', 'Unlock private collections');
-        lock.setAttribute('title', 'Unlock private collections');
-        lock.setAttribute('aria-haspopup', 'dialog');
-        lock.setAttribute('aria-controls', dialog.id);
-        lock.hidden = true;
-        document.getElementById('collections-title').focus({ preventScroll: true });
-      });
-      let titleClicks = 0;
-      let titleClickStart = 0;
-      document.getElementById('collections-title').addEventListener('click', () => {
-        if (dialog.open) return;
-        const now = performance.now();
-        if (!titleClicks || now - titleClickStart > 3000) {
-          titleClicks = 0;
-          titleClickStart = now;
-        }
-        if (++titleClicks === 5) {
-          titleClicks = 0;
-          titleClickStart = 0;
-          lock.click();
-        }
-      });
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (unlocking) return;
-        const request = ++attempt;
-        const passphrase = password.value;
-        password.value = '';
-        clearError();
-        setBusy(true);
-        try {
-          if (!globalThis.crypto?.subtle) throw new Error('Web Crypto is unavailable.');
-          const { decryptEntries, renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings, renderTaggedEntries, renderIdeas } = await import(form.dataset.cryptoModule);
-          const content = await decryptEntries(payload, passphrase);
-          if (request !== attempt || !dialog.open) return;
-          // Render all before mounting any: an invalid collection fails closed.
-          const philosophy = content.philosophy.length || !content.philosophyNotes?.length ?
-            renderEntries(content.philosophy) : document.createDocumentFragment();
-          const principles = renderPrinciples(content.firstPrinciples);
-          philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
-          const otherCollections = ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].map(key => {
-            const fragment = key === 'learnings' ? renderLearnings(content[key] ?? [], content.learningCategories ?? []) :
-              key === 'thoughts' ? renderTaggedEntries(content[key] ?? [], content.thoughtCategories ?? [], 'thoughts', { multiple: false }) :
-              key === 'social-sciences' ? renderTaggedEntries(content[key] ?? [], content.socialScienceCategories ?? [], 'social sciences') :
-              key === 'finance' ? renderTaggedEntries(content[key] ?? [], [], 'finance') :
-              key === 'ideas' ? renderIdeas(content[key] ?? []) : renderEntries(content[key] ?? []);
-            if (content.descriptions?.[key]) {
-              const description = document.createElement('p');
-              description.className = 'collection-description';
-              description.textContent = content.descriptions[key];
-              fragment.prepend(description);
-            }
-            return [key, fragment];
-          });
-          root.querySelector('#philosophy-content').replaceChildren(philosophy);
-          root.querySelector('#first-principles-content').replaceChildren(principles);
-          for (const [key, fragment] of otherCollections) {
-            root.querySelector('#' + key + '-content').replaceChildren(fragment);
-          }
-          unlocked = true;
-          picker.hidden = false;
-          for (const tab of tabs) tab.hidden = false;
-          dialog.close();
-          lock.setAttribute('aria-label', 'Lock private collections');
-          lock.setAttribute('title', 'Lock private collections');
-          lock.removeAttribute('aria-haspopup');
-          lock.setAttribute('aria-controls', panels.filter(panel => panel.dataset.locked === 'true').map(panel => panel.id).join(' '));
-          lock.hidden = false;
-          const target = hashPanel();
-          select(target?.dataset.locked === 'true' ? target.id : 'panel-ideas', true);
-          jumpToEntry();
-        } catch (failure) {
-          if (request !== attempt || !dialog.open) return;
-          clearPrivate();
-          error.textContent = failure.name === 'OperationError' ?
-            'Incorrect password. Try again.' : 'Could not unlock the collection. Please try again.';
-          error.hidden = false;
-          if (failure.name === 'OperationError') password.setAttribute('aria-invalid', 'true');
-          password.focus();
-        } finally {
-          if (request === attempt) setBusy(false);
-        }
-      });
-      password.addEventListener('input', clearError);
-      dialog.querySelector('[data-unlock-cancel]').addEventListener('click', () => dialog.close());
-      dialog.addEventListener('close', () => {
-        attempt++;
-        setBusy(false);
-        form.reset();
-        clearError();
-      });
-
-      // The shuffle moves the browser's initial anchor target. Repeat the jump
-      // after layout settles, and open the right panel for subsequent hash changes.
-      addEventListener('DOMContentLoaded', jumpToEntry);
-      addEventListener('hashchange', () => {
-        openHashPanel();
-        jumpToEntry();
-      });
-    })();
-
-    // Share controls copy an absolute link. They stay real anchors, so with no JS
-    // (or no clipboard access) clicking still jumps to the entry and puts the
-    // shareable URL in the address bar.
-    if (navigator.clipboard) {
-      // Delegation also covers private entries added after decryption.
-      document.getElementById('collections').addEventListener('click', async (event) => {
-        const btn = event.target.closest('.share');
-        if (!btn) return;
-        event.preventDefault();
-        const slug = btn.dataset.slug;
-        try {
-          await navigator.clipboard.writeText(location.origin + location.pathname + '#' + slug);
-        } catch {
-          location.hash = slug;
-          return;
-        }
-        const label = btn.querySelector('.share-live');
-        btn.classList.add('copied');
-        label.textContent = 'Copied';
-        clearTimeout(btn.resetTimer);
-        btn.resetTimer = setTimeout(() => {
-          btn.classList.remove('copied');
-          label.textContent = 'Copy link';
-        }, 1600);
-      });
-    }
+  <script>
+    import '../lib/collections-page.js';
   </script>
 </Base>
 
@@ -581,9 +91,7 @@ const sections = collections.map((c) => ({
     outline-offset: 4px;
   }
   .collection-lock[hidden] { display: none; }
-  /* Collection picker. Base state is public panels stacked under their own <h2>, so
-     the page reads without JS; .is-interactive (added by the script) reveals the
-     tab bar, drops the headings, and collapses to one panel at a time. */
+  /* The picker and private panels remain hidden until authenticated loading. */
   .collection-picker {
     display: flex;
     align-items: flex-start;
@@ -599,6 +107,21 @@ const sections = collections.map((c) => ({
   .collection-unlock-error[hidden] {
     display: none;
   }
+
+  .collection-account[hidden], .collection-passkey-signin[hidden] { display: none; }
+  .collection-account { margin-top: 1.5rem; color: var(--text-muted); font-size: 0.85rem; }
+  .collection-account button {
+    font: inherit;
+    padding: 0;
+    color: var(--text-muted);
+    background: none;
+    border: 0;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .collection-account p { margin: 0.5rem 0 0; }
+  .collection-dialog input + label { margin-top: 0.85rem; }
+  .collection-passkey-signin { margin-top: 1rem; width: 100%; }
 
   .collection-tabs {
     display: flex;
@@ -739,19 +262,10 @@ const sections = collections.map((c) => ({
     display: none;
   }
 
-  /* only for the stacked no-JS case: a hidden panel is still a previous sibling,
-     so unscoped this would also indent the second panel when it is the selected tab */
-  .collections:not(.is-interactive) .collection-panel + .collection-panel {
-    margin-top: 2.75rem;
-  }
 
-  .intro {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-  }
 </style>
 
-{/* These shared card styles are global and namespaced: decrypted cards are created
+{/* These shared card styles are global and namespaced: authenticated cards are created
     by JS and cannot inherit Astro's scoped attributes. */}
 <style is:global>
   .collections .entry-reading.is-collapsed {

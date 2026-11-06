@@ -1,36 +1,6 @@
-// Shared by the local encryption command and the browser, using built-in Web Crypto.
-// No password or decryption key belongs in this module or in the encrypted envelope.
-const iterations = 600_000;
-const encoder = new TextEncoder();
-const additionalData = encoder.encode('collections/philosophy/v1');
-const reserved = new Set(['ideas', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'philosophy', 'first-principles']);
+// Shared validation and rendering for authenticated Collections content.
+const reserved = new Set(['ideas', 'stories', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'philosophy', 'first-principles']);
 const paragraphs = value => Array.isArray(value) ? value : [value];
-
-const toBase64 = bytes => {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 8192) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-  }
-  return btoa(binary);
-};
-const fromBase64 = value => {
-  if (typeof value !== 'string' || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
-    throw new Error('Invalid encrypted collection.');
-  }
-  return Uint8Array.from(atob(value), char => char.charCodeAt(0));
-};
-
-async function deriveKey(password, salt) {
-  if (typeof password !== 'string' || !password) throw new Error('A password is required.');
-  const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-    material,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  );
-}
 
 export function validateEntries(entries) {
   if (!Array.isArray(entries)) throw new Error('The private source must be an array of entries.');
@@ -88,6 +58,15 @@ export function validatePrinciples(notes) {
 
 export function validatePrivateContent(content) {
   if (!content || typeof content !== 'object' || Array.isArray(content)) throw new Error('Invalid private collections.');
+  if (content.hourglass !== undefined) {
+    const value = content.hourglass;
+    if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      ['start', 'end', 'quote', 'author', 'authorUrl', 'prompt'].some(key => typeof value[key] !== 'string' || !value[key].trim()) ||
+      !Number.isFinite(Date.parse(value.start)) || !Number.isFinite(Date.parse(value.end)) ||
+      Date.parse(value.end) <= Date.parse(value.start) || !/^https?:\/\//i.test(value.authorUrl)) {
+      throw new Error('Invalid private hourglass settings.');
+    }
+  }
   for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories']) {
     const categories = content[key];
     if (categories !== undefined && (!Array.isArray(categories) ||
@@ -103,7 +82,7 @@ export function validatePrivateContent(content) {
   if (content.descriptions !== undefined) {
     if (!content.descriptions || typeof content.descriptions !== 'object' || Array.isArray(content.descriptions) ||
       Object.entries(content.descriptions).some(([key, value]) =>
-        !['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].includes(key) || typeof value !== 'string')) {
+        !['ideas', 'stories', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].includes(key) || typeof value !== 'string')) {
       throw new Error('Invalid private collection descriptions.');
     }
   }
@@ -112,43 +91,6 @@ export function validatePrivateContent(content) {
     ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.thoughts ?? []), ...(content.inspiration ?? []), ...(content.finance ?? []), ...(content['social-sciences'] ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
-  }
-}
-
-export async function encryptEntries(content, password) {
-  validatePrivateContent(content);
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(password, salt);
-  const plaintext = encoder.encode(JSON.stringify(content));
-  try {
-    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData, tagLength: 128 }, key, plaintext);
-    return {
-      version: 1, kdf: 'PBKDF2', hash: 'SHA-256', iterations, cipher: 'AES-GCM',
-      salt: toBase64(salt), iv: toBase64(iv), data: toBase64(new Uint8Array(ciphertext)),
-    };
-  } finally {
-    plaintext.fill(0);
-  }
-}
-
-export async function decryptEntries(payload, password) {
-  if (!payload || payload.version !== 1 || payload.kdf !== 'PBKDF2' || payload.hash !== 'SHA-256' ||
-      payload.iterations !== iterations || payload.cipher !== 'AES-GCM') {
-    throw new Error('Unsupported encrypted collection.');
-  }
-  const salt = fromBase64(payload.salt);
-  const iv = fromBase64(payload.iv);
-  const ciphertext = fromBase64(payload.data);
-  if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 16) throw new Error('Invalid encrypted collection.');
-  const key = await deriveKey(password, salt);
-  const plaintext = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData, tagLength: 128 }, key, ciphertext));
-  try {
-    const content = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext));
-    validatePrivateContent(content);
-    return content;
-  } finally {
-    plaintext.fill(0);
   }
 }
 
@@ -162,8 +104,8 @@ const caption = figure => figure.credit ? `<figcaption>${link(escape(figure.cred
 const addedOn = iso => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const shareControl = (id, label) => `<a class="share" href="#${id}" data-slug="${id}" aria-label="${escape(label)}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span class="share-text"><span class="share-sizer" aria-hidden="true">Copy link</span><span class="share-live">Copy link</span></span></a>`;
 
-// Body HTML and inline SVG are authored locally, like the public collection entries.
-// Metadata is escaped; private raster images must already be embedded in the payload.
+// Body HTML and SVG are trusted owner-authored content fetched after login.
+// Metadata is escaped; raster images are embedded data URIs.
 export function renderEntries(entries, { tags = false } = {}) {
   validateEntries(entries);
   for (const entry of entries) {
@@ -178,7 +120,7 @@ export function renderEntries(entries, { tags = false } = {}) {
     if (entry.image) {
       const image = entry.image;
       if (!/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[A-Za-z0-9+/]+=*$/.test(image.src)) {
-        throw new Error('Private images must be encrypted with the collection.');
+        throw new Error('Collection images must be embedded raster data URIs.');
       }
       figures += `<figure class="quote-figure"><img src="${image.src}" alt="${escape(image.alt)}"${image.plain ? ' class="plain"' : ''}${image.width ? ` style="width: min(100%, ${image.width}px)"` : ''} loading="lazy">${caption(image)}</figure>`;
     }

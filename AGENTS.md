@@ -47,6 +47,13 @@ changes; leave Gemma 4 work local and exclude it from those commits.
 
 ## Conventions & gotchas
 
+- **Supabase Collections**: use the repository skill at
+  `.agents/skills/manage-supabase/SKILL.md` for content edits, backend changes,
+  login/passkeys, migrations, verification, and deployment configuration. Its
+  references are the maintained runbook. Supabase is the sole Collections content
+  source; database edits do not require encryption or redeployment. Read ignored `.private/supabase-setup.json`
+  for current account/project details and verified setup state.
+
 - Use plain language, short sentences, and avoid dense or overly compressed phrasing.
 - **After adding any new feature or convention**, check whether it should be recorded for
   future sessions: update an existing skill (`.agents/skills/`), create a new one if it's a
@@ -87,180 +94,59 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Collections** (`src/pages/collections.astro`, served at `/collections/`): eleven encrypted tabs (Ideas, History, Psychology, Neuroscience, Learnings, Thoughts, Inspiration, Finance, Social Sciences, Philosophy,
-  and First Principles), picked with a tab bar. **Ideas** are
-  quotes (`author` set, body renders as a `<blockquote>`, attribution below, list shuffled
-  pre-paint). **History** is short retold stories (`subject` + `year` set, body renders as
-  `.story` prose with the subject above it, never shuffled). **Psychology** and **Neuroscience** are explained
-  concepts (`title` set, body renders as `.story` prose with the title above it, never shuffled).
-  Psychology was renamed from Cognitive Science; the legacy `#cognitive-science` panel
-  link still opens Psychology. Entry anchors are unchanged. Neuroscience is a separate tab.
-  The private renderer uses the shared Entry card after decrypting. The picker bar ships `hidden`; without JS all tabs and panels remain hidden. `.is-interactive` on `#collections`
-  collapses to one panel. Explicit `.collection-tabs[hidden]` rules are required because
-  `display: flex` beats the browser's `[hidden]` rule. The tab bar stays on one horizontally scrollable row, with nonshrinking tabs; selecting a tab scrolls only the bar to reveal it, including keyboard and shared-link navigation. Selected tabs use colour plus a rule,
-  **never `font-weight`**, which would change their width and reflow the bar.
-- **Collection share links**: every entry renders as `<li id={slug}>` with a "Copy link"
-  control that copies an absolute `…/collections/#slug`. Renamed twice (Excerpts `/quotes/`
-  to Ideas `/ideas/` to Collections); `src/pages/quotes.astro` and `src/pages/ideas.astro`
-  redirect straight to `/collections/` and preserve the `#fragment`, which a config redirect
-  would drop. Entries take an `added` ISO date; give every new one a date. Public slugs come
-  from `author`, `subject`, or `title` (`slugify`) and are deliberately **not** position-derived:
-  duplicate names throw at build time rather than silently repointing existing shared links.
-  Resolve a clash by adding an explicit `id` to the *newer* entry and leaving the older slug
-  alone. The build reserves collection keys;
-  private ids are explicit and checked after decrypting. Three things are load-bearing:
-  the control is a real `<a href="#slug">` so it works without JS or clipboard access;
-  `scrollIntoView` runs again on `DOMContentLoaded` after the pre-paint shuffle; and the picker
-  opens the hash target's panel before that jump. Private share links still require unlocking.
-
-- **Private collections lock** (`src/pages/collections.astro`): the unlock control is hidden while locked.
-  Click the Collections heading five times within three seconds to open the native Private
-  dialog (keyboard Enter/Space clicks on the heading button also work). One successful
-  unlock reveals all eleven private tabs and an open-lock icon. Relocking clears the content
-  and hides the icon; repeating the heading gesture while unlocked also relocks.
-  The hidden trigger is only a discoverability choice, not additional encryption security.
-  The unlock input uses `name="password"` and `autocomplete="current-password"` for
-  password-manager recognition. Keep those hints; do not switch autocomplete off.
-  Philosophy's editable source is
-  **`.private/philosophy.json`**, an ignored JSON array, never `collections.astro`. Use the
-  same Entry fields as the public cards, but give each private entry an explicit stable `id`
-  and an `added` date. `.private/philosophy.password` holds the chosen password locally.
-  After edits to any private collection, run **`npm run encrypt:philosophy`**, then
-  `npm run build`. The command encrypts all private collections in one payload. Commit only the
-  generated `src/data/philosophy.encrypted.json`; the build and GitHub CI use that ciphertext
-  and never require the local plaintext or password. Keep private raster images alongside
-  the JSON and use relative `image.src` paths: the encryption command embeds them in the
-  encrypted payload, not in `public/`. Inline SVG uses `svg.markup`. Body HTML is trusted
-  local authoring, just like public entries; avoid public image URLs inside it.
-  `src/lib/private-collection.js` uses AES-256-GCM, a fresh 16-byte salt and 12-byte IV per
-  encryption, and PBKDF2-HMAC-SHA256 (600,000 iterations). The browser derives a key from the
-  entered password and mounts cards only after authenticated decryption. Relocking clears
-  private DOM content and hides the open-lock control; nothing is saved to browser storage. Canceling a
-  pending unlock must invalidate it so it cannot reveal content later. Shared card CSS is
-  global and namespaced under `.collections` because JS-created cards lack Astro's scoped
-  attributes. Private ids are checked against the public DOM after decrypting; ciphertext
-  reveals no entry ids at build time. Anyone can download the ciphertext and try passwords
-  locally without further requests to the site: **offline guessing cannot be rate-limited
-  by the website**. This is browser-side decryption, not server-side authentication. Relocking
-  cannot revoke downloaded ciphertext or copies of content someone has already decrypted.
-  The password was rotated on October 4, 2026. Read the current password only from the
-  ignored local password file; never record it in public source or documentation. Earlier
-  ciphertext may still be decrypted with the old password exposed in public Git history.
-  Never commit `.private/`, including assets.
-  History cleanup does not erase existing clones, forks, or cached copies. Do not merge or
-  force-push old history back into a cleaned branch; rebase work onto the cleaned history.
-
-- **First Principles notes**: edit the ignored **`.private/first-principles.json`** array.
-  Notes take `id`, `title`, `added` (ISO date), `body` (trusted HTML string), and optional
-  `summary` (plain text). An empty body is a valid placeholder. Keep titles and bodies out
-  of public source files. The encryption command reads the private JSON files; its
-  `--first-principles PATH` flag overrides the notes input when testing with fixtures.
-  After unlocking, `renderPrinciples` mounts native `<details class="principle-note">`
-  cards in the First Principles tab. Pressing the summary expands a full reading surface;
-  native keyboard access works without a custom accordion script. Styles are global and
-  namespaced under `.collections`. A `#note-id` link opens its panel and expands the note
-  only after unlocking. Relocking removes the bodies and resets all disclosure states.
-  Private ids must be unique across all private entries and notes and must not collide with public ids.
-  Body images must be embedded data URIs or inline SVG, never public private-asset URLs.
-  Raw drafts supplied outside `.private/` must also be ignored or moved into that directory
-  before committing. Do not publish the plaintext source alongside its encrypted version.
-
-- **Locked Ideas**: edit ignored `.private/ideas.json`, with explicit stable ids and added
-  dates. Keep its raster assets in `.private/ideas-assets/` and use relative paths; encryption
-  embeds them. Inline SVG remains in the private JSON. `renderIdeas` shuffles cards after
-  decrypting and before mounting. With all collections locked, the picker stays hidden until
-  unlock and hides on relock. Unlock defaults to Ideas unless a shared link targets another
-  panel. Old public Ideas content and images remain in Git history. Encryption accepts
-  `--ideas PATH`. Never restore their plaintext or images to public source.
-
-- **Locked History, Psychology, and Neuroscience**: edit ignored `.private/history.json`,
-  `.private/psychology.json`, and `.private/neuroscience.json`. Use Entry fields and explicit
-  stable `id` values; title-only placeholders use `text: []`. These render with `renderEntries`.
-  Images live beside the private JSON and are embedded during `npm run encrypt:philosophy`.
-  The command accepts `--history`, `--psychology`, and `--neuroscience` fixture paths.
-  No collection content ships plaintext. Existing private entry links require unlocking; historical
-  public versions remain in Git history. Keep private source and assets out of public files.
-
-- **Learnings and Thoughts**: locked Entry collections authored in ignored
-  `.private/learnings.json` and `.private/thoughts.json`. Thoughts was renamed from Proverbs;
-  legacy `#proverbs` opens Thoughts, and entry ids remain unchanged. Unattributed
-  reflections can use `tags: ["Observations"]`; follow the user’s chosen classification. Thoughts subcategories (Quotes, Proverbs,
-  Observations, Realizations, Reflections) live in ignored `.private/thoughts-categories.json`, encrypted as
-  `thoughtCategories`. It uses `renderTaggedEntries` with All, card tags, shared-link filter
-  reset, and relock cleanup. Encryption accepts `--learnings`, `--thoughts`, and
-  `--thoughts-categories` fixture paths; `--proverbs` is a legacy alias for `--thoughts`.
-  Private descriptions live in ignored `.private/collection-descriptions.json`, keyed by
-  collection slug, including `thoughts`. They mount only after unlocking; `--descriptions PATH`
-  overrides the input. Run encryption and build after edits.
-
-- **Social Sciences**: a locked Entry collection in ignored `.private/social-sciences.json`, with explicit stable ids and added dates. Subcategories are entry `tags`; empty filter names live in ignored `.private/social-sciences-categories.json` (unique nonempty strings), encrypted as `socialScienceCategories`. It uses `renderTaggedEntries`, including All, clickable card tags, shared-link filter reset, and relock cleanup. Encryption accepts `--social-sciences PATH` and `--social-sciences-categories PATH`; descriptions use the `social-sciences` key. Run encryption and build after edits.
-
-- **Finance**: a locked Entry collection authored in ignored `.private/finance.json`, with explicit stable ids and added dates. It uses `renderTaggedEntries` with entry `tags` as subcategory filters (All initially selected), shares Learnings filter/card-tag styling, and shares unlock/relock. Filtered-out entry links reset to All before jumping. Encryption accepts `--finance PATH`; optional descriptions use the `finance` key in the private descriptions file. Run encryption and build after editing.
-
-- **Inspiration**: a separate locked category of personal stories and timelines, distinct
-  from Learnings. Edit ignored `.private/inspiration.json` with Entry fields and explicit ids.
-  It uses `renderEntries` and shares the private unlock. Encryption accepts `--inspiration PATH`.
-
-- **Source labels**: use neutral labels such as “Source: Video” (with Video linked).
-  Never use calls to action such as “Watch the source video” in source credits.
-
-- **Learnings categories**: optional empty categories live in ignored `.private/learning-categories.json`, a JSON array of unique nonempty names. The encryption command includes them as `learningCategories` and accepts `--learning-categories PATH`. They appear alongside entry-derived tags after unlocking, even with zero entries. Run encryption and build after edits; category names stay encrypted.
-
-- **Learnings tags**: entries may have `tags: ["Communication", "Marketing"]`.
-  `renderLearnings` mounts an All/tag filter bar and clickable tags on each card after decrypting.
-  All is selected initially; category buttons toggle independently and show entries matching every selected tag, with `aria-pressed`
-  and a live result count. A link to a filtered-out entry resets to All before jumping.
-  Relocking clears the filter DOM. Styles are global and namespaced under `.collections`.
-  Communication moved into Learnings; legacy `#communication` opens Learnings and the old
-  entry id is preserved. Tags live in the encrypted JSON, never public metadata.
-
-- **Philosophy notes and subcategories**: edit ignored `.private/philosophy-notes.json`.
-  Use the First Principles note fields plus optional `subcategory` (plain text, e.g. Spiritual).
-  Notes render in groups under subcategory headings inside the locked Philosophy tab, using
-  the same native disclosures as First Principles. Uncategorized notes default to General.
-  The encryption command includes this file in the shared payload and accepts
-  `--philosophy-notes PATH` for fixtures. Run encryption and build after editing. Titles,
-  subcategories, and bodies stay private; internal `#note-id` links open the destination tab
-  and expand its note after unlocking. Legacy Philosophy entries remain supported.
-  A subcategory filter bar starts on All and switches to one group, with `aria-pressed`
-  and a live note count. A shared link into a hidden group resets to All before expanding.
-  Relocking clears the controls and resets the filter. It uses the Learnings filter styling.
-
-- **Idea figures.** `image: { src, alt, plain?, credit?, creditUrl?, width? }` or
-  `svg: { markup, credit?, creditUrl? }`; rasters live in `public/images/quotes/` (path kept
-  after the rename). The per-field contract is in the comment block at the top of
-  `collections.astro`; the load-bearing parts:
-  - **Default treatment assumes grayscale line art on white.** A trimmed screenshot reads as a
-    slab on the card, so the flat background is blended away: `mix-blend-mode: multiply` drops
-    white onto `--surface`, and dark mode does `filter: invert(1)` + `screen` to drop the black.
-    Lossless only for black-on-white (same white-slab problem as the `train_async` SVG).
-  - **`plain` turns both off**, for art that is colored. The invert would hue-flip it (salmon to
-    teal, a green shoggoth to magenta, a blue room to orange). Costs a white panel in dark mode,
-    the same trade the note figures make, and costs *nothing* when the PNG has transparency,
-    since the card shows through. Prefer this to `.convert('L')` whenever the color carries
-    meaning, e.g. two series in one diagram.
-  - **`svg` is for art that is neither** grayscale nor on white: the singularity chart's source
-    was a dark-navy branded card, so it is redrawn on the `--diagram-*-border` tokens and is
-    theme-aware instead. Injected with `set:html`, so Astro's scoped styles never reach it: its
-    sizing and colors go inline on the element, and `var()` needs `style=`, not a presentation
-    attribute, or it silently falls back to black.
-  - **`credit`/`creditUrl` render a figcaption**, for when the figure and the quote come from
-    different places, which is common: the jagged-frontier diagram is Mollick's while the term is
-    Karpathy's, and "Image generated using ChatGPT" has no URL at all (plain text, no link).
-  - **`width` caps one figure below the shared 460px**, for art that is tall or square and would
-    otherwise be the tallest thing on the page. Keeps the `min(100%, …)` form so a phone still
-    wins on the 100% side. The user has asked for smaller more than once: default low.
-
-- **`text` and `note` on an idea go through `set:html`**, so an entry can bold the term it defines
-  or link a citation inline. Safe only because every value is authored in `collections.astro` and never
-  user input; nothing there contains a bare `&` or `<`. `note` also takes an array of paragraphs,
-  and only the first draws the introducing rule.
-
-- **The "Copy link" label carries a hidden sizer.** `.share-text` is an `inline-grid` stacking a
-  `visibility: hidden` span reading "Copy link" with the live label. Without it, swapping to the
-  narrower "Copied" shrank the control, `.meta` (space-between) handed the freed width to
-  `.meta-text`, the commentary re-wrapped, and the card jumped 306px to 261px on click. Don't
-  replace it with a px `min-width`: that drifts if the font or the wording changes.
+- **Collections** (`src/pages/collections.astro`, `/collections/`): ten private tabs
+  (Ideas, Stories, Psychology, Neuroscience, Learnings, Thoughts, Finance, Social Sciences,
+  Philosophy, First Principles). Content loads from Supabase only after authenticated access.
+  `src/lib/collections-page.js` owns login, tabs, and shared links;
+  `src/lib/collection-content.js` owns validators and card renderers. Stories combines the
+  History and Inspiration source collections. Legacy `#history` and `#inspiration` open Stories,
+  `#cognitive-science` opens Psychology, `#communication` opens Learnings, and `#proverbs`
+  opens Thoughts. Entry ids stay stable. Database keys and authoring are in the Supabase skill.
+- **Collections access**: click the 🧠 heading five times within three seconds to open
+  the login dialog; keyboard Enter/Space clicks work too. Successful login reveals the tabs
+  and lock icon. Relocking clears private DOM, hides the hourglass, and signs out the
+  in-memory session. Canceling or superseding a login invalidates its pending result.
+  The gesture is a discoverability choice, not security. Preserve password-manager hints:
+  `name="password"`, `autocomplete="current-password"`, and email's username hint.
+- **Collection tabs** ship hidden and stay hidden without JS. Explicit `[hidden]` rules
+  override flex display. Keep one horizontally scrollable row with nonshrinking tabs; selecting
+  a tab scrolls only the bar, including keyboard and shared-link navigation. Selected tabs use
+  colour plus a rule, never font-weight, which changes width and reflows the bar.
+- **Collection share links** use stable explicit ids and real `<a href="#id">` controls.
+  The picker opens the target panel before jumping; notes expand and collapsed entries open
+  after login. Links into a filtered-out entry reset its filter first. Legacy `/quotes/`
+  and `/ideas/` pages redirect to `/collections/` while preserving the fragment. The
+  `.share-text` inline grid stacks a hidden “Copy link” sizer with the live label so changing
+  it to “Copied” cannot shrink the control and reflow the card. Do not replace it with a
+  hardcoded pixel width.
+- **Collection rendering**: Ideas shuffle after loading; other entries retain display order.
+  `author` selects a quotation, while `subject` or `title` selects prose. First Principles and
+  Philosophy notes use native `<details>`; Philosophy supports subcategory filters. Body HTML,
+  commentary, and SVG are trusted owner-authored content; metadata is escaped. Dynamic cards
+  need global CSS namespaced under `.collections`, since Astro's scoped attributes do not
+  reach JS-created DOM. Use neutral source credits such as “Source: Video”, with Video linked.
+- **Collections hourglass**: the heading and footer link are 🧠, while the URL and accessible
+  labels remain Collections. `LifeHourglass.astro` loads private settings from authenticated
+  `collection_settings.content.hourglass`, never public source. `collections:unlock` supplies
+  validated settings; `collections:lock` clears text, links, dates, and timer. Preserve the
+  curved-bulb area integration, continuous grain animation, IST accessible durations, and
+  updates on returning to the tab. Keep the grey rounded design, no visible time caption,
+  reflection beside the glass on desktop and below on mobile, and an explicit
+  `.life-hourglass[hidden]` override.
+- **Collection figures**: raster data URIs live inside private entry JSONB; no public asset
+  URLs or Storage bucket are used. `image` supports `alt`, `plain`, `credit`, `creditUrl`,
+  and optional `width`; default widths stay small. Grayscale line art uses multiply in light
+  mode and invert plus screen in dark mode to blend away its white background. Use `plain`
+  for colored art, especially transparent PNGs; do not discard meaningful color. Inline SVG
+  uses `svg.markup`, with sizes and theme tokens in inline styles because it is injected DOM.
+  `credit`/`creditUrl` add a caption; credits without a URL stay plain text. A width cap must
+  retain `min(100%, ...)` so images fit phones.
+- **Private data lifecycle**: the old encrypted bundle, encryption password, and editable local
+  source copies have been retired. Keep only ignored setup metadata, verified backups, and
+  archived unmatched source material under `.private/`. Never commit that directory or `.env`.
+  Earlier ciphertext and historical plaintext may still exist in Git history and other clones;
+  removing current files does not revoke copies. Do not merge or force-push old history back
+  into a cleaned branch. Follow the Supabase skill for database edits and backups.
 
 - **Search**: `/search-index.json` is generated at build from both collections. Each doc has
   `text` (stop-word-stripped, for Fuse.js fuzzy matching), `plain` (readable, for sentence
