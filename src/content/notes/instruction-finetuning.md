@@ -2,10 +2,28 @@
 title: Instruction and Supervised Finetuning
 description: "How instruction tuning differs from pretraining: loss masking, data, batch sizes, and learning rates."
 date: 2026-07-06
-updated: 2026-08-31
+updated: 2026-11-01
 ---
 
+A pretrained language model learns broad patterns from enormous amounts of text, but that general knowledge does not automatically make it suitable for every job.
+
+One may need the model to follow a particular instruction format, understand a specialized domain, or respond in a consistent style. Instruction and supervised fine-tuning use examples from that narrower task to adjust the model's behaviour.
+
 Instruction tuning is the next step after pre-training and the foundation of post-training. It teaches the model how humans want it to respond.
+
+A fine-tuning example pairs an input with the answer the model should produce. The model makes a prediction, the training loss measures how far that prediction is from the desired answer, and backpropagation calculates which trainable weights should change.
+
+For example, suppose the desired answer is the single token `4`:
+
+<div style="padding: 0.8rem 1rem; margin: 1rem 0; border-left: 3px solid var(--diagram-blue-border); background: var(--diagram-blue); border-radius: 4px;">
+  <strong>Input:</strong> What is 2 + 2?
+</div>
+<div style="padding: 0.8rem 1rem; margin: 1rem 0; border-left: 3px solid var(--diagram-green-border); background: var(--diagram-green); border-radius: 4px;">
+  <strong>Target answer:</strong> 4
+</div>
+<div style="padding: 0.8rem 1rem; margin: 1rem 0; border-left: 3px solid var(--diagram-orange-border); background: var(--diagram-orange); border-radius: 4px;">
+  <strong>Model prediction:</strong> The model assigns 25% probability to “4” and 75% to other tokens combined. Training uses this probability distribution, rather than comparing a sampled answer with the target.
+</div>
 
 Instruction tuning uses the same loss function as pretraining (cross-entropy next-token prediction), but the way we train is quite different.
 
@@ -14,6 +32,16 @@ L = -\sum \log P(\text{correct next token})
 $$
 
 During training, the model is usually only predicting the completion. It is not trying to predict the prompt.
+
+The loss for this target token is:
+
+$$
+L = -\log P(4 \mid \text{What is 2 + 2?}) = -\log(0.25) \approx 1.386
+$$
+
+<div style="padding: 0.8rem 1rem; margin: 1rem 0; border-left: 3px solid var(--diagram-purple-border); background: var(--diagram-purple); border-radius: 4px;">
+  <strong>Weight update:</strong> Backpropagation computes the gradient of this loss with respect to the trainable weights. The optimizer then uses those gradients to update the weights, aiming to increase the probability of “4” for this input.
+</div>
 
 The data is different too. Instead of raw internet text, we have data in this format:
 

@@ -16,7 +16,7 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // be sitting at the top of the list above.
 const planned = [
   {
-    topic: 'LLM Agents: Harness, Context, Loop, and Graph engineering',
+    topic: 'LLM Agents: agentic workflows, tool calling, RAG, context engineering, memory systems, and multi-agent orchestration',
     refs: [
       {
         url: 'https://lilianweng.github.io/posts/2023-06-23-agent/',
@@ -30,11 +30,18 @@ const planned = [
         url: 'https://www.youtube.com/watch?v=1a1VXDdIyrk',
         label: 'Agent Harness explained in 8min (Video)',
       },
+      { url: 'https://lnkd.in/p/ekFS29p8', label: 'LinkedIn post' },
+      { url: 'https://www.youtube.com/playlist?list=PLangBM27OtEA', label: 'YouTube playlist' },
     ],
   },
   {
     topic: 'LLM Post-training',
     refs: [
+      { url: 'https://lnkd.in/p/es8KZyNW', label: 'LinkedIn post' },
+      {
+        url: 'https://huggingface.co/spaces/sergiopaniego/train-the-agent-slides',
+        label: 'Sergio Paniego: Train the Agent (slides)',
+      },
       {
         url: 'https://bespokelabs.ai/blog/teaching-nvidias-nemotron-ml-engineering',
         label: 'Bespoke Labs: Teaching NVIDIA’s Nemotron 3.5 Super-VL ML Engineering',
@@ -75,6 +82,8 @@ const planned = [
   {
     topic: 'Efficient LLMs - PEFT, LoRA, QLoRA',
     refs: [
+      { url: 'https://lnkd.in/p/ektgRQXy', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/e9F8-wEk', label: 'LinkedIn post' },
       { url: 'https://thinkingmachines.ai/blog/lora/', label: 'Thinking Machines' },
       { url: 'https://www.tensortonic.com/llm-internals/lora', label: 'Tensortonic: LoRA' },
       { url: 'https://www.tensortonic.com/llm-internals/qlora', label: 'Tensortonic: QLoRA' },
@@ -83,8 +92,9 @@ const planned = [
   },
   'Scaling book exercises',
   {
-    topic: 'LLM Inference',
+    topic: 'LLM Inference: OpenAI-compatible API',
     refs: [
+      { url: 'https://lnkd.in/p/efRquAnP', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/eMn6Q95X', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/ezBZi-WT', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/ehPTUUdp', label: 'LinkedIn post' },
@@ -93,6 +103,9 @@ const planned = [
       { url: 'https://lnkd.in/p/eYKVBKkX', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/ez4HiyQH', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/eb2JCshe', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/e-hzxiyE', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/eQbVBwnd', label: 'LinkedIn post' },
+      { url: 'https://lnkd.in/p/eExuJAqv', label: 'LinkedIn post' },
       { url: 'https://cs336.stanford.edu/lectures/?trace=lecture_10', label: 'CS336 Lecture 10' },
       {
         url: 'https://jax-ml.github.io/scaling-book/inference/',
@@ -104,6 +117,7 @@ const planned = [
         url: 'https://www.aleksagordic.com/blog/vllm',
         label: 'Aleksa Gordić: Inside vLLM',
       },
+      { url: 'https://github.com/GeeeekExplorer/nano-vllm', label: 'nano-vllm (GitHub)' },
       {
         url: 'https://huggingface.co/blog/continuous_batching',
         label: 'Hugging Face: Continuous batching',
