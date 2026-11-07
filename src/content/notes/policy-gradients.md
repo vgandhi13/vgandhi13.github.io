@@ -2,7 +2,7 @@
 title: Policy Gradients
 description: "RL and MDP preliminaries: states, actions, trajectories, and the expected-reward objective."
 date: 2026-07-12
-updated: 2026-08-30
+updated: 2026-11-07
 ---
 
 Policy gradient methods are a class of reinforcement learning algorithms and a sub-class of policy optimization methods. Unlike value-based methods, which learn a value function to derive a policy, policy optimization methods directly learn a policy function $\pi$ that selects actions without consulting a value function. For policy gradient to apply, the policy function $\pi_\theta$ is parameterized by a differentiable parameter $\theta$.[^wiki]
@@ -12,7 +12,7 @@ Policy gradient methods are a class of reinforcement learning algorithms and a s
 Reinforcement learning is about an agent interacting with an environment: at each time step the agent observes the state of the world, takes an action, and the environment responds with a reward and the next state.
 
 <figure>
-  <img src="/images/notes/rl-agent-environment.jpg" alt="The agent–environment loop: the agent receives state S_t and reward R_t, takes action A_t, and the environment returns the next reward R_{t+1} and next state S_{t+1}." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/rl-agent-environment.jpg" alt="The agent–environment loop: the agent receives state S_t and reward R_t, takes action A_t, and the environment returns the next reward R_{t+1} and next state S_{t+1}." />
   <figcaption>The agent–environment loop. Source: <a href="https://www.ibm.com/think/topics/reinforcement-learning">IBM</a>.</figcaption>
 </figure>
 
@@ -50,7 +50,7 @@ This note only covers the online case.
 Online RL is a loop: run the current policy to collect a batch of data, improve the policy using that batch, and repeat. Over iterations, the policy's trajectories concentrate on the behaviors that earn reward.
 
 <figure>
-  <img src="/images/notes/online-rl-loop.png" alt="The online RL loop: run the policy to collect a batch of data, improve the policy using that batch, alongside trajectory distributions at iterations 1, 50, and 100 tightening toward successful outcomes." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/online-rl-loop.png" alt="The online RL loop: run the policy to collect a batch of data, improve the policy using that batch, alongside trajectory distributions at iterations 1, 50, and 100 tightening toward successful outcomes." />
   <figcaption>The online RL loop; trajectories concentrate on rewarded behavior over iterations. Source: <a href="https://cs224r.stanford.edu/">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -286,7 +286,7 @@ where `advantages` holds $(G_t - b)$ per timestep, and the sign is flipped since
 Every variant of the estimator covered so far, from vanilla REINFORCE through reward-to-go, the baseline, and the surrogate objective, shares one property: the expectation $\mathbb{E}_{\tau \sim p_\theta(\tau)}[\cdot]$ is over trajectories sampled from the *current* policy $\pi_\theta$. But step 3 of the [full algorithm](#full-algorithm) changes $\theta$. Once that happens, the trajectories used to compute that gradient no longer come from the policy we're now trying to improve, so we have to go back to step 1 and collect a fresh batch under the new $\theta$ before taking another gradient step.
 
 <figure>
-  <img src="/images/notes/on-off-policy-definitions.jpg" alt="Definitions: on-policy, an update uses only data from the current policy. Off-policy, an update can reuse data from other, past policies." width="400" />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/on-off-policy-definitions.jpg" alt="Definitions: on-policy, an update uses only data from the current policy. Off-policy, an update can reuse data from other, past policies." width="400" />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -448,7 +448,7 @@ Pick a small threshold $\delta$, and reject (or shrink) any update that would pu
 [^reward-sign-intuition]: The update for a trajectory $\tau_i$ is $r(\tau_i) \sum_t \nabla_\theta \log \pi_\theta(a_t \mid s_t)$: it scales the gradient of the log-probability of the actions taken by how much reward they earned. If a trajectory gets a large reward, $r(\tau)$ is positive and large, and gradient ascent increases $\log \pi_\theta(a_t \mid s_t)$ for the actions taken: "these actions led to success, make them more likely." If the reward is low or negative, the opposite happens: "these actions were bad, reduce their probability."
 
     <figure>
-      <img src="/images/notes/reward-landscape-trajectories.jpg" alt="A 3D reward landscape with three trajectories climbing toward higher reward; two reach a high-reward peak (marked with checkmarks) and one plateaus at a low-reward region (marked with an X)." width="400" />
+      <img style="display: block; margin-inline: auto;" src="/images/notes/reward-landscape-trajectories.jpg" alt="A 3D reward landscape with three trajectories climbing toward higher reward; two reach a high-reward peak (marked with checkmarks) and one plateaus at a low-reward region (marked with an X)." width="400" />
       <figcaption>Trajectories that climb toward higher reward get reinforced; ones that don't, don't. Source: <a href="https://cs224r.stanford.edu/">Stanford CS224R</a>.</figcaption>
     </figure>
 

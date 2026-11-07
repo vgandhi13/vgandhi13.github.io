@@ -2,7 +2,7 @@
 title: Actor-Critic Methods
 description: "How actor-critic methods combine a learned policy with a learned value function: the V, Q, and advantage functions, and where they fit into policy gradients."
 date: 2026-07-14
-updated: 2026-09-12
+updated: 2026-11-07
 ---
 
 Actor-critic methods build on [policy gradients](/notes/policy-gradients/): alongside the policy (the "actor"), they learn a value function (the "critic") to judge how good the actor's actions are, giving a lower-variance learning signal than the raw Monte Carlo returns used in vanilla policy gradient.
@@ -23,7 +23,7 @@ All policy gradient ever knows is that a trajectory succeeded or failed as a who
 - **Q-function** $Q^\pi(s, a)$: the future expected reward starting at state $s$, taking action $a$, then following policy $\pi$ from there
 
 <figure>
-  <img src="/images/notes/v-q-function-comparison.jpg" alt="Side by side: left, running policy π from state s produces several trajectories, their expected sum of rewards labeled V^π(s). Right, taking action a from state s (highlighted), then running policy π, produces several trajectories, their expected sum of rewards labeled Q^π(s,a)." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/v-q-function-comparison.jpg" alt="Side by side: left, running policy π from state s produces several trajectories, their expected sum of rewards labeled V^π(s). Right, taking action a from state s (highlighted), then running policy π, produces several trajectories, their expected sum of rewards labeled Q^π(s,a)." />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -54,7 +54,7 @@ $$
 This update increases the probability of actions that led to large future rewards. But $G_{i,t}$ is only ever computed from *one* sampled rollout: it's an *estimate* of the future reward, not the future reward itself. The same first action can lead to wildly different futures.
 
 <figure>
-  <img src="/images/notes/many-possible-futures.jpg" alt="A single trajectory arrives at a state (green dot), from which many different future trajectories branch out and upward, each summing to a different total reward." width="300" />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/many-possible-futures.jpg" alt="A single trajectory arrives at a state (green dot), from which many different future trajectories branch out and upward, each summing to a different total reward." width="300" />
   <figcaption>From a single state, many different futures are possible, each earning a different reward; a sampled rollout only ever realizes one of them. Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -99,7 +99,7 @@ Better estimates of $A^\pi$ lead to less noisy gradients. The actor no longer ch
 Fitting $V^\pi$, $Q^\pi$, or $A^\pi$ turns actor-critic into a small extension of the [online RL loop](/notes/policy-gradients/#online-rl): collect a batch of data with the current policy, fit a model to estimate the expected return, then use that fitted estimate to improve the policy.
 
 <figure>
-  <img src="/images/notes/actor-critic-loop.jpg" alt="Actor-critic loop diagram: run the policy to collect a batch of data, fit a model to estimate expected return by estimating V^π, Q^π, or A^π, improve the policy via θ ← θ + ∇_θ J(θ), then repeat." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/actor-critic-loop.jpg" alt="Actor-critic loop diagram: run the policy to collect a batch of data, fit a model to estimate expected return by estimating V^π, Q^π, or A^π, improve the policy via θ ← θ + ∇_θ J(θ), then repeat." />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -108,7 +108,7 @@ You estimate value metrics like the State-Value $V^\pi$, Action-Value $Q^\pi$, o
 In practice, this fitted model is a neural network: it takes a state $s$ as input and outputs an estimate $\hat{V}^\pi(s)$, with its own parameters $\phi$, separate from the policy's parameters $\theta$.
 
 <figure>
-  <img src="/images/notes/value-network.jpg" alt="A feedforward neural network taking state s as input and outputting an estimate V-hat^π(s), with its own parameters φ." width="350" />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/value-network.jpg" alt="A feedforward neural network taking state s as input and outputting an estimate V-hat^π(s), with its own parameters φ." width="350" />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -202,7 +202,7 @@ Monte Carlo trusts the data completely and pays for it in noise; TD trades some 
 Monte Carlo and 1-step TD are two ends of a spectrum: sum every real reward all the way to $T$, or bootstrap after just one. Nothing forces that choice to be so extreme.
 
 <figure>
-  <img src="/images/notes/n-step-returns.jpg" alt="Diagram comparing Monte Carlo (sum rewards over the whole trajectory), bootstrapped (one reward plus V), and an n-step return in between (sum rewards over n steps, then plus V) along the same set of trajectories." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/n-step-returns.jpg" alt="Diagram comparing Monte Carlo (sum rewards over the whole trajectory), bootstrapped (one reward plus V), and an n-step return in between (sum rewards over n steps, then plus V) along the same set of trajectories." />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -251,7 +251,7 @@ $$
 Steps 1 and 4 are the actor: the policy network $\pi_\theta(a \mid s)$, updated by the policy gradient. Steps 2 and 3 are the critic: the value network $\hat{V}^\pi_\phi(s)$, whose bootstrapped estimate turns raw rewards into the advantage the actor learns from. Two separate networks, trained together, each taking the same state $s$ as input, giving the method its name.
 
 <figure>
-  <img src="/images/notes/actor-critic-networks.jpg" alt="Two neural networks side by side, both taking state s as input: one outputting π_θ(a|s), the other outputting V-hat^π(s), labeled 'actor-critic algorithm'." />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/actor-critic-networks.jpg" alt="Two neural networks side by side, both taking state s as input: one outputting π_θ(a|s), the other outputting V-hat^π(s), labeled 'actor-critic algorithm'." />
   <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
 </figure>
 
@@ -348,7 +348,7 @@ For what this algorithm looks like once the environment is an LLM emitting token
 The count behind $N$, $M$, and $K$ is easiest to see in a concrete example.[^ppo-batch-count-example]
 
 <figure>
-  <img src="/images/notes/ppo-algorithm-1.png" alt="Algorithm 1, PPO, Actor-Critic Style: for iteration = 1, 2, ...: for actor = 1, 2, ..., N: run policy pi-theta-old in environment for T timesteps, compute advantage estimates A-hat_1 through A-hat_T; end for; optimize surrogate L with respect to theta, with K epochs and minibatch size M less than or equal to NT; theta-old is set to theta; end for." width="640" />
+  <img style="display: block; margin-inline: auto;" src="/images/notes/ppo-algorithm-1.png" alt="Algorithm 1, PPO, Actor-Critic Style: for iteration = 1, 2, ...: for actor = 1, 2, ..., N: run policy pi-theta-old in environment for T timesteps, compute advantage estimates A-hat_1 through A-hat_T; end for; optimize surrogate L with respect to theta, with K epochs and minibatch size M less than or equal to NT; theta-old is set to theta; end for." width="640" />
   <figcaption>PPO's full loop as the paper states it: N actors each collect T timesteps under the old policy, producing NT samples; advantages are computed once from those samples; the batch is divided into minibatches of size M and reused for K complete epochs of optimization; only then is the old policy refreshed. Source: Schulman et al., <a href="https://arxiv.org/abs/1707.06347">"Proximal Policy Optimization Algorithms"</a> (2017), Algorithm 1.</figcaption>
 </figure>
 
@@ -442,7 +442,7 @@ TODO: add Generalized Advantage Estimation (GAE).
 [^mc-td-bias-variance-example]: Consider two episodes running through the same two states, Pink and Blue, before reaching a terminal:
 
     <figure>
-      <img src="/images/notes/mc-td-example.jpg" alt="A trajectory running through a pink state, then a blue state, branching to either a green terminal (reward +1) or a red terminal (reward -1), with reward 0 elsewhere along the path." width="280" />
+      <img style="display: block; margin-inline: auto;" src="/images/notes/mc-td-example.jpg" alt="A trajectory running through a pink state, then a blue state, branching to either a green terminal (reward +1) or a red terminal (reward -1), with reward 0 elsewhere along the path." width="280" />
       <figcaption>Source: <a href="https://cs224r.stanford.edu/slides/04_cs224r_actor_critic_2026.pdf">Stanford CS224R</a>.</figcaption>
     </figure>
 

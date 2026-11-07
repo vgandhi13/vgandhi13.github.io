@@ -313,6 +313,8 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   `:root[data-theme='dark']` override) so it works in both themes. Styles live in the note, not
   Base.astro, so a one-off widget's CSS doesn't load on every page.
 
+- **LoRA rank explorer** in `efficient-llm.md`: the inline `.lora-rank-demo` widget compares one illustrative attention or FFN projection at a time. Keep A shaped `r × input`, B shaped `output × r`, and parameter count `r(input + output)`. Its SVG shapes are schematic; controls stay hidden without JS, with a static rank-8 example visible.
+
 - **Tabbed code blocks** (`.code-tabs` in the PPO section of `rl-for-llms.md`): keep code in
   real fenced blocks so Astro's Shiki highlighting still applies. Deliberately break the raw
   HTML block: `<div class="code-tabs-pane">` on its own line, a blank line, the fence, a blank
