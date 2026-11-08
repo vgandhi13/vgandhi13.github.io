@@ -1,5 +1,14 @@
 ---
 import Base from '../layouts/Base.astro';
+
+// Bump this date when revising the page's content.
+const lastUpdated = '2026-11-08';
+const updatedLabel = new Date(lastUpdated).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
 ---
 
 <Base
@@ -7,11 +16,13 @@ import Base from '../layouts/Base.astro';
   description="My interests, goals, and what I spend my time on outside of work."
 >
   <h1>Me</h1>
+  <p class="last-updated">Last updated <time datetime={lastUpdated}>{updatedLabel}</time></p>
 
   <h2>Interests</h2>
 
   <p>
-    I am interested in alignment and capabilities research and engineering for LLMs, with a
+    Broadly, I am interested in contributing towards solving intelligence and then using it to solve everything else.
+    Currently, I am interested in alignment and capabilities research and engineering for LLMs, with a
     focus on post-training.
   </p>
 
@@ -50,6 +61,14 @@ import Base from '../layouts/Base.astro';
     I see myself working at an AI lab or robotics company in the near future, tackling
     interesting post-training problems. My long-term goal is to advance AI's capabilities and
     apply them to scientific discovery, both to reduce human suffering by curing diseases such
-    as cancer and to deepen our understanding of the nature of reality.
+    as cancer and to deepen our understanding of the nature of reality we find ourselves in.
   </p>
 </Base>
+
+<style>
+  .last-updated {
+    margin-top: -0.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+</style>

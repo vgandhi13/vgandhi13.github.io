@@ -32,6 +32,7 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   **News** box, Research (papers), Teaching. All homepage edits happen here.
 - `src/layouts/Base.astro` — header/footer, theme toggle, **all global CSS + color variables**.
 - `src/layouts/Entry.astro` — wrapper for a single note/blog post (imports KaTeX CSS).
+- `src/pages/me.astro` — interests and goals; bump its explicit `lastUpdated` date when revising the content. The date below the title reflects edits, not builds.
 - `src/content/notes/*.md`, `src/content/blog/*.md` — content collections (schema in
   `src/content.config.ts`: `title`, `description?`, `date`, `updated?`, `draft`). Filename =
   URL slug. `date` = created (immutable); bump `updated` to today whenever revising content —
