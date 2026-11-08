@@ -104,6 +104,12 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
 
 ## Common breakages to watch for
 
+- **RNN unrolling animation**: `neural-language-models.md` contains a self-contained SVG
+  walkthrough of “the cat sat”, adapted from CS646 slides 5–7. It reveals three shared-weight
+  recurrence steps on entering the viewport, with pause/replay controls and a complete static
+  diagram for no-JS and reduced-motion readers. Keep its styles and script local to the note,
+  and mirror edits into `Notes/NeuralLanguageModels/main.md`.
+
 - **Unquoted YAML frontmatter with a colon in the value** (`description: How X differs from Y:
   a, b, c.`) breaks the build: quote the whole string when a description contains `: `.
 - **Raw HTML blocks swallow inner markdown.** A `<div>`/`<figure>` wrapping a numbered list or
