@@ -70,6 +70,10 @@ At completion, distinguish: backend configured, local login verified, frontend d
 - Restarting Codex stopped the dev server. Check the printed URL and an HTTP response before sending the user to localhost. Reuse an existing server; request the normal execution permission if the sandbox rejects listening on the port. Do not start multiple servers just because a sandboxed network probe fails.
 - A sandboxed `gh auth status` reported an invalid token, while the permitted network check confirmed the existing keyring login worked. Verify network access before telling the user to reauthenticate.
 - Follow AGENTS.md's Vite cache guidance if dependency changes cause client failures. Do not mistake a stale dev cache for a broken production build.
+- A local Collections login can report a generic load failure when the dynamically imported
+  Supabase SDK returns `504 Outdated Optimize Dep`. Clear `node_modules/.vite` and restart
+  dev, then reload the affected browser. Login errors now distinguish code loading,
+  sign-in, private data loading, and rendering without showing raw errors or credentials.
 - Free Supabase projects can pause for low database activity. Resume through the dashboard if that is the cause of an outage; recheck current Supabase policy before giving timing, retention, or pricing advice.
 
 References: [API keys](https://supabase.com/docs/guides/getting-started/api-keys), [password authentication](https://supabase.com/docs/guides/auth/passwords), [passkeys](https://supabase.com/docs/guides/auth/passkeys), [MCP](https://supabase.com/docs/guides/ai-tools/mcp).

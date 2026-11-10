@@ -176,6 +176,7 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     const controller = new AbortController();
     pendingController = controller;
     let candidate;
+    let stage = 'code';
     const passphrase = password.value;
     const address = email?.value.trim();
     password.value = '';
@@ -184,14 +185,17 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     try {
       const { createCollectionsClient, loadCollections } = await import('./supabase-collections.js');
       if (controller.signal.aborted) return;
+      stage = 'sign-in';
       candidate = createCollectionsClient(root.dataset.supabaseUrl, root.dataset.supabaseKey);
       const { error: authError } = method === 'passkey' ?
         await candidate.auth.signInWithPasskey({ options: { signal: controller.signal } }) :
         await candidate.auth.signInWithPassword({ email: address, password: passphrase });
       if (authError) throw authError;
       controller.signal.throwIfAborted();
+      stage = 'data';
       const content = await loadCollections(candidate, controller.signal);
       if (request !== attempt || !dialog.open) return;
+      stage = 'display';
       // Render all before mounting any: an invalid collection fails closed.
       const philosophy = content.philosophy.length || !content.philosophyNotes?.length ?
         renderEntries(content.philosophy) : document.createDocumentFragment();
@@ -250,7 +254,10 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       error.textContent = failure.code === 'invalid_credentials' ? 'Incorrect email or password. Try again.' :
         failure.code === 'email_not_confirmed' ? 'Confirm your email before signing in.' :
         method === 'passkey' ? 'Passkey sign-in did not complete. Try again or use your password.' :
-        'Could not load your collections. Check your connection and account access, then try again.';
+        stage === 'code' ? 'The login code could not load. Reload this page and try again.' :
+        stage === 'sign-in' ? 'Sign-in could not complete in this browser. Check your connection and try again.' :
+        stage === 'data' ? 'Signed in, but your collections could not load. Check your connection and account access, then try again.' :
+        'Signed in, but this browser could not display your collections. Try reloading the page.';
       error.hidden = false;
       if (failure.code === 'invalid_credentials') password.setAttribute('aria-invalid', 'true');
       password.focus();

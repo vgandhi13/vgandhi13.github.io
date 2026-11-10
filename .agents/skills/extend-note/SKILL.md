@@ -35,6 +35,7 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
      proofs/derivations backing a claim just made, illustrative images. This note's convention:
      the reader should be able to follow the main thread top-to-bottom on equations alone, with
      examples one click away.
+   - **“Appendix” examples use the existing GFM footnote format.** When the user asks to put a worked example or aside in the appendix, attach a `[^name]` marker to the relevant sentence and put the example in its footnote definition, matching the other notes. Do not create a separate Appendix heading unless the user explicitly requests a standalone section.
    - **Worked numerical examples go in a table, with the arithmetic visible in the cell.** Sources
      paste these as a table of inputs followed by a run of near-identical display equations
      ($1.0-0.5=+0.5$, $1.0-0.5=+0.5$, $0.0-0.5=-0.5$, …); fold that run into a column of the table
@@ -104,11 +105,15 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
 
 ## Common breakages to watch for
 
+- **Self-attention walkthrough**: `neural-language-models.md` has a dependency-free SVG animation adapted from CS646 Transformer slides 16–20. It reveals projections, scaled query–key scores, row-wise softmax, weighted values, and the output sum. Query controls reuse the same keys and values with illustrative weight rows; preserve the first row `[0.1, 0.1, 0.3, 0.5]` so it matches the prose. Keep blue Q, red K, green V, viewport-triggered playback, pause/replay, a complete static no-JS/reduced-motion state, and local horizontal scrolling on phones. Mirror changes into `Notes/NeuralLanguageModels/main.md`.
+
 - **RNN unrolling animation**: `neural-language-models.md` contains a self-contained SVG
   walkthrough of “the cat sat”, adapted from CS646 slides 5–7. It reveals three shared-weight
   recurrence steps on entering the viewport, with pause/replay controls and a complete static
   diagram for no-JS and reduced-motion readers. Keep its styles and script local to the note,
   and mirror edits into `Notes/NeuralLanguageModels/main.md`.
+  Its `.rnn-many-row` places explanatory text beside the cropped slide 14 diagram and stacks
+  below 800px. Blank lines around the inner text allow Markdown and KaTeX to render.
 
 - **Unquoted YAML frontmatter with a colon in the value** (`description: How X differs from Y:
   a, b, c.`) breaks the build: quote the whole string when a description contains `: `.

@@ -53,13 +53,11 @@ const fmt = (d: Date) =>
   });
 const showUpdated = updated && fmt(updated) !== fmt(date);
 
-// h2 and h3 only: h4 and below are usually a worked example inside a section, not a
-// place anyone navigates to. h3 matters because some notes (policy-gradients) carry
-// their real structure there and would otherwise get a three-line contents list.
+// Include section headings through h4 in the table of contents.
 // The auto-generated GFM footnotes heading is .sr-only on the page, so listing it
 // would send a reader to a heading they cannot see.
 const toc: Heading[] = headings
-  .filter((h) => (h.depth === 2 || h.depth === 3) && h.slug !== 'footnote-label')
+  .filter((h) => h.depth >= 2 && h.depth <= 4 && h.slug !== 'footnote-label')
   .map((h) => ({ ...h }));
 
 // Entry.astro renders the bibliography itself, so it never reaches `headings`.
@@ -87,7 +85,7 @@ const showToc = toc.length >= 3;
         <nav aria-label="Table of contents">
           <ul>
             {toc.map((h) => (
-              <li class={h.depth === 3 ? 'toc-sub' : undefined}>
+              <li class={h.depth === 4 ? 'toc-sub-sub' : h.depth === 3 ? 'toc-sub' : undefined}>
                 <a href={`#${h.slug}`}>{h.text}</a>
               </li>
             ))}
@@ -171,6 +169,10 @@ const showToc = toc.length >= 3;
     padding-left: 1.95rem;
   }
 
+  .toc li.toc-sub-sub {
+    padding-left: 2.95rem;
+  }
+
   .toc a {
     color: var(--text-muted);
     text-decoration: none;
@@ -196,6 +198,10 @@ const showToc = toc.length >= 3;
 
   .toc-sub a.is-current::before {
     left: 1rem;
+  }
+
+  .toc-sub-sub a.is-current::before {
+    left: 2rem;
   }
 
   /* The rail lives in the left margin of the centred 58rem body, so the window has to

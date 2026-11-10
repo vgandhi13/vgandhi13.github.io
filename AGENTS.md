@@ -328,8 +328,8 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   variables; and scope stacked sibling spacing to `.code-tabs:not(.is-interactive)` because
   a hidden pane is still a previous sibling. Check every tab, not just the first.
 
-- **Table of contents** (`Entry.astro`): built from Astro's `render()` headings, listing h2
-  and h3, filtering `footnote-label`, and appending the separately rendered bibliography.
+- **Table of contents** (`Entry.astro`): built from Astro's `render()` headings, listing h2,
+  h3, and h4 with progressively deeper indentation, filtering `footnote-label`, and appending the separately rendered bibliography.
   Fewer than three entries means no TOC. One `<details id="entry-toc">` is a working disclosure
   without JS; JS sets `open` and `.is-rail` at `min-width: 1320px` to match the CSS breakpoint.
   On narrower screens it collapses after clicking a link. Keep both breakpoint values in sync.
