@@ -105,6 +105,10 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
 
 ## Common breakages to watch for
 
+- **Causal masking matrices**: `neural-language-models.md` uses native HTML tables for unnormalized scores, masked scores, and row-wise softmax on “The cat sat.” Keep the same scores across stages, mask only positions above the diagonal, and verify the displayed probability rows sum to 1. The note-local `.mask-matrix-*` styles put stages side by side on desktop and stack on phones; no client-side JS is needed. Mirror edits into `Notes/NeuralLanguageModels/main.md`.
+
+- **Self-attention versus cross-attention**: the same note uses two native SVG panels under `.cross-attention-comparison`, with “J’aime” as the selected query position. Self-attention gets Q/K/V from the French decoder input; cross-attention gets Q from the decoder state after masked self-attention and K/V from English encoder outputs. Keep the illustrative single-word-token caveat and responsive stacking. The state at “J’aime” helps predict the next token; it is not the query that first generates “J’aime.”
+
 - **Self-attention walkthrough**: `neural-language-models.md` has a dependency-free SVG animation adapted from CS646 Transformer slides 16–20. It reveals projections, scaled query–key scores, row-wise softmax, weighted values, and the output sum. Query controls reuse the same keys and values with illustrative weight rows; preserve the first row `[0.1, 0.1, 0.3, 0.5]` so it matches the prose. Keep blue Q, red K, green V, viewport-triggered playback, pause/replay, a complete static no-JS/reduced-motion state, and local horizontal scrolling on phones. Mirror changes into `Notes/NeuralLanguageModels/main.md`.
 
 - **RNN unrolling animation**: `neural-language-models.md` contains a self-contained SVG

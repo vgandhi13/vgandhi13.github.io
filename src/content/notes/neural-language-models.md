@@ -1026,7 +1026,244 @@ $$
 
 $W_1$ and $b_1$ expand the feature dimension, and $W_2$ and $b_2$ project it back.[^mlp-gpt2-activation]
 
+#### Add & Norm
+
+<figure class="narrow" style="max-width: min(24rem, 100%); margin-inline: auto;">
+  <img src="/images/notes/transformer-add-norm-labeled.jpg" alt="Inputs x ell minus one feed self-attention F and a residual path. The attention output F of x ell minus one is added to the inputs to form x ell, then passed through layer normalization." width="960" height="720" />
+  <figcaption>Residual connection and layer normalization around self-attention, labeled to match the equation below. Adapted from: <a href="https://www.lesswrong.com/posts/McmHduRWJynsjZjx5/walkthrough-the-transformer-architecture-part-2-2">Matthew Barnett, Walkthrough: The Transformer Architecture, Part 2/2</a>.</figcaption>
+</figure>
+
+Residual connections and layer normalization help Transformers train effectively. Both also remain active during inference.
+
+1. **Residual connections** add a sublayer's input to its output:
+
+   $$
+   \boxed{x_{\ell}=x_{\ell-1}+F(x_{\ell-1})}
+   $$
+
+   Here, $F$ could be an attention sublayer or a feed-forward sublayer. This gives gradients a direct path through the addition and helps mitigate vanishing gradients in deep networks.
+
+2. **Layer normalization** stabilizes training and can help the model converge faster. For each token, it computes the mean and variance across that token's features, then centers and rescales them. Learned scale and bias parameters let the model adjust the normalized representation.
+
+   For one token represented by $d$ numbers, $x=[x_1,\ldots,x_d]$, compute its mean and variance:
+
+   $$
+   \mu=\frac{1}{d}\sum_i x_i,
+   \qquad
+   \sigma^2=\frac{1}{d}\sum_i(x_i-\mu)^2
+   $$
+
+   Then normalize:
+
+   $$
+   \boxed{\operatorname{LayerNorm}(x)_i
+   =\gamma_i\frac{x_i-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta_i}
+   $$
+
+   This helps control activation scales and reduces sensitivity to weight initialization. Changing inputs to later layers are often described using the intuition of *internal covariate shift*, though reducing this shift is not a complete explanation of why normalization helps.[^layer-norm-shift]
+
+   In the original Transformer architecture, layer normalization is applied after each residual addition: once around the self-attention sublayer and once around the MLP sublayer in each encoder block. These are the “Add & Norm” operations shown in the architecture diagram [[2]](#ref-attention-is-all-you-need).
+
 #### Transformer Decoder
+
+<style>
+.transformer-decoder-section { display: flow-root; }
+figure.transformer-decoder-figure { float: right; width: min(13rem, 36%); margin: 0 0 1rem 1.5rem; }
+figure.transformer-decoder-figure svg { display: block; width: 100%; height: auto; }
+@media (max-width: 600px) {
+  figure.transformer-decoder-figure { float: none; width: min(13rem, 100%); margin: 0 auto 1.5rem; }
+}
+</style>
+
+<div class="transformer-decoder-section">
+<figure class="narrow transformer-decoder-figure">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="380 225 350 580" role="img" aria-label="The original Transformer's decoder stack, repeated N times: masked multi-head self-attention, encoder-decoder cross-attention, and a feed-forward network, each with a residual connection and Add and Norm.">
+    <image href="/images/notes/transformer-architecture-vaswani.jpg" width="747" height="1100" />
+  </svg>
+  <figcaption>Decoder stack. Source: <a href="https://arxiv.org/html/1706.03762v7#S3.F1">Vaswani et al., Figure 1</a>.</figcaption>
+</figure>
+
+Like the encoder, the decoder consists of a stack of $N$ layers ($N=6$ in the original Transformer). Each layer has its own learned parameters.
+
+Each decoder layer in the original Transformer contains three sublayers, applied in order: **masked self-attention**, **cross-attention**, and a **feed-forward neural network**. Each sublayer has a residual connection followed by layer normalization [[2]](#ref-attention-is-all-you-need).
+
+The encoder builds contextual representations of the input sequence, with each token able to attend to every input position. The decoder uses those representations to generate an output sequence one token at a time. Masked self-attention lets it attend only to the output tokens available so far, preventing it from looking at future tokens. Cross-attention lets it attend to the encoder's output, and the feed-forward network refines each token's representation.
+
+</div>
+
+#### Masked Self-Attention
+
+When predicting the next token, the decoder must not look at future tokens in the output sequence. Otherwise, it could see the answer during training. The rule is:
+
+$$
+\boxed{\text{Position }i\text{ may attend only to positions }j\le i}
+$$
+
+**Attending to yourself is allowed:** the token at the current input position is already known. The target is the *next* token.
+
+To enforce this rule, we set the attention scores for future tokens to $-\infty$ **before applying softmax**. Their attention weights then become zero, since $e^{-\infty}=0$. Each position can still attend to itself and all earlier positions.
+
+<style>
+.mask-matrix-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+.mask-matrix-stage { min-width: 0; }
+.mask-matrix-stage h5 { margin: 0 0 .75rem; font-size: 1rem; color: var(--heading); }
+.mask-matrix-stage table { display: table; width: 100%; margin: 0; table-layout: fixed; font-size: .9rem; }
+.mask-matrix-stage th, .mask-matrix-stage td { padding: .55rem .2rem; text-align: center; }
+.mask-matrix-stage th { font-weight: 500; }
+.mask-matrix-stage td { background: var(--diagram-blue); font-variant-numeric: tabular-nums; color: var(--heading); }
+.mask-matrix-stage td.mask-future { background: var(--surface); color: var(--text-muted); }
+.mask-matrix-stage:last-child td:not(.mask-future) { background: var(--diagram-green); }
+.mask-matrix-stage p { margin: .6rem 0 0; font-size: .85rem; color: var(--text-muted); }
+@media (max-width: 760px) { .mask-matrix-grid { grid-template-columns: 1fr; gap: 1.5rem; max-width: 24rem; margin-inline: auto; } }
+</style>
+
+<figure class="mask-matrix-figure">
+<div class="mask-matrix-grid">
+<div class="mask-matrix-stage">
+<h5>1. Unnormalized scores</h5>
+<table aria-label="1. Unnormalized scores: rows are query tokens, columns are key tokens">
+<thead><tr><th scope="col">Q ↓ K →</th><th scope="col">The</th><th scope="col">cat</th><th scope="col">sat</th></tr></thead>
+<tbody>
+<tr><th scope="row">The</th><td>1</td><td>2</td><td>3</td></tr>
+<tr><th scope="row">cat</th><td>1</td><td>2</td><td>0</td></tr>
+<tr><th scope="row">sat</th><td>0</td><td>1</td><td>2</td></tr>
+</tbody></table>
+<p>Scaled query–key scores, before masking.</p>
+</div>
+<div class="mask-matrix-stage">
+<h5>2. Mask future positions</h5>
+<table aria-label="2. Mask future positions: rows are query tokens, columns are key tokens">
+<thead><tr><th scope="col">Q ↓ K →</th><th scope="col">The</th><th scope="col">cat</th><th scope="col">sat</th></tr></thead>
+<tbody>
+<tr><th scope="row">The</th><td>1</td><td class="mask-future">−∞</td><td class="mask-future">−∞</td></tr>
+<tr><th scope="row">cat</th><td>1</td><td>2</td><td class="mask-future">−∞</td></tr>
+<tr><th scope="row">sat</th><td>0</td><td>1</td><td>2</td></tr>
+</tbody></table>
+<p>Replace scores above the diagonal with −∞.</p>
+</div>
+<div class="mask-matrix-stage">
+<h5>3. Row-wise softmax</h5>
+<table aria-label="3. Row-wise softmax: rows are query tokens, columns are key tokens">
+<thead><tr><th scope="col">Q ↓ K →</th><th scope="col">The</th><th scope="col">cat</th><th scope="col">sat</th></tr></thead>
+<tbody>
+<tr><th scope="row">The</th><td>1.000</td><td class="mask-future">0</td><td class="mask-future">0</td></tr>
+<tr><th scope="row">cat</th><td>0.269</td><td>0.731</td><td class="mask-future">0</td></tr>
+<tr><th scope="row">sat</th><td>0.090</td><td>0.245</td><td>0.665</td></tr>
+</tbody></table>
+<p>Each row sums to 1; future tokens get 0.</p>
+</div>
+</div>
+<figcaption>Illustrative attention scores for “The cat sat.” Rows are query positions; columns are key positions. The diagonal stays visible, so each token can attend to itself. The final numbers are attention weights over input positions, not next-token probabilities.</figcaption>
+</figure>
+
+Masking lets us train on all positions simultaneously while preserving the same information restriction used when generating one token at a time.[^teacher-forcing]
+
+#### Cross-Attention
+
+<figure class="narrow" style="max-width: min(22rem, 100%); margin-inline: auto;">
+  <img src="/images/notes/transformer-query-key-value-paths.jpg" alt="Annotated Transformer architecture showing Q, K, and V paths. Encoder self-attention and decoder masked self-attention each use their own sequence for all three; decoder cross-attention receives Q from the decoder and K and V from the encoder output." width="478" height="418" />
+  <figcaption>Q, K, and V sources in the Transformer. Annotated architecture diagram adapted from <a href="https://arxiv.org/html/1706.03762v7#S3.F1">Vaswani et al., Figure 1</a>.</figcaption>
+</figure>
+
+In **self-attention**, queries ($Q$), keys ($K$), and values ($V$) come from the same sequence. Each token attends to positions in that sequence, subject to any mask.
+
+In **cross-attention**, queries come from one sequence, while keys and values come from another. This lets one sequence selectively retrieve information from another. In the original Transformer decoder, queries come from the decoder states after masked self-attention; keys and values come from the encoder's final output [[2]](#ref-attention-is-all-you-need). Each is formed through its own learned projection.
+
+Suppose we are translating:
+
+- **English input:** “I love machine learning”
+- **French output:** “J'aime l'apprentissage automatique”
+
+Focus on the decoder position containing **“J'aime.”** Its masked self-attention can use the French prefix available so far. Its cross-attention query instead attends to the English encoder representations for “I,” “love,” “machine,” and “learning.” The resulting weighted combination of English value vectors helps the decoder predict the next French token.
+
+<style>
+.cross-attention-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.cross-attention-panel { min-width: 0; }
+.cross-attention-panel h5 { margin: 0 0 .5rem; font-size: 1rem; color: var(--heading); }
+.cross-attention-panel svg { display: block; width: 100%; height: auto; font-family: inherit; color: var(--text); }
+@media (max-width: 760px) { .cross-attention-comparison { grid-template-columns: 1fr; max-width: 26rem; margin-inline: auto; } }
+</style>
+
+<figure>
+<div class="cross-attention-comparison">
+<div class="cross-attention-panel">
+<h5>Masked self-attention</h5>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 325" role="img" aria-label="Masked self-attention: the query at J’aime attends to the French prefix, start and J’aime. The resulting attention weights mix values from that French sequence.">
+  <rect x="8" y="12" width="178" height="108" rx="8" fill="var(--diagram-blue)" stroke="var(--diagram-blue-border)" />
+  <rect x="202" y="12" width="210" height="108" rx="8" fill="var(--diagram-green)" stroke="var(--diagram-green-border)" />
+  <g fill="currentColor" text-anchor="middle" font-size="15">
+    <text x="97" y="40">French decoder input</text>
+    <text x="97" y="70" font-size="21">J’aime</text>
+    <text x="97" y="100" font-size="11">selected query position</text>
+    <text x="307" y="44">French decoder input</text>
+    <text x="307" y="77" font-size="16">⟨start⟩ · J’aime</text>
+    <text x="307" y="102" font-size="12">same sequence as Q</text>
+  </g>
+  <g fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+    <path d="M97 120 V145 M92 139 L97 145 L102 139" />
+    <path d="M307 120 V145 M302 139 L307 145 L312 139" />
+    <path d="M97 183 V203 H155 V219 M150 213 L155 219 L160 213" />
+    <path d="M307 183 V203 H265 V219 M260 213 L265 219 L270 213" />
+    <path d="M210 264 V285 M205 279 L210 285 L215 279" />
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-size="17">
+    <text x="97" y="173">Q</text>
+    <text x="307" y="173">K, V</text>
+  </g>
+  <rect x="55" y="220" width="310" height="44" rx="8" fill="var(--surface)" stroke="var(--border)" />
+  <text x="210" y="248" fill="currentColor" text-anchor="middle" font-size="16">Score Q against K → softmax → mix V</text>
+  <text x="210" y="311" fill="currentColor" text-anchor="middle" font-size="15">Updated representation at J’aime</text>
+</svg>
+</div>
+<div class="cross-attention-panel">
+<h5>Cross-attention</h5>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 325" role="img" aria-label="Cross-attention: the query at J’aime attends to English encoder outputs for I love machine learning. The resulting attention weights mix values from that English sequence.">
+  <rect x="8" y="12" width="178" height="108" rx="8" fill="var(--diagram-blue)" stroke="var(--diagram-blue-border)" />
+  <rect x="202" y="12" width="210" height="108" rx="8" fill="var(--diagram-green)" stroke="var(--diagram-green-border)" />
+  <g fill="currentColor" text-anchor="middle" font-size="15">
+    <text x="97" y="40">French decoder state</text>
+    <text x="97" y="70" font-size="21">J’aime</text>
+    <text x="97" y="100" font-size="11">after masked self-attention</text>
+    <text x="307" y="44">English encoder output</text>
+    <text x="307" y="77" font-size="12">I · love · machine · learning</text>
+    <text x="307" y="102" font-size="12">different sequence</text>
+  </g>
+  <g fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+    <path d="M97 120 V145 M92 139 L97 145 L102 139" />
+    <path d="M307 120 V145 M302 139 L307 145 L312 139" />
+    <path d="M97 183 V203 H155 V219 M150 213 L155 219 L160 213" />
+    <path d="M307 183 V203 H265 V219 M260 213 L265 219 L270 213" />
+    <path d="M210 264 V285 M205 279 L210 285 L215 279" />
+  </g>
+  <g fill="currentColor" text-anchor="middle" font-size="17">
+    <text x="97" y="173">Q</text>
+    <text x="307" y="173">K, V</text>
+  </g>
+  <rect x="55" y="220" width="310" height="44" rx="8" fill="var(--surface)" stroke="var(--border)" />
+  <text x="210" y="248" fill="currentColor" text-anchor="middle" font-size="16">Score Q against K → softmax → mix V</text>
+  <text x="210" y="311" fill="currentColor" text-anchor="middle" font-size="15">Updated representation at J’aime</text>
+</svg>
+</div>
+</div>
+<figcaption>The same query position, two sources of context: the French prefix in masked self-attention, and the English input in cross-attention. Words are shown as single tokens for illustration; actual tokenizers may split them into smaller pieces. ⟨start⟩ marks the beginning of the decoder input.</figcaption>
+</figure>
+
+Cross-attention can attend to all English input positions because the entire source sentence is already available. The causal mask applies to the decoder's self-attention over the French sequence.
+
+[^teacher-forcing]: Training does not have to wait for an earlier prediction. Instead, we supply the ground-truth tokens as the decoder input, shifted by one position relative to the targets. This is called **teacher forcing**.
+
+[^layer-norm-shift]: **What is internal covariate shift?** Each layer receives representations produced by earlier layers. As the earlier weights change during training, the distribution of inputs received by later layers can change too. This is traditionally called *internal covariate shift*.
+
+    For a simple illustration, suppose Layer A feeds Layer B. Before a weight update, A produces $(2, 4, 6, 8)$; afterward, it produces $(20, 40, 60, 80)$. Layer B now receives values at a different scale.
+
+    **How does layer normalization help?** Treat each row below as the feature vector of one token. Subtract the mean $\mu$ and divide by the standard deviation $\sigma$:
+
+    | Input to Layer B | Mean $\mu$ | Standard deviation $\sigma$ | Normalized features $(x-\mu)/\sigma$ |
+    | --- | --- | --- | --- |
+    | $(2, 4, 6, 8)$ | $(2+4+6+8)/4 = 5$ | $\sqrt{(9+1+1+9)/4} = \sqrt{5}$ | $(-3,-1,1,3)/\sqrt{5} \approx (-1.34,-0.45,0.45,1.34)$ |
+    | $(20, 40, 60, 80)$ | $(20+40+60+80)/4 = 50$ | $\sqrt{(900+100+100+900)/4} = \sqrt{500}$ | $(-30,-10,10,30)/\sqrt{500} \approx (-1.34,-0.45,0.45,1.34)$ |
+
+    The two vectors have different scales but produce the same normalized features in this simplified example. Actual layer normalization uses $\sqrt{\sigma^2+\epsilon}$ in the denominator for numerical stability, then applies learned scale and bias parameters. The example omits these adjustments. Controlling feature scale can make optimization more stable, but normalization does not freeze the full input distribution or prevent learned representations from changing.
 
 [^mlp-gpt2-activation]: For GPT-2, replace ReLU with GELU.
 
