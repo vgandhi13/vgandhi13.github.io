@@ -1250,6 +1250,67 @@ Focus on the decoder position containing **“J'aime.”** Its masked self-atten
 
 Cross-attention can attend to all English input positions because the entire source sentence is already available. The causal mask applies to the decoder's self-attention over the French sequence.
 
+#### Language Modelling Head
+
+The **language modelling head** maps the decoder's final hidden state at each position to a probability distribution over the vocabulary. A learned linear layer projects the $d$-dimensional hidden state into $|V|$ **logits**, one score per vocabulary token. Softmax then converts these scores into next-token probabilities [[2]](#ref-attention-is-all-you-need).
+
+<style>
+.lm-head-images { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; gap: 1rem; }
+.lm-head-images img { display: block; width: 100%; height: auto; }
+.lm-head-detail { min-width: 0; overflow-x: auto; }
+@media (max-width: 700px) {
+  .lm-head-images { grid-template-columns: 1fr; }
+  .lm-head-images > img { width: 7.5rem; margin-inline: auto; }
+  .lm-head-detail img { min-width: 36rem; }
+}
+</style>
+
+<figure>
+<div class="lm-head-images">
+  <img src="/images/notes/language-modelling-head-architecture.jpg" alt="The top of the Transformer decoder: a linear layer and softmax produce output probabilities from the final decoder representation." width="180" height="224" />
+  <div class="lm-head-detail" tabindex="0" role="region" aria-label="Language modelling head diagram; scroll horizontally on smaller screens">
+    <img src="/images/notes/language-modelling-head-slide-33.jpg" alt="The final Transformer hidden state, shaped one by d, passes through an unembedding matrix shaped d by vocabulary size to produce logits. Softmax converts the logits into a probability for each vocabulary token. The slide shows tied weights, with the unembedding matrix equal to the transpose of the embedding matrix." width="1280" height="546" />
+  </div>
+</div>
+<figcaption>Left: the linear layer and softmax in <a href="https://arxiv.org/html/1706.03762v7#S3.F1">Vaswani et al., Figure 1</a>. Right: CS646, Transformer lecture, slide 33 (UMass Amherst, Fall 2026).</figcaption>
+</figure>
+
+Here, **$h_N^L$ is the hidden vector for just one token position**, represented as one row containing $d$ numbers.[^lm-head-hidden-vector]
+
+1. $L$: the final Transformer layer.
+2. $N$: the last input token's position (in this slide, rather than the number of stacked layers).
+3. $d$: the number of features in each hidden vector.
+
+The linear projection is also called **unembedding**. The slide shows *weight tying*: its matrix is the transpose of the input embedding matrix, $E^\top$, so the two operations share learned weights. The language model head computes the vocabulary logits:
+
+$$
+\underbrace{h_N^L}_{1\times d}
+\underbrace{E^\top}_{d\times |V|}
+=
+\underbrace{u}_{1\times |V|}
+$$
+
+Softmax converts $u$ into next-token probabilities. During generation, the head's output at the last available position supplies the distribution used to select the next token.
+
+[^lm-head-hidden-vector]: For example, with input **“I love pizza”**, treating each word as one token, $N=3$. If $d=4$, all final hidden states together form:
+
+    $$
+    H^L=
+    \begin{bmatrix}
+    \rule{1em}{0.4pt} & h_1^L & \rule{1em}{0.4pt} \\
+    \rule{1em}{0.4pt} & h_2^L & \rule{1em}{0.4pt} \\
+    \rule{1em}{0.4pt} & h_3^L & \rule{1em}{0.4pt}
+    \end{bmatrix}
+    \quad\text{shape }3\times4.
+    $$
+
+    Each $h_i^L$ in this schematic matrix stands for an entire row of four features. The last row is:
+
+    $$
+    h_N^L=h_3^L=[0.2,\,-0.5,\,1.3,\,0.7]
+    \quad\text{shape }1\times4.
+    $$
+
 [^teacher-forcing]: Training does not have to wait for an earlier prediction. Instead, we supply the ground-truth tokens as the decoder input, shifted by one position relative to the targets. This is called **teacher forcing**.
 
 [^layer-norm-shift]: **What is internal covariate shift?** Each layer receives representations produced by earlier layers. As the earlier weights change during training, the distribution of inputs received by later layers can change too. This is traditionally called *internal covariate shift*.
