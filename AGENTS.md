@@ -65,7 +65,10 @@ changes; leave Gemma 4 work local and exclude it from those commits.
 - **Never use em dashes (—)** in notes, blog posts, or any prose on this site. Use a comma,
   colon, semicolon, or parentheses instead, whichever fits the sentence. En dashes (–) in
   numeric ranges (e.g. `5–8 × 10^-5`) or compound modifiers are fine and not affected by this rule.
-- **Stale Vite dep cache**: if client-side JS (e.g. search) silently stops working in dev and
+- **Stale Vite dep cache**: `astro.config.mjs` explicitly pre-bundles the lazy-loaded Supabase
+  SDK and forces fresh dependency optimization on each dev-server startup. This reduces
+  repeated Collections login failures at the cost of a little startup time. If client-side JS
+  (e.g. search) silently stops working in dev and
   the console shows `504 Outdated Optimize Dep`, kill the dev server, `rm -rf
   node_modules/.vite`, and restart. Happens when deps change while the server runs.
   The same staleness also hits **scoped CSS**, with no console error at all: a newly added
