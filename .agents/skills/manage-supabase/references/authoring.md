@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-Supabase is the sole content source. A Table Editor or MCP change takes effect on the next load without redeployment. Per-collection JSON sources and working image copies have been retired. Inspect the current database row before editing it; use complete snapshots for backups.
+Supabase is the sole content source. A Table Editor or MCP change needs no redeployment. The live-update frontend refreshes unlocked Collections automatically when entries or settings change. Older frontend versions still need a reload and sign-in. Per-collection JSON sources and working image copies have been retired. Inspect the current database row before editing it; use complete snapshots for backups.
 
 For an ordinary content request, use targeted inserts or updates through the connected Supabase MCP. Avoid replacing the entire database snapshot just to add one entry. Read back the affected database data after writing. Do not recreate local authoring copies or an encryption workflow.
 

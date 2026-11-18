@@ -105,6 +105,8 @@ there. Treat every turn as its own tiny edit-and-verify cycle, not a batch to sa
 
 ## Common breakages to watch for
 
+- **Skip-gram window animation**: `neural-language-models.md` uses `#skipgram-window-demo` to move the center from “code” to “can” in “compiled Java code can run on all,” with two context words per side. Preserve the four prediction pairs per frame, viewport-triggered CSS playback, pause/replay, both frames as the static no-JS/reduced-motion view, and local scrolling on phones. These are PDF pages 33–34 of `10-WordRep.pdf`, labeled 41–42 on the slides. Mirror edits into `Notes/NeuralLanguageModels/main.md`.
+
 - **Causal masking matrices**: `neural-language-models.md` uses native HTML tables for unnormalized scores, masked scores, and row-wise softmax on “The cat sat.” Keep the same scores across stages, mask only positions above the diagonal, and verify the displayed probability rows sum to 1. The note-local `.mask-matrix-*` styles put stages side by side on desktop and stack on phones; no client-side JS is needed. Mirror edits into `Notes/NeuralLanguageModels/main.md`.
 
 - **Self-attention versus cross-attention**: the same note uses two native SVG panels under `.cross-attention-comparison`, with “J’aime” as the selected query position. Self-attention gets Q/K/V from the French decoder input; cross-attention gets Q from the decoder state after masked self-attention and K/V from English encoder outputs. Keep the illustrative single-word-token caveat and responsive stacking. The state at “J’aime” helps predict the next token; it is not the query that first generates “J’aime.”

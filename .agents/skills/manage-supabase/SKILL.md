@@ -11,6 +11,8 @@ Keep this site's Collections private and maintainable while the rest of the Astr
 
 Read ignored `.private/supabase-setup.json` for the project reference, owner account, and last verified setup state. Read only the needed connection variables from ignored `.env`; do not print secrets. Confirm the intended project through available Supabase tools before remote writes. Local state can become stale, so verify whichever live facts the task depends on.
 
+Use the configured Supabase MCP for Collections content edits, without Chrome or computer access. If its tools are missing or authentication fails, follow [MCP connection recovery](references/operations.md#mcp-connection-recovery) before declaring the task blocked. Do not switch to the dashboard as a fallback for content authoring.
+
 The initial setup on November 6, 2026 imported and verified 116 entries, images, and settings. Email/password login worked locally. Production passkeys and GitHub build variables were configured. At skill creation, publishing the code and enrolling the actual Apple passkey were still pending. Check local state and the live site before treating either step as done.
 
 Choose the relevant reference:

@@ -22,6 +22,8 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
   let activeClient;
   let pendingController;
   let registerController;
+  let stopWatching;
+  let renderedContent;
   const releaseClient = client => {
     if (client) void import('./supabase-collections.js').then(({ closeCollectionsClient }) => closeCollectionsClient(client)).catch(() => {});
   };
@@ -126,6 +128,9 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     submit.textContent = busy ? 'Signing in…' : 'Sign in';
   };
   const clearPrivate = () => {
+    stopWatching?.();
+    stopWatching = undefined;
+    renderedContent = undefined;
     document.dispatchEvent(new Event('collections:lock'));
     registerController?.abort();
     if (account) account.hidden = true;
@@ -170,32 +175,40 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     if (dialog.open) return;
     lock.click();
   });
-  const signIn = async (method = 'password') => {
-    if (unlocking) return;
-    const request = ++attempt;
-    const controller = new AbortController();
-    pendingController = controller;
-    let candidate;
-    let stage = 'code';
-    const passphrase = password.value;
-    const address = email?.value.trim();
-    password.value = '';
-    clearError();
-    setBusy(true);
+  const mountContent = content => {
+    const old = new Map(privateContents.map(container => [container, {
+      nodes: [...container.childNodes],
+      filters: [...container.querySelectorAll('.learning-filter[aria-pressed="true"]')]
+        .map(button => ({ tag: button.dataset.learningTag, category: button.dataset.philosophyCategory })),
+      open: [...container.querySelectorAll('details[open]')].map(node => node.id),
+      expanded: [...container.querySelectorAll('.entry-read-more[aria-expanded="true"]')].map(node => node.getAttribute('aria-controls')),
+    }]));
+    const active = document.activeElement;
+    const activeId = active?.id;
+    const activeTag = active?.dataset.learningTag;
+    const activeCategory = active?.dataset.philosophyCategory;
+    const activeContainer = active?.closest('[data-private-content]');
+    const activeEntryId = active?.closest('li[id], details[id]')?.id;
+    const activeControl = active?.matches('.entry-read-more') ? '.entry-read-more' :
+      active?.matches('.share') ? '.share' : active?.matches('summary') ? 'summary' : null;
+    const currentPanel = panels.find(panel => !panel.hidden);
+    const anchor = [...(currentPanel?.querySelectorAll('li[id], details[id]') ?? [])]
+      .find(node => node.getBoundingClientRect().bottom > 0);
+    const anchorId = anchor?.id;
+    const anchorTop = anchor?.getBoundingClientRect().top;
+    const scrollY = window.scrollY;
+    const signatures = {
+      'philosophy-content': [content.philosophy, content.philosophyNotes],
+      'first-principles-content': content.firstPrinciples,
+      ...Object.fromEntries(['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences'].map(key => [key + '-content', [
+        key === 'stories' ? [content.history, content.inspiration] : content[key],
+        content.descriptions?.[key],
+        key === 'learnings' ? content.learningCategories : key === 'thoughts' ? content.thoughtCategories : key === 'social-sciences' ? content.socialScienceCategories : null,
+      ]])),
+    };
+    const next = Object.fromEntries(Object.entries(signatures).map(([key, value]) => [key, JSON.stringify(value)]));
+    for (const container of privateContents) container.replaceChildren();
     try {
-      const { createCollectionsClient, loadCollections } = await import('./supabase-collections.js');
-      if (controller.signal.aborted) return;
-      stage = 'sign-in';
-      candidate = createCollectionsClient(root.dataset.supabaseUrl, root.dataset.supabaseKey);
-      const { error: authError } = method === 'passkey' ?
-        await candidate.auth.signInWithPasskey({ options: { signal: controller.signal } }) :
-        await candidate.auth.signInWithPassword({ email: address, password: passphrase });
-      if (authError) throw authError;
-      controller.signal.throwIfAborted();
-      stage = 'data';
-      const content = await loadCollections(candidate, controller.signal);
-      if (request !== attempt || !dialog.open) return;
-      stage = 'display';
       // Render all before mounting any: an invalid collection fails closed.
       const philosophy = content.philosophy.length || !content.philosophyNotes?.length ?
         renderEntries(content.philosophy) : document.createDocumentFragment();
@@ -232,6 +245,70 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       for (const [key, fragment] of otherCollections) {
         root.querySelector('#' + key + '-content').replaceChildren(fragment);
       }
+
+      for (const [container, state] of old) {
+        if (renderedContent?.[container.id] === next[container.id]) {
+          container.replaceChildren(...state.nodes);
+          continue;
+        }
+        for (const share of state.nodes.flatMap(node => [...(node.querySelectorAll?.('.share') ?? [])])) clearTimeout(share.resetTimer);
+        for (const { tag, category } of state.filters) {
+          const button = [...container.querySelectorAll('.learning-filter, [data-philosophy-category]')]
+            .find(button => tag ? button.dataset.learningTag === tag : category ? button.dataset.philosophyCategory === category : false);
+          button?.click();
+        }
+        for (const id of state.open) {
+          const details = document.getElementById(id);
+          if (details?.matches('details')) details.open = true;
+        }
+        for (const id of state.expanded) {
+          const button = [...container.querySelectorAll('.entry-read-more')].find(button => button.getAttribute('aria-controls') === id);
+          if (button?.getAttribute('aria-expanded') === 'false') button.click();
+        }
+      }
+      renderedContent = next;
+      if (activeContainer && document.activeElement !== active) {
+        const target = activeId ? document.getElementById(activeId) : activeEntryId && activeControl ?
+          document.getElementById(activeEntryId)?.querySelector(activeControl) : [...activeContainer.querySelectorAll('button')].find(button =>
+          activeTag !== undefined ? button.dataset.learningTag === activeTag : activeCategory !== undefined && button.dataset.philosophyCategory === activeCategory);
+        target?.focus({ preventScroll: true });
+      }
+      if (unlocked) {
+        const newAnchor = anchorId && document.getElementById(anchorId);
+        window.scrollTo({ top: newAnchor ? scrollY + newAnchor.getBoundingClientRect().top - anchorTop : scrollY, behavior: 'instant' });
+      }
+    } catch (failure) {
+      for (const [container, state] of old) container.replaceChildren(...state.nodes);
+      throw failure;
+    }
+  };
+  const signIn = async (method = 'password') => {
+    if (unlocking) return;
+    const request = ++attempt;
+    const controller = new AbortController();
+    pendingController = controller;
+    let candidate;
+    let stage = 'code';
+    const passphrase = password.value;
+    const address = email?.value.trim();
+    password.value = '';
+    clearError();
+    setBusy(true);
+    try {
+      const { createCollectionsClient, loadCollections, watchCollections } = await import('./supabase-collections.js');
+      if (controller.signal.aborted) return;
+      stage = 'sign-in';
+      candidate = createCollectionsClient(root.dataset.supabaseUrl, root.dataset.supabaseKey);
+      const { error: authError } = method === 'passkey' ?
+        await candidate.auth.signInWithPasskey({ options: { signal: controller.signal } }) :
+        await candidate.auth.signInWithPassword({ email: address, password: passphrase });
+      if (authError) throw authError;
+      controller.signal.throwIfAborted();
+      stage = 'data';
+      const content = await loadCollections(candidate, controller.signal);
+      if (request !== attempt || !dialog.open) return;
+      stage = 'display';
+      mountContent(content);
       activeClient = candidate;
       candidate = undefined;
       unlocked = true;
@@ -248,6 +325,14 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       const target = hashPanel();
       select(target?.dataset.locked === 'true' ? target.id : 'panel-ideas', true);
       jumpToEntry();
+      const client = activeClient;
+      stopWatching = watchCollections(client, fresh => {
+        if (!unlocked || activeClient !== client) return;
+        mountContent(fresh);
+        document.dispatchEvent(new CustomEvent('collections:unlock', { detail: fresh.hourglass }));
+      }, () => {
+        if (unlocked && activeClient === client) lock.click();
+      });
     } catch (failure) {
       if (request !== attempt || !dialog.open) return;
       clearPrivate();

@@ -51,9 +51,69 @@ export async function loadCollections(client, signal) {
 export async function closeCollectionsClient(client) {
   if (!client) return;
   try {
+    await client.removeAllChannels();
+    client.realtime.disconnect();
     // Local scope signs out this session without revoking sessions on other devices.
     await client.auth.signOut({ scope: 'local' });
   } finally {
     await client.auth.dispose();
   }
+}
+
+// Broadcasts carry only an invalidation signal. Private data still passes through
+// the same authenticated reads and validation as the initial load.
+export function watchCollections(client, onContent, onAccessLost) {
+  const controller = new AbortController();
+  let channel;
+  let timer;
+  let loading = false;
+  let dirty = false;
+  const refresh = async () => {
+    if (controller.signal.aborted) return;
+    if (loading) { dirty = true; return; }
+    loading = true;
+    try {
+      const content = await loadCollections(client, controller.signal);
+      if (!controller.signal.aborted) onContent(content);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (error.status === 401 || error.status === 403 || ['42501', 'PGRST301', 'PGRST302', 'PGRST303', 'PGRST116'].includes(error.code)) {
+        onAccessLost();
+      } else {
+        clearTimeout(timer);
+        timer = setTimeout(schedule, 10000);
+      }
+    } finally {
+      loading = false;
+      if (dirty && !controller.signal.aborted) { dirty = false; schedule(); }
+    }
+  };
+  const schedule = () => {
+    if (controller.signal.aborted) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => { void refresh(); }, 150);
+  };
+  const visible = () => { if (!document.hidden) schedule(); };
+  document.addEventListener('visibilitychange', visible);
+  window.addEventListener('online', schedule);
+  void (async () => {
+    const { data, error } = await client.auth.getSession();
+    if (controller.signal.aborted) return;
+    if (error || !data.session) { onAccessLost(); return; }
+    await client.realtime.setAuth(data.session.access_token);
+    if (controller.signal.aborted) return;
+    channel = client.channel(`collections:${data.session.user.id}`, { config: { private: true } })
+      .on('broadcast', { event: 'change' }, schedule)
+      .subscribe(status => {
+        // Catch changes between the initial read and subscribing, and after reconnecting.
+        if (['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) schedule();
+      });
+  })().catch(() => { if (!controller.signal.aborted) schedule(); });
+  return () => {
+    controller.abort();
+    clearTimeout(timer);
+    document.removeEventListener('visibilitychange', visible);
+    window.removeEventListener('online', schedule);
+    if (channel) void client.removeChannel(channel).catch(() => {});
+  };
 }

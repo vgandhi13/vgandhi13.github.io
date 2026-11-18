@@ -10,11 +10,17 @@ https://mcp.supabase.com/mcp?project_ref=PROJECT_REF&features=database,developme
 
 The connection was added with `codex mcp add supabase --url '...'`, followed by the normal OAuth flow. The user approved Supabase's organization-level API permissions; the server's `project_ref` restricts this connection's tools to the intended project. Do not silently remove that scope or replace an already working connection.
 
-After initial authentication, the CLI reported “Successfully logged in,” but the already-running conversation still had no Supabase tools. Restarting Codex and continuing the conversation loaded them. If tools are missing, check configuration and authentication before requesting another login. `codex mcp list` showing `Auth: Unknown` alone was not evidence that the completed OAuth flow failed.
-
 Use `get_project_url` and `get_publishable_keys` to verify client connection details. Inspect existing tables before schema changes; use `apply_migration` for DDL and `execute_sql` for scoped data changes. MCP SQL runs on the remote database: never use server-file or OS access through SQL.
 
-The installed server exposes database/development tools, not Auth configuration methods. For settings absent from MCP, use the supported Supabase dashboard or guide the user through that exact page. If native browser control stalls or reports screenshots unavailable, avoid repeated attempts that interrupt the user's browser; provide a direct dashboard link and precise instructions.
+The installed server exposes database/development tools, not Auth configuration methods. For settings absent from MCP, guide the user through the exact dashboard page. Collections content edits use MCP; do not request Chrome access for them.
+
+### MCP connection recovery
+
+1. Discover deferred Supabase tools before assuming they are absent. In this runtime, filter `ALL_TOOLS` for names containing `supabase`, then call the matching method through `tools` in `functions.exec`. Working names include `mcp__supabase__get_project_url` and `mcp__supabase__execute_sql`. Rediscover after a reconnect or a new tool-availability notice; an earlier empty list does not establish the current state.
+2. If tools are still missing, inspect `codex mcp get supabase` (or `codex mcp list`) to confirm the configured server and project scope. `Auth: Unknown` alone does not prove an authentication failure. Generic MCP resource listing is not a tool inventory: Supabase can return `-32601: Method not found` for `resources/list` while its database tools work. Do not treat that response as a login failure.
+3. On an actual OAuth failure, such as `OAuth token refresh failed: Failed to parse server response`, run `codex mcp login supabase`. If the sandbox denies the command, request the normal execution escalation rather than trying browser control. Let the user complete the emitted authorization link in their browser, then poll the running command for `Successfully logged in to MCP server 'supabase'`. Do not save OAuth links or tokens in this skill.
+4. Rediscover tools and test `get_project_url` after successful login. If the running conversation still cannot load the connection, explain the observed error and ask for a Codex restart, then retry discovery when the user returns. A restart helped in previous sessions, but do not assert a cached failure without evidence or keep requesting logins after one succeeded.
+5. Once tools are available, verify the project URL against ignored setup metadata, inspect the destination rows, validate the entry, perform the owner-scoped write, and read it back. Continue the original content request without asking for permission again. No Chrome access, Collections password, rebuild, or deployment is needed for this flow.
 
 ## Public connection versus credentials
 
@@ -34,6 +40,16 @@ The setup guide recommended disabling public signups, but that setting was not v
 Entering `/collections/` opens the login dialog immediately, including navigation from the footer's 🧠 link and shared entry links. After canceling, one click on the heading opens it again; pressing Enter or Space on the heading button also works. Clicking the heading while signed in relocks. One successful login mounts all the existing panels. The password field keeps `name="password"` and `autocomplete="current-password"`; email uses the username autofill hint.
 
 The SDK uses `persistSession: false`, `autoRefreshToken: false`, and `detectSessionInUrl: false`. Sessions remain in memory. Relock disposes of the client and signs out locally without revoking the user's sessions on other devices. A stale, canceled, or superseded login must not mount content. Passkey enrollment after session expiry requires signing in again.
+
+## Live Collections updates
+
+`20261116193849_collections_live_updates.sql` adds triggers for entry and settings inserts, updates, and deletes. They use `realtime.send` to send an empty private `change` signal to `collections:<owner id>`. Supabase adds a message id; private content is never copied into notification payloads. The SELECT policy on `realtime.messages` permits only the matching authenticated owner with Collections membership. No client broadcast write policy is granted, and the content tables keep their existing RLS.
+
+`watchCollections` in `src/lib/supabase-collections.js` subscribes after login, debounces signals, and reloads through the existing authenticated, paginated, validated reader. It also refreshes on subscription/reconnection, returning to the tab, and coming online. Transient read failures retry; denied reads relock. There is no continuous polling. Relocking aborts pending reads, removes listeners and channels, and clears private DOM. Sessions still stay in memory with automatic auth refresh disabled.
+
+`mountContent` in `src/lib/collections-page.js` preserves the current tab, filters, disclosures, expanded cards, focus, and reading position. Unchanged panels reuse their DOM, so an unrelated update does not reshuffle Ideas. Replacement rendering temporarily detaches the old private DOM to avoid duplicate-id validation failures and restores it if rendering fails. Keep late responses from canceled sessions from mounting content.
+
+Verification used browser fixtures for live insert/delete/settings, preserved UI state, relocking during a delayed response, fresh login, and 390px layout. Transactional database checks verified signals for insert/update/delete/settings and owner, cross-owner, unapproved-user, and anonymous authorization; fixture changes rolled back. A real signed-in WebSocket session must be distinguished from these fixture and SQL checks. The backend migration is applied; publishing frontend changes follows the normal authorized deployment flow.
 
 ## Apple passkeys
 

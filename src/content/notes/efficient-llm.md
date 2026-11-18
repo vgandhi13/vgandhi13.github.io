@@ -2,7 +2,7 @@
 title: Efficient LLMs
 description: "How LoRA adapts large language models with small low-rank updates, and the matrix shapes and ranks behind it."
 date: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-16
 bibliography:
   - id: lora
     authors: Edward J. Hu et al.
@@ -35,7 +35,135 @@ LoRA changes only the destination of the update. The same examples, loss, and ba
 
 A transformer carries each token as a list of learned features called a hidden state. Linear layers appear throughout every transformer block, especially inside attention and the feed-forward network. They transform those features using weight matrices.
 
+A typical Llama-style Transformer block contains two main components: self-attention and a feed-forward network (FFN). Self-attention uses `q_proj`, `k_proj`, `v_proj`, and `o_proj`. The FFN uses `gate_proj`, `up_proj`, and `down_proj`.
+
+<figure class="narrow">
+<svg viewBox="0 0 544 430" role="img" aria-labelledby="llama-projections-title llama-projections-desc" xmlns="http://www.w3.org/2000/svg" style="font-family: inherit;">
+<title id="llama-projections-title">Seven projections in a Llama-style block</title>
+<desc id="llama-projections-desc">Input hidden states pass through self-attention and the FFN. Attention has query, key, value, and output projections; the FFN has gate, up, and down projections.</desc>
+<defs><marker id="llama-projections-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--text-muted);" /></marker></defs>
+<rect x="102" y="5" width="340" height="46" rx="9" style="fill: var(--diagram-purple); stroke: var(--diagram-purple-border);" />
+<text x="272.0" y="34.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Input hidden states</text>
+<path d="M 272 51 V 77" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#llama-projections-arrow)" />
+<rect x="8" y="82" width="528" height="142" rx="10" fill="none" style="stroke: var(--border);" />
+<text x="24" y="108" style="fill: var(--heading); font-size: 18px;">Self-attention</text>
+<rect x="24" y="120" width="240" height="40" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="144.0" y="146.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">q_proj</text>
+<rect x="280" y="120" width="240" height="40" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="400.0" y="146.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">k_proj</text>
+<rect x="24" y="172" width="240" height="40" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="144.0" y="198.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">v_proj</text>
+<rect x="280" y="172" width="240" height="40" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="400.0" y="198.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">o_proj</text>
+<path d="M 272 224 V 250" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#llama-projections-arrow)" />
+<rect x="8" y="255" width="528" height="92" rx="10" fill="none" style="stroke: var(--border);" />
+<text x="24" y="281" style="fill: var(--heading); font-size: 18px;">Feed-forward network (FFN)</text>
+<rect x="24" y="293" width="156" height="40" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="102.0" y="319.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">gate_proj</text>
+<rect x="194" y="293" width="156" height="40" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="272.0" y="319.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">up_proj</text>
+<rect x="364" y="293" width="156" height="40" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="442.0" y="319.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">down_proj</text>
+<path d="M 272 347 V 373" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#llama-projections-arrow)" />
+<rect x="102" y="378" width="340" height="46" rx="9" style="fill: var(--diagram-purple); stroke: var(--diagram-purple-border);" />
+<text x="272.0" y="407.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Output hidden states</text>
+</svg>
+  <figcaption>The seven projections in a Llama-style Transformer block. This schematic omits normalization and residual connections.</figcaption>
+</figure>
+
+Each of these seven projections has a weight matrix that LoRA can adapt.
+
+#### In Attention Projections
+
+| Matrix | Purpose |
+| --- | --- |
+| `q_proj` (Query) | What information am I looking for? |
+| `k_proj` (Key) | What information can other tokens be matched by? |
+| `v_proj` (Value) | What information do other tokens provide? |
+| `o_proj` (Output) | How do I combine and return the retrieved information? |
+
+<figure class="narrow">
+<svg viewBox="0 0 544 368" role="img" aria-labelledby="lora-attention-flow-title lora-attention-flow-desc" xmlns="http://www.w3.org/2000/svg" style="font-family: inherit;">
+<title id="lora-attention-flow-title">Attention projections and information flow</title>
+<desc id="lora-attention-flow-desc">Queries and keys determine attention weights through scaled dot products and softmax. These weights combine values before the output projection.</desc>
+<defs><marker id="lora-attention-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--text-muted);" /></marker></defs>
+<path d="M 92 61 V 99 H 181 V 132" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-attention-flow-arrow)" />
+<path d="M 272 61 V 99 H 181" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-attention-flow-arrow)" />
+<path d="M 452 61 V 239 H 354" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-attention-flow-arrow)" />
+<path d="M 181 194 V 239 H 204" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-attention-flow-arrow)" />
+<path d="M 279 272 V 300" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-attention-flow-arrow)" />
+<rect x="12" y="5" width="160" height="56" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="92.0" y="29.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Query</text>
+<text x="92.0" y="53.0" text-anchor="middle" style="fill: var(--text); font-size: 16px;">Q</text>
+<rect x="192" y="5" width="160" height="56" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="272.0" y="29.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Key</text>
+<text x="272.0" y="53.0" text-anchor="middle" style="fill: var(--text); font-size: 16px;">K</text>
+<rect x="372" y="5" width="160" height="56" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="452.0" y="29.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Value</text>
+<text x="452.0" y="53.0" text-anchor="middle" style="fill: var(--text); font-size: 16px;">V</text>
+<rect x="41" y="132" width="280" height="62" rx="9" style="fill: var(--diagram-purple); stroke: var(--diagram-purple-border);" />
+<text x="181.0" y="159.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Attention weights</text>
+<text x="181.0" y="183.0" text-anchor="middle" style="fill: var(--text); font-size: 16px;">softmax(QKᵀ / √d)</text>
+<rect x="204" y="211" width="150" height="61" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="279.0" y="247.5" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Weighted values</text>
+<rect x="159" y="305" width="240" height="56" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="279.0" y="329.0" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Output projection</text>
+<text x="279.0" y="353.0" text-anchor="middle" style="fill: var(--text); font-size: 16px;">o_proj</text>
+</svg>
+  <figcaption>Queries and keys determine attention weights; those weights combine the values before the output projection. Causal masking is omitted from the schematic.</figcaption>
+</figure>
+
+Applying LoRA to `q_proj` changes how the model searches for relevant information. Applying LoRA to `v_proj` changes the information carried between tokens. This is why query and value projections are common starting points for LoRA. [[1]](#ref-lora)
+
+#### In FFN Projections
+
+Attention enables tokens to communicate with each other. The FFN processes and transforms each token's representation independently.
+
+In a Llama-style gated FFN:
+
+- `up_proj` expands the hidden representation into a larger feature space.
+- `gate_proj`, followed by the SiLU activation, controls which features are emphasized or suppressed through elementwise multiplication with the `up_proj` output.
+- `down_proj` projects the transformed features back to the original hidden dimension.
+
+<figure class="narrow">
+<svg viewBox="0 0 544 374" role="img" aria-labelledby="lora-ffn-flow-title lora-ffn-flow-desc" xmlns="http://www.w3.org/2000/svg" style="font-family: inherit;">
+<title id="lora-ffn-flow-title">A Llama-style gated feed-forward network</title>
+<desc id="lora-ffn-flow-desc">A hidden state of width 4096 feeds gate and up projections of width 11008. SiLU is applied to the gate output, the branches multiply elementwise, and the down projection returns to width 4096.</desc>
+<defs><marker id="lora-ffn-flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--text-muted);" /></marker></defs>
+<path d="M 272 66 V 94 H 136 V 121" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-ffn-flow-arrow)" />
+<path d="M 272 94 H 408 V 121" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-ffn-flow-arrow)" />
+<path d="M 136 193 V 237 H 246" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-ffn-flow-arrow)" />
+<path d="M 408 193 V 237 H 298" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-ffn-flow-arrow)" />
+<path d="M 272 263 V 296" fill="none" stroke-width="2" style="stroke: var(--text-muted);" marker-end="url(#lora-ffn-flow-arrow)" />
+<rect x="132" y="5" width="280" height="61" rx="9" style="fill: var(--diagram-blue); stroke: var(--diagram-blue-border);" />
+<text x="272.0" y="31.5" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Hidden state</text>
+<text x="272.0" y="55.5" text-anchor="middle" style="fill: var(--text); font-size: 16px;">4096</text>
+<rect x="16" y="126" width="240" height="67" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="136.0" y="155.5" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Gate projection</text>
+<text x="136.0" y="179.5" text-anchor="middle" style="fill: var(--text); font-size: 16px;">11008 · SiLU</text>
+<rect x="288" y="126" width="240" height="67" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="408.0" y="155.5" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Up projection</text>
+<text x="408.0" y="179.5" text-anchor="middle" style="fill: var(--text); font-size: 16px;">11008</text>
+<circle cx="272" cy="237" r="25" style="fill: var(--diagram-purple); stroke: var(--diagram-purple-border);" />
+<text x="272" y="247" text-anchor="middle" style="fill: var(--heading); font-size: 32px;">×</text>
+<rect x="132" y="301" width="280" height="65" rx="9" style="fill: var(--diagram-green); stroke: var(--diagram-green-border);" />
+<text x="272.0" y="329.5" text-anchor="middle" style="fill: var(--heading); font-size: 18px;">Down projection</text>
+<text x="272.0" y="353.5" text-anchor="middle" style="fill: var(--text); font-size: 16px;">4096</text>
+</svg>
+  <figcaption>A Llama 2 7B-style gated FFN, with example dimensions 4096 → 11008 → 4096.</figcaption>
+</figure>
+
+By applying LoRA to these matrices, you also allow the model to adjust how it transforms its internal features.
+
 LoRA can be attached to selected projections in attention, the feed-forward network, or both. It adds a parallel weight update to those linear layers. The surrounding attention calculation, activation functions, normalization, and residual path remain unchanged.
+
+Suppose you configure LoRA like this:
+
+```ini
+target_modules=["q_proj", "v_proj"]
+```
+
+Inside every Transformer block, LoRA adds trainable matrices `A` and `B` to the query and value projections.
 
 <figure class="narrow" style="max-width: min(30rem, 100%); margin-inline: auto;">
   <img src="/images/notes/lora-transformer-layer.png" width="480" alt="Transformer layer with query, key, and value projections, and a zoomed-in LoRA update path showing the trainable low-rank matrices in magenta alongside a frozen weight matrix." style="background: white;" />
@@ -137,6 +265,14 @@ $$
 3. $y$: the final, adapted output.
 
 A LoRA adapter is therefore not a second language model. It is the collection of these small update matrices across the selected layers. Several adapters can share the same frozen base model because each stores only its own corrections.
+
+In the original LoRA formulation, $A$ is initialized with small random values and $B$ is initialized to zero. The initial adapter update is therefore zero. [[1]](#ref-lora)
+
+$$
+B = 0 \implies BA = 0
+$$
+
+On the first backward pass, $B$ can receive a gradient because $Ax$ is generally nonzero. The gradient for $A$ initially passes through zero-valued $B$, so $A$ starts changing after $B$ moves away from zero.
 
 ### Matrix Rank and LoRA
 

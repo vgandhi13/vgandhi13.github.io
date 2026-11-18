@@ -2,8 +2,14 @@
 title: Neural Language Models
 description: Language modelling and recurrent neural networks.
 date: 2026-11-08
-updated: 2026-11-10
+updated: 2026-11-14
 bibliography:
+  - id: word2vec
+    authors: Tomas Mikolov, Kai Chen, Greg Corrado, and Jeffrey Dean
+    title: Efficient Estimation of Word Representations in Vector Space
+    source: arXiv preprint arXiv:1301.3781
+    year: 2013
+    url: https://arxiv.org/abs/1301.3781
   - id: bahdanau-attention
     authors: Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio
     title: Neural Machine Translation by Jointly Learning to Align and Translate
@@ -30,6 +36,284 @@ P(x_{t+1} \mid x_1, \ldots, x_t).
 $$
 
 A system that does this is called a **language model**.
+
+## Word Representation
+
+### Vectors
+
+Words can be represented by **one-hot vectors**, where each word has its own position in the vocabulary. Its vector contains a $1$ at that position and $0$ everywhere else. The vector dimension equals the number of words in the vocabulary.
+
+Suppose our vocabulary is `[notebook, laptop, banana]`. Each vector has three dimensions:
+
+| Word | Vector |
+| --- | --- |
+| notebook | `[1, 0, 0]` |
+| laptop | `[0, 1, 0]` |
+| banana | `[0, 0, 1]` |
+
+One-hot vectors identify words, but do not capture how their meanings relate. The vectors for distinct words are orthogonal, so their dot products are zero:
+
+1. $\mathbf{v}_{\text{notebook}}\cdot\mathbf{v}_{\text{laptop}} = 1\times0 + 0\times1 + 0\times0 = 0$.
+2. $\mathbf{v}_{\text{notebook}}\cdot\mathbf{v}_{\text{banana}} = 1\times0 + 0\times0 + 0\times1 = 0$.
+
+Their cosine similarities are also zero. So **“notebook” is just as dissimilar to “laptop” as it is to “banana” according to these vectors**, even though “notebook” (meaning a notebook computer) and “laptop” have similar meanings in this context.
+
+We can approach this by **learning a word's vector through training it to predict nearby words**. When the target word is **“laptop,”** nearby words might include **“charged,” “my,” and “battery.”** Training adjusts the word vectors so that these observed neighbors become easier to predict. Repeating this across many sentences builds the representation.
+
+This uses **dense word vectors**: lists of learned numbers, generally with many nonzero entries, unlike one-hot vectors. A dense vector is a **distributed representation**, meaning that information about a word is spread across multiple coordinates. No single coordinate has to mean “laptop.”
+
+For example, an illustrative four-dimensional vector for “laptop” might be:
+
+$$
+\mathbf{v}_{\text{laptop}}=[0.8,\,-0.3,\,0.6,\,0.1].
+$$
+
+Its second coordinate is $-0.3$, but that number alone does not identify “laptop” or necessarily correspond to a named feature such as “portability.” The useful relationships come from the learned coordinates together. These numbers are only an example, not values from a trained model.
+
+With 10,000 words, a one-hot vector has 10,000 dimensions. Because words share usage patterns, we can represent them using fewer dimensions in a dense vector (here, 2 dimensions) while preserving useful relationships.
+
+<figure class="narrow">
+  <img src="/images/notes/word-representation-latent-dimensions.jpg" alt="Word vectors in two latent dimensions: index, retrieval, and search point upward in similar directions; data, science, and computer point rightward; information lies between the two groups." width="640" height="310" />
+  <figcaption>Related usage patterns can be represented by similar vector directions. Source: CS646, Word Representation lecture, slide 6 (UMass Amherst, Fall 2026).</figcaption>
+</figure>
+
+In this illustrative diagram:
+
+- **“index,” “retrieval,” and “search”** point in similar directions, indicating related usage.
+- **“data,” “science,” and “computer”** form another group.
+- **“information”** lies between the groups, suggesting a connection to both.
+
+Small angles between vectors mean high cosine similarity. This gives us the similarity that one-hot vectors lacked.
+
+### Word2Vec
+
+Word2Vec introduces two ways to learn word vectors [[1]](#ref-word2vec):
+
+1. **Skip-gram:** predicts context words given a center (target) word.
+2. **Continuous Bag of Words (CBOW):** predicts the target word from its surrounding context, treated as a bag of words.
+
+<figure class="narrow">
+  <img src="/images/notes/word2vec-cbow-skipgram.jpg" alt="CBOW combines surrounding context words to predict the center word. Skip-gram takes the center word and predicts surrounding context words." width="640" height="379" />
+  <figcaption>CBOW and skip-gram. Source: CS646, Word Representation lecture, PDF page 31 (slide labeled 38), adapted from Mikolov et al. (2013).</figcaption>
+</figure>
+
+#### Skip-Grams
+
+We start with a large corpus of text and randomly initialized word vectors for a fixed vocabulary. At each position $t$, we treat the word there as the **center word** $c$ and nearby words as **context (outside) words** $o$.
+
+Skip-gram uses a dot-product similarity between a center-word vector and an outside-word vector to compute $p(o\mid c)$, the probability of an outside word given the center. The model learns separate center and outside vectors for each vocabulary word. We keep adjusting these vectors to increase the probabilities of the observed center–context pairs. CBOW reverses the prediction direction, using the surrounding words together to predict the center word.
+
+For “compiled Java code can run on all,” a context window of size 2 takes up to two words on either side. First, “code” predicts “compiled,” “Java,” “can,” and “run.” Moving one position forward makes “can” the center, with “Java,” “code,” “run,” and “on” as its context:
+
+<style>
+.sg-demo .sg-frames { display: grid; gap: 1.25rem; }
+.sg-demo .sg-frame { min-width: 0; }
+.sg-demo .sg-scroll { overflow-x: auto; }
+.sg-demo svg { display: block; width: 100%; min-width: 34rem; height: auto; color: var(--text); }
+.sg-demo .sg-token { fill: var(--surface); stroke: var(--border); }
+.sg-demo .sg-context { fill: var(--diagram-blue); stroke: var(--diagram-blue-border); }
+.sg-demo .sg-center { fill: var(--diagram-purple); stroke: var(--diagram-purple-border); }
+.sg-demo .sg-label { fill: currentColor; font: 17px system-ui, sans-serif; text-anchor: middle; }
+.sg-demo .sg-arrow { fill: none; stroke: var(--text-muted); stroke-width: 1.6; }
+.sg-demo .sg-pairs { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem .8rem; font-size: .85rem; margin: .25rem 0 .5rem; }
+.sg-demo .sg-pairs code { white-space: nowrap; }
+.sg-demo .sg-status { margin: 0; text-align: center; font-size: .9rem; }
+.sg-demo .sg-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-top: .75rem; }
+.sg-demo .sg-controls[hidden], .sg-demo button[hidden] { display: none; }
+.sg-demo button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: .3rem .7rem; cursor: pointer; }
+.sg-demo button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
+.sg-demo.is-playing .sg-frame { grid-area: 1 / 1; }
+.sg-demo.is-playing .sg-frame:first-child { animation: sg-first 10s both; }
+.sg-demo.is-playing .sg-frame:last-child { animation: sg-second 10s both; }
+.sg-demo.is-playing .sg-arrow { stroke-dasharray: 550; animation: sg-draw 1.2s both; animation-delay: calc(var(--i) * .6s + .4s); }
+.sg-demo.is-playing .sg-frame:last-child .sg-arrow { animation-delay: calc(var(--i) * .6s + 5.4s); }
+.sg-demo.is-paused .sg-frame, .sg-demo.is-paused .sg-arrow { animation-play-state: paused; }
+@keyframes sg-first { 0%, 48% { opacity: 1; visibility: visible; } 50%, 100% { opacity: 0; visibility: hidden; } }
+@keyframes sg-second { 0%, 48% { opacity: 0; visibility: hidden; } 50%, 100% { opacity: 1; visibility: visible; } }
+@keyframes sg-draw { from { stroke-dashoffset: 550; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sg-demo.is-playing .sg-frame { grid-area: auto; animation: none; }
+  .sg-demo.is-playing .sg-arrow { animation: none; stroke-dasharray: none; }
+}
+</style>
+
+<figure class="sg-demo" id="skipgram-window-demo">
+<div class="sg-frames">
+<div class="sg-frame" data-center="code">
+<div class="sg-scroll" tabindex="0" role="region" aria-label="Skip-gram window; scroll horizontally on smaller screens">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-label="Center word code predicts context words compiled, Java, can, run">
+<text class="sg-label" x="380" y="23">Center: code · context window: 2 words on each side</text>
+<path class="sg-arrow" style="--i: 0" d="M272 115 C272 42 56 42 56 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 1" d="M272 115 C272 70 164 70 164 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 2" d="M272 115 C272 70 380 70 380 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 3" d="M272 115 C272 42 488 42 488 111 l-4 -7 m4 7 l4 -7" />
+<rect class="sg-context" x="7" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="56" y="147">compiled</text>
+<rect class="sg-context" x="115" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="164" y="147">Java</text>
+<rect class="sg-center" x="223" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="272" y="147">code</text>
+<rect class="sg-context" x="331" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="380" y="147">can</text>
+<rect class="sg-context" x="439" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="488" y="147">run</text>
+<rect class="sg-token" x="547" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="596" y="147">on</text>
+<rect class="sg-token" x="655" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="704" y="147">all</text>
+<text class="sg-label" x="380" y="198">Purple: center word · Blue: observed context words</text>
+</svg>
+</div>
+<div class="sg-pairs">
+<code>p(compiled | code)</code>
+<code>p(Java | code)</code>
+<code>p(can | code)</code>
+<code>p(run | code)</code>
+</div>
+<p class="sg-status">Train on four center–context pairs with “code” as the center.</p>
+</div>
+<div class="sg-frame" data-center="can">
+<div class="sg-scroll" tabindex="0" role="region" aria-label="Skip-gram window; scroll horizontally on smaller screens">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-label="Center word can predicts context words Java, code, run, on">
+<text class="sg-label" x="380" y="23">Center: can · context window: 2 words on each side</text>
+<path class="sg-arrow" style="--i: 0" d="M380 115 C380 42 164 42 164 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 1" d="M380 115 C380 70 272 70 272 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 2" d="M380 115 C380 70 488 70 488 111 l-4 -7 m4 7 l4 -7" />
+<path class="sg-arrow" style="--i: 3" d="M380 115 C380 42 596 42 596 111 l-4 -7 m4 7 l4 -7" />
+<rect class="sg-token" x="7" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="56" y="147">compiled</text>
+<rect class="sg-context" x="115" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="164" y="147">Java</text>
+<rect class="sg-context" x="223" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="272" y="147">code</text>
+<rect class="sg-center" x="331" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="380" y="147">can</text>
+<rect class="sg-context" x="439" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="488" y="147">run</text>
+<rect class="sg-context" x="547" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="596" y="147">on</text>
+<rect class="sg-token" x="655" y="117" width="98" height="48" rx="5" />
+<text class="sg-label" x="704" y="147">all</text>
+<text class="sg-label" x="380" y="198">Purple: center word · Blue: observed context words</text>
+</svg>
+</div>
+<div class="sg-pairs">
+<code>p(Java | can)</code>
+<code>p(code | can)</code>
+<code>p(run | can)</code>
+<code>p(on | can)</code>
+</div>
+<p class="sg-status">Train on four center–context pairs with “can” as the center.</p>
+</div>
+</div>
+<div class="sg-controls" hidden>
+  <button type="button" data-sg-pause aria-pressed="false">Pause</button>
+  <button type="button" data-sg-replay>Replay</button>
+</div>
+<figcaption>The center moves through the corpus, producing a new set of prediction pairs at each position. Adapted from CS646, Word Representation lecture, PDF pages 33–34 (slides labeled 41–42). This illustrates the training windows, not numerical changes to the vectors.</figcaption>
+</figure>
+
+<script>
+(() => {
+  const demo = document.getElementById('skipgram-window-demo');
+  if (!demo) return;
+  const controls = demo.querySelector('.sg-controls');
+  const pause = demo.querySelector('[data-sg-pause]');
+  const replay = demo.querySelector('[data-sg-replay]');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (reduced.matches) return;
+  controls.hidden = false;
+  const start = () => {
+    demo.classList.remove('is-playing', 'is-paused');
+    void demo.offsetWidth;
+    demo.classList.add('is-playing');
+    pause.hidden = false;
+    pause.textContent = 'Pause';
+    pause.setAttribute('aria-pressed', 'false');
+  };
+  pause.addEventListener('click', () => {
+    const paused = demo.classList.toggle('is-paused');
+    pause.textContent = paused ? 'Resume' : 'Pause';
+    pause.setAttribute('aria-pressed', String(paused));
+  });
+  replay.addEventListener('click', start);
+  demo.addEventListener('animationend', (event) => {
+    if (event.animationName === 'sg-second') pause.hidden = true;
+  });
+  reduced.addEventListener('change', () => {
+    if (reduced.matches) {
+      demo.classList.remove('is-playing', 'is-paused');
+      controls.hidden = true;
+      observer.disconnect();
+    }
+  });
+  const observer = new IntersectionObserver((entries) => {
+    if (entries.some(entry => entry.isIntersecting)) {
+      if (!reduced.matches) start();
+      observer.disconnect();
+    }
+  }, { threshold: .25 });
+  observer.observe(demo);
+})();
+</script>
+
+The training objective for skip-gram is to make the context words that actually occur in the text highly probable. One prediction,
+
+$$
+P(w_{t+j}\mid w_t;\theta),
+$$
+
+means: **given the center word $w_t$, what probability does the model assign to its observed neighbor $w_{t+j}$?**
+
+| Symbol | Meaning |
+| --- | --- |
+| $t$ | Current center position |
+| $j$ | Offset from the center, for example $-2,-1,1,2$ when $m=2$ |
+| $m$ | Context window size on each side of the center |
+| $T$ | Number of token positions in the training text |
+| $\theta$ | The model's learned parameters, including its word vectors |
+
+For each position $t=1,\ldots,T$, predict the context words within a fixed window of size $m$, given the center word $w_t$. We skip $j=0$ because the center word is not its own context target. Terms whose context positions fall outside the text are omitted. The data likelihood is:
+
+$$
+L(\theta)=
+\prod_{t=1}^{T}
+\prod_{\substack{-m\le j\le m\\j\ne0}}
+P(w_{t+j}\mid w_t;\theta).
+$$
+
+For the “code” window above, its contribution is:
+
+$$
+\begin{aligned}
+& P(\text{compiled}\mid\text{code};\theta)\,
+P(\text{Java}\mid\text{code};\theta) \\
+&\qquad{}\times P(\text{can}\mid\text{code};\theta)\,
+P(\text{run}\mid\text{code};\theta).
+\end{aligned}
+$$
+
+Then multiply these contributions across all center positions. Training aims to **maximize this product**.
+
+To use gradient descent, we turn this into a loss to minimize:
+
+$$
+J(\theta)=
+-\frac{1}{T}
+\sum_{t=1}^{T}
+\sum_{\substack{-m\le j\le m\\j\ne0}}
+\log P(w_{t+j}\mid w_t;\theta).
+$$
+
+The transformation is:
+
+$$
+\boxed{J(\theta)=-\frac{1}{T}\log L(\theta)}
+$$
+
+- **Log:** turns a product into a sum, making computation easier and avoiding products of many tiny probabilities.
+- **Minus sign:** turns maximization into minimization.
+- **Divide by $T$:** averages the summed context loss over center positions.
 
 ## Recurrent Neural Networks
 
@@ -489,7 +773,7 @@ For example, consider translating:
 
 The encoder had to compress the entire sentence into one fixed-size vector. The decoder could access the input only through this final encoder state, so important details could be lost. In particular, it could struggle to connect “cat” with “is sleeping” across the intervening words.
 
-In 2014, **Bahdanau et al.** proposed an attention mechanism for neural machine translation. Instead of forcing the decoder to rely on one fixed context vector, attention lets it **focus on different parts of the input for each output word**. The decoder can look back at all encoder hidden states and combine them into a context vector that changes at each generation step. [[1]](#ref-bahdanau-attention)
+In 2014, **Bahdanau et al.** proposed an attention mechanism for neural machine translation. Instead of forcing the decoder to rely on one fixed context vector, attention lets it **focus on different parts of the input for each output word**. The decoder can look back at all encoder hidden states and combine them into a context vector that changes at each generation step. [[2]](#ref-bahdanau-attention)
 
 <figure>
   <img src="/images/notes/bahdanau-attention.jpg" alt="Bahdanau attention: the encoder produces a hidden state for each input word. All encoder hidden states feed context vectors that are recomputed for successive decoder outputs." width="856" height="328" />
@@ -500,7 +784,7 @@ In 2014, **Bahdanau et al.** proposed an attention mechanism for neural machine 
 
 ### Self-Attention
 
-In 2017, **Vaswani et al.** introduced the **Transformer** in *Attention Is All You Need*. It replaced recurrence with attention, using **self-attention** to let tokens exchange information directly within the same sequence. In an unmasked self-attention layer, each word can attend to every other word without passing information through a chain of recurrent hidden states. Self-attention itself has no built-in locality bias. Long-distance context has “equal opportunity” to be attended to. [[2]](#ref-attention-is-all-you-need)
+In 2017, **Vaswani et al.** introduced the **Transformer** in *Attention Is All You Need*. It replaced recurrence with attention, using **self-attention** to let tokens exchange information directly within the same sequence. In an unmasked self-attention layer, each word can attend to every other word without passing information through a chain of recurrent hidden states. Self-attention itself has no built-in locality bias. Long-distance context has “equal opportunity” to be attended to. [[3]](#ref-attention-is-all-you-need)
 
 For the sentence **“the cat sat on the mat”**, an illustrative attention pattern might be:
 
@@ -642,7 +926,7 @@ The self-attention mechanism enables the model to capture relationships among to
 
 Each token's embedding vector is transformed into three vectors: <span class="qkv-query">Query (Q)</span>, <span class="qkv-key">Key (K)</span>, and <span class="qkv-value">Value (V)</span>. These vectors are derived by multiplying the input embedding matrix with learned weight matrices for <span class="qkv-query">Q</span>, <span class="qkv-key">K</span>, and <span class="qkv-value">V</span>.
 
-Following the paper's convention, we write each input vector $X_i$ as a row and multiply by the learned weights on the right [[2]](#ref-attention-is-all-you-need):
+Following the paper's convention, we write each input vector $X_i$ as a row and multiply by the learned weights on the right [[3]](#ref-attention-is-all-you-need):
 
 $$
 Q_i = X_i W^Q, \qquad K_i = X_i W^K, \qquad V_i = X_i W^V
@@ -998,7 +1282,7 @@ figure.multihead-summary-figure img { display: block; width: 100%; height: auto;
   <figcaption>Source: <a href="https://arxiv.org/html/1706.03762v7#S3.F2">Vaswani et al., Attention Is All You Need</a> (2017), Figure 2.</figcaption>
 </figure>
 
-In practice, we take $h$ different sets of linear transformations of each input, one set of query, key, and value projections per attention head ($h=8$ in the original paper) [[2]](#ref-attention-is-all-you-need). Multiple attention heads allow the model to consider relationships between tokens from different perspectives. These $h$ copies of self-attention are independent and can run in parallel, each with its own learned projection weights.
+In practice, we take $h$ different sets of linear transformations of each input, one set of query, key, and value projections per attention head ($h=8$ in the original paper) [[3]](#ref-attention-is-all-you-need). Multiple attention heads allow the model to consider relationships between tokens from different perspectives. These $h$ copies of self-attention are independent and can run in parallel, each with its own learned projection weights.
 
 The head outputs are then concatenated and passed through a final learned linear projection, as shown in the diagram.
 
@@ -1062,7 +1346,7 @@ Residual connections and layer normalization help Transformers train effectively
 
    This helps control activation scales and reduces sensitivity to weight initialization. Changing inputs to later layers are often described using the intuition of *internal covariate shift*, though reducing this shift is not a complete explanation of why normalization helps.[^layer-norm-shift]
 
-   In the original Transformer architecture, layer normalization is applied after each residual addition: once around the self-attention sublayer and once around the MLP sublayer in each encoder block. These are the “Add & Norm” operations shown in the architecture diagram [[2]](#ref-attention-is-all-you-need).
+   In the original Transformer architecture, layer normalization is applied after each residual addition: once around the self-attention sublayer and once around the MLP sublayer in each encoder block. These are the “Add & Norm” operations shown in the architecture diagram [[3]](#ref-attention-is-all-you-need).
 
 #### Transformer Decoder
 
@@ -1085,7 +1369,7 @@ figure.transformer-decoder-figure svg { display: block; width: 100%; height: aut
 
 Like the encoder, the decoder consists of a stack of $N$ layers ($N=6$ in the original Transformer). Each layer has its own learned parameters.
 
-Each decoder layer in the original Transformer contains three sublayers, applied in order: **masked self-attention**, **cross-attention**, and a **feed-forward neural network**. Each sublayer has a residual connection followed by layer normalization [[2]](#ref-attention-is-all-you-need).
+Each decoder layer in the original Transformer contains three sublayers, applied in order: **masked self-attention**, **cross-attention**, and a **feed-forward neural network**. Each sublayer has a residual connection followed by layer normalization [[3]](#ref-attention-is-all-you-need).
 
 The encoder builds contextual representations of the input sequence, with each token able to attend to every input position. The decoder uses those representations to generate an output sequence one token at a time. Masked self-attention lets it attend only to the output tokens available so far, preventing it from looking at future tokens. Cross-attention lets it attend to the encoder's output, and the feed-forward network refines each token's representation.
 
@@ -1167,7 +1451,7 @@ Masking lets us train on all positions simultaneously while preserving the same 
 
 In **self-attention**, queries ($Q$), keys ($K$), and values ($V$) come from the same sequence. Each token attends to positions in that sequence, subject to any mask.
 
-In **cross-attention**, queries come from one sequence, while keys and values come from another. This lets one sequence selectively retrieve information from another. In the original Transformer decoder, queries come from the decoder states after masked self-attention; keys and values come from the encoder's final output [[2]](#ref-attention-is-all-you-need). Each is formed through its own learned projection.
+In **cross-attention**, queries come from one sequence, while keys and values come from another. This lets one sequence selectively retrieve information from another. In the original Transformer decoder, queries come from the decoder states after masked self-attention; keys and values come from the encoder's final output [[3]](#ref-attention-is-all-you-need). Each is formed through its own learned projection.
 
 Suppose we are translating:
 
@@ -1252,7 +1536,7 @@ Cross-attention can attend to all English input positions because the entire sou
 
 #### Language Modelling Head
 
-The **language modelling head** maps the decoder's final hidden state at each position to a probability distribution over the vocabulary. A learned linear layer projects the $d$-dimensional hidden state into $|V|$ **logits**, one score per vocabulary token. Softmax then converts these scores into next-token probabilities [[2]](#ref-attention-is-all-you-need).
+The **language modelling head** maps the decoder's final hidden state at each position to a probability distribution over the vocabulary. A learned linear layer projects the $d$-dimensional hidden state into $|V|$ **logits**, one score per vocabulary token. Softmax then converts these scores into next-token probabilities [[3]](#ref-attention-is-all-you-need).
 
 <style>
 .lm-head-images { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; gap: 1rem; }
@@ -1291,6 +1575,10 @@ $$
 $$
 
 Softmax converts $u$ into next-token probabilities. During generation, the head's output at the last available position supplies the distribution used to select the next token.
+
+## Further reading
+
+- [LinkedIn post](https://lnkd.in/p/gxc4CdPR)
 
 [^lm-head-hidden-vector]: For example, with input **“I love pizza”**, treating each word as one token, $N=3$. If $d=4$, all final hidden states together form:
 

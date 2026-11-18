@@ -16,8 +16,12 @@ const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
 // be sitting at the top of the list above.
 const planned = [
   {
-    topic: 'LLM Agents: agentic workflows, tool calling, RAG, context engineering, memory systems, and multi-agent orchestration',
+    topic: 'LLM Agents: agentic workflows, tool calling, function calling, MCP, RAG, context engineering, memory systems, and multi-agent orchestration',
     refs: [
+      {
+        url: 'https://cs329z.stanford.edu/',
+        label: 'Stanford CS329Z: Engineering AI Agents',
+      },
       {
         url: 'https://lilianweng.github.io/posts/2023-06-23-agent/',
         label: 'Lilian Weng: LLM Powered Autonomous Agents',
@@ -86,6 +90,7 @@ const planned = [
   {
     topic: 'Efficient LLMs - PEFT, LoRA, QLoRA',
     refs: [
+      { url: 'https://lnkd.in/p/g4zNgGJW', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/ektgRQXy', label: 'LinkedIn post' },
       { url: 'https://lnkd.in/p/e9F8-wEk', label: 'LinkedIn post' },
       { url: 'https://thinkingmachines.ai/blog/lora/', label: 'Thinking Machines' },
@@ -127,6 +132,7 @@ const planned = [
         label: 'Hugging Face: Continuous batching',
       },
       { url: 'https://www.tensortonic.com/llm-internals/kv-cache', label: 'Tensortonic: KV cache' },
+      { url: 'https://xuewyang.github.io/posts/kv/', label: 'Xuewyang: KV cache' },
       {
         url: 'https://www.tensortonic.com/llm-internals/speculative-decoding',
         label: 'Tensortonic: speculative decoding',
