@@ -1,5 +1,5 @@
 // Shared validation and rendering for authenticated Collections content.
-const reserved = new Set(['ideas', 'stories', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'philosophy', 'first-principles']);
+const reserved = new Set(['ideas', 'stories', 'history', 'cognitive-science', 'psychology', 'neuroscience', 'communication', 'learnings', 'proverbs', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'philosophy', 'first-principles', 'concepts']);
 const paragraphs = value => Array.isArray(value) ? value : [value];
 
 export function validateEntries(entries) {
@@ -63,11 +63,12 @@ export function validatePrivateContent(content) {
     if (!value || typeof value !== 'object' || Array.isArray(value) ||
       ['start', 'end', 'quote', 'author', 'authorUrl', 'prompt'].some(key => typeof value[key] !== 'string' || !value[key].trim()) ||
       !Number.isFinite(Date.parse(value.start)) || !Number.isFinite(Date.parse(value.end)) ||
-      Date.parse(value.end) <= Date.parse(value.start) || !/^https?:\/\//i.test(value.authorUrl)) {
+      Date.parse(value.end) <= Date.parse(value.start) || !/^https?:\/\//i.test(value.authorUrl) ||
+      (value.closing !== undefined && (typeof value.closing !== 'string' || !value.closing.trim()))) {
       throw new Error('Invalid private hourglass settings.');
     }
   }
-  for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories']) {
+  for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories', 'conceptCategories']) {
     const categories = content[key];
     if (categories !== undefined && (!Array.isArray(categories) ||
       categories.some(tag => typeof tag !== 'string' || !tag.trim()) ||
@@ -78,17 +79,17 @@ export function validatePrivateContent(content) {
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
-  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences']) validateEntries(content[key] ?? []);
+  for (const key of ['ideas', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'concepts']) validateEntries(content[key] ?? []);
   if (content.descriptions !== undefined) {
     if (!content.descriptions || typeof content.descriptions !== 'object' || Array.isArray(content.descriptions) ||
       Object.entries(content.descriptions).some(([key, value]) =>
-        !['ideas', 'stories', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences'].includes(key) || typeof value !== 'string')) {
+        !['ideas', 'stories', 'history', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration', 'finance', 'social-sciences', 'concepts'].includes(key) || typeof value !== 'string')) {
       throw new Error('Invalid private collection descriptions.');
     }
   }
   const ids = new Set(content.philosophy.map(entry => entry.id));
   for (const note of [...content.firstPrinciples, ...(content.philosophyNotes ?? []),
-    ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.thoughts ?? []), ...(content.inspiration ?? []), ...(content.finance ?? []), ...(content['social-sciences'] ?? [])]) {
+    ...(content.ideas ?? []), ...(content.history ?? []), ...(content.psychology ?? []), ...(content.neuroscience ?? []), ...(content.learnings ?? []), ...(content.thoughts ?? []), ...(content.inspiration ?? []), ...(content.finance ?? []), ...(content['social-sciences'] ?? []), ...(content.concepts ?? [])]) {
     if (ids.has(note.id)) throw new Error('Private ids must be unique across all private collections.');
     ids.add(note.id);
   }

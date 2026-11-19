@@ -49,6 +49,8 @@ There is no public browser editing interface in the current implementation. Do n
 
 Populated category filters usually come from entry `tags`; the category arrays also support empty categories. Preserve Stories' source-specific tagging and the existing single-select versus multi-select filter behavior.
 
+Hourglass settings support optional `closing` plain text, displayed beneath the prompt after a divider. Keep it in private settings; the component clears and hides it on relock.
+
 ## Images and HTML
 
 The current database embeds raster images as data URIs inside entry JSONB. No Supabase Storage bucket was created. Encode new raster images into data URIs on the client before writing entries. Stage source files temporarily outside tracked public assets.

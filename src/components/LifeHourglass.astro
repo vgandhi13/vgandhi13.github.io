@@ -19,13 +19,17 @@
       <footer><a data-hourglass-author></a></footer>
     </blockquote>
     <p class="hourglass-question" data-hourglass-prompt></p>
+    <div class="hourglass-closing" data-hourglass-closing hidden>
+      <hr />
+      <p data-hourglass-closing-text></p>
+    </div>
   </div>
 </div>
 
 <script>
   const root = document.querySelector<HTMLElement>('[data-life-hourglass]');
   if (root) {
-    type Settings = { start: string; end: string; quote: string; author: string; authorUrl: string; prompt: string };
+    type Settings = { start: string; end: string; quote: string; author: string; authorUrl: string; prompt: string; closing?: string };
     let settings: Settings | null = null;
     let start = 0;
     let end = 0;
@@ -118,6 +122,8 @@
       stream.removeAttribute('d');
       root.querySelector('[data-hourglass-quote]')!.textContent = '';
       root.querySelector('[data-hourglass-prompt]')!.textContent = '';
+      root.querySelector('[data-hourglass-closing-text]')!.textContent = '';
+      root.querySelector<HTMLElement>('[data-hourglass-closing]')!.hidden = true;
       const author = root.querySelector('a')!;
       author.textContent = '';
       author.removeAttribute('href');
@@ -132,6 +138,8 @@
       end = Date.parse(settings.end);
       root.querySelector('[data-hourglass-quote]')!.textContent = settings.quote;
       root.querySelector('[data-hourglass-prompt]')!.textContent = settings.prompt;
+      root.querySelector('[data-hourglass-closing-text]')!.textContent = settings.closing ?? '';
+      root.querySelector<HTMLElement>('[data-hourglass-closing]')!.hidden = !settings.closing;
       const author = root.querySelector('a')!;
       author.textContent = settings.author;
       author.href = settings.authorUrl;
@@ -190,6 +198,9 @@
   .hourglass-quote p { margin: 0; }
   .hourglass-quote footer { margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted); }
   .hourglass-question { margin: 1.1rem 0 0; font-size: 0.95rem; font-weight: 500; color: var(--heading); }
+  .hourglass-closing[hidden] { display: none; }
+  .hourglass-closing hr { margin: 1.1rem 0; border: 0; border-top: 1px solid var(--border); }
+  .hourglass-closing p { margin: 0; font-size: 0.95rem; }
   @media (max-width: 540px) {
     .life-hourglass { flex-direction: column; gap: 1.5rem; margin: 2rem 0 3rem; }
     .hourglass { width: 104px; height: auto; }

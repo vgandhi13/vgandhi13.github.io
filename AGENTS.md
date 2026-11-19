@@ -98,14 +98,20 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   of green/blue/amber/teal and pill variants (pill rejected as too much furniture), then chose
   green for workshops; they were told green-as-success next to amber-as-caution can imply the
   workshop is the stronger result, and accepted that tradeoff.
-- **Collections** (`src/pages/collections.astro`, `/collections/`): ten private tabs
+- **Collections** (`src/pages/collections.astro`, `/collections/`): eleven private tabs
   (Ideas, Stories, Psychology, Neuroscience, Learnings, Thoughts, Finance, Social Sciences,
-  Philosophy, First Principles). Content loads from Supabase only after authenticated access.
+  Philosophy, First Principles, Concepts). Content loads from Supabase only after authenticated access.
   `src/lib/collections-page.js` owns login, tabs, and shared links;
   `src/lib/collection-content.js` owns validators and card renderers. Stories combines the
   History and Inspiration source collections. Legacy `#history` and `#inspiration` open Stories,
   `#cognitive-science` opens Psychology, `#communication` opens Learnings, and `#proverbs`
-  opens Thoughts. Entry ids stay stable. Database keys and authoring are in the Supabase skill.
+  opens Thoughts. Entry ids stay stable. Database keys and authoring are in the Supabase skill. Concepts uses
+  `collection_settings.content.conceptCategories` to show filters even before entries are added.
+  While the deployed frontend predates Concepts, stage entries in the owner's
+  `collection_settings.content.concepts` array. Older clients reject unknown entry
+  collection keys. After the frontend deploys, move the staged entries to
+  `collection_entries` with collection `concepts` and remove the array in the same
+  transaction so clients never see duplicate IDs.
 - **Collections access**: entering `/collections/` opens the login dialog immediately.
   After canceling, one click on the 🧠 heading opens it again; keyboard Enter/Space works too.
   Clicking the heading while signed in relocks. Successful login reveals the tabs

@@ -200,10 +200,13 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     const signatures = {
       'philosophy-content': [content.philosophy, content.philosophyNotes],
       'first-principles-content': content.firstPrinciples,
-      ...Object.fromEntries(['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences'].map(key => [key + '-content', [
+      ...Object.fromEntries(['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences', 'concepts'].map(key => [key + '-content', [
         key === 'stories' ? [content.history, content.inspiration] : content[key],
         content.descriptions?.[key],
-        key === 'learnings' ? content.learningCategories : key === 'thoughts' ? content.thoughtCategories : key === 'social-sciences' ? content.socialScienceCategories : null,
+        key === 'learnings' ? content.learningCategories :
+          key === 'thoughts' ? content.thoughtCategories :
+          key === 'social-sciences' ? content.socialScienceCategories :
+          key === 'concepts' ? content.conceptCategories : null,
       ]])),
     };
     const next = Object.fromEntries(Object.entries(signatures).map(([key, value]) => [key, JSON.stringify(value)]));
@@ -225,11 +228,12 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
         })),
       ];
       const renderContent = { ...content, stories };
-      const otherCollections = ['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences'].map(key => {
+      const otherCollections = ['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences', 'concepts'].map(key => {
         const fragment = key === 'stories' ? renderTaggedEntries(renderContent[key], ['History', 'Inspiration', 'Entrepreneurship', 'AI'], 'stories', { multiple: false }) :
           key === 'learnings' ? renderLearnings(renderContent[key] ?? [], content.learningCategories ?? []) :
           key === 'thoughts' ? renderTaggedEntries(renderContent[key] ?? [], content.thoughtCategories ?? [], 'thoughts', { multiple: false }) :
           key === 'social-sciences' ? renderTaggedEntries(renderContent[key] ?? [], content.socialScienceCategories ?? [], 'social sciences') :
+          key === 'concepts' ? renderTaggedEntries(renderContent[key] ?? [], content.conceptCategories ?? [], 'concepts') :
           key === 'finance' ? renderTaggedEntries(renderContent[key] ?? [], [], 'finance') :
           key === 'ideas' ? renderIdeas(renderContent[key] ?? []) : renderEntries(renderContent[key] ?? []);
         if (content.descriptions?.[key]) {

@@ -4,7 +4,7 @@ import { validatePrivateContent } from './collection-content.js';
 export const entryCollections = [
   'philosophy', 'firstPrinciples', 'philosophyNotes', 'ideas', 'history',
   'psychology', 'neuroscience', 'learnings', 'thoughts', 'inspiration',
-  'finance', 'social-sciences',
+  'finance', 'social-sciences', 'concepts',
 ];
 
 // One client per login attempt. Neither credentials nor sessions go into storage.
