@@ -2,7 +2,7 @@
 title: Reinforcement Learning for Large Language Models
 description: Notes on RL methods for training LLMs, including GRPO, the critic-free policy gradient method behind recent reasoning models.
 date: 2026-07-30
-updated: 2026-09-26
+updated: 2026-11-21
 bibliography:
   - id: r1zero-critical
     authors: Zichen Liu et al.
@@ -30,6 +30,12 @@ bibliography:
     source: Advances in Neural Information Processing Systems (NeurIPS)
     year: 2023
     url: https://arxiv.org/abs/2305.11206
+  - id: demystifying-rl
+    authors: Donovan Clay et al.
+    title: Demystifying Reinforcement Learning Post-Training of Language Models
+    source: "arXiv preprint arXiv:2608.24949"
+    year: 2026
+    url: https://arxiv.org/abs/2608.24949
 ---
 
 Yann LeCun has described intelligence with a cake analogy: "If intelligence is a cake, the bulk
@@ -45,36 +51,39 @@ Following this, LLMs typically go through a three-step training pipeline:
    Feedback), and for creating "reasoning" or "thinking" models, via RLVR (Reinforcement Learning
    with Verifiable Rewards).
 
-## Reinforcement Learning from Human Feedback (RLHF)
+## Why RL for LLMs
 
-RLHF is the original alignment method. Its goal is to align LLMs with human preferences.
-
-<figure class="narrow">
-  <img src="/images/notes/shoggoth-rlhf-mask.png" alt="Line drawing of a huge many-eyed tentacled Shoggoth, labelled Unsupervised Learning. A small pink human-like face on one tentacle is labelled Supervised Fine-tuning, and the yellow smiley face it holds up in front of itself is labelled RLHF (cherry on top)." />
-  <figcaption>The Shoggoth meme drawn as the training pipeline: pretraining grows the creature, supervised fine-tuning gives it a human face, and RLHF is the smiley mask held up in front. Source: Dan Smith, <a href="https://www.lesswrong.com/posts/yjzW7gxk2h7bBs2qr/the-meaning-of-shoggoth-ai-memes">"The Meaning of Shoggoth AI Memes"</a>, LessWrong.</figcaption>
-</figure>
-
-There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
-gets its signal from people instead. Thousands of human judgements are collected, each one a
-pairwise preference between two candidate answers to the same prompt: A over B, D over C, and so
-on. A neural network, the reward model, is then trained to imitate those preferences, so it can
-score responses the way the annotators would have.
+Reinforcement learning lets LLMs explore possible responses and use reward feedback to discover
+solutions that were not explicitly demonstrated in their training data. This is one way to
+develop useful behavior beyond simply reproducing training examples. Whether RL creates new
+capabilities or draws out capabilities already present in the base model is a separate question,
+discussed [later in this note](#emergent-abilities-from-rl).
 
 <figure class="narrow">
-  <img src="/images/notes/rlhf-reward-model.png" alt="Diagram: three boxes of pairwise human preferences, answer A over answer B, answer D over answer C, answer E over answer F, plus a note that there are thousands more, all feeding by arrows into a reward model described as a whole separate network" />
-  <figcaption>Thousands of pairwise human judgements are distilled into a reward model, a whole separate network. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+  <img src="/images/notes/rl-exploration-beyond-training-data.jpg" alt="An LLM inside a dashed circle labelled Training Data explores several paths. One path extends beyond the circle as a yellow arrow toward a new capability." />
+  <figcaption>A conceptual picture of exploration beyond the training examples. The boundary is illustrative, rather than a precise limit on the model's capabilities. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=11s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
 </figure>
 
-That reward model is what the policy is then optimized against, which is the proxy the RLVR
-section below contrasts with.
+During pre-training, the model is not taught one single perfect answer for every prompt. It
+learns through next-token prediction across internet text, books, code, math, dialogue, and many
+other domains. Each training position supplies one observed next token, but across these examples
+the model learns a probability distribution over possible next tokens.
 
-It is worth being precise about what this buys. RLHF makes a model safer with respect to the
-behaviors and situations that its training and evaluation data represent. It does not guarantee
-safety under distribution shift. A prompt unlike anything the annotators considered can still
-pull out the behavior the training was meant to suppress, which is the point the painted-on face
-above is making.
+For a given prompt, the base model can therefore assign probability to many different
+continuations. The patterns learned across diverse data help it generalize to new prompts, while
+sampling from this distribution gives RL different responses to explore and score.
 
-TODO: will update this section later.
+<figure class="narrow">
+  <img src="/images/notes/rl-pretraining-continuation-distribution.jpg" alt="Video frame showing a prompt above a broad yellow curve, with possible next tokens the, is, to, a, and blue spread across it and an arrow labelled Generality below." />
+  <figcaption>A schematic view of multiple possible continuations. The bell curve is an illustration, not the actual shape of a categorical next-token distribution. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=52s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+</figure>
+
+RL changes the training game. Instead of trying to do next token prediction to match the distribution to human text, RL directly increases the probability of the sampled answer that got high reward, and directly decreases the probability of the sampled answer that got lower reward inside the model weights. So if a model generates a reasoning trace and gets rewarded, RL pushes up the probability of that trajectory, disregarding the good, the bad and anything that happened during the reasoning. If another trajectory gets rejected, RL would also push it down.
+
+<figure class="narrow">
+  <img src="/images/notes/rl-reward-trajectory-update.gif" alt="Animation of an output probability distribution shifting upward around a high-reward answer and downward around a low-reward answer, followed by rewarded and rejected reasoning trajectories." width="640" height="360" />
+  <figcaption>RL shifts probability toward rewarded responses and away from penalized responses. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=55s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+</figure>
 
 ## RL Formulation for LLMs
 
@@ -115,6 +124,37 @@ MDP or a bandit formulation.[^bandit-mdp-worked] Given that LLMs usually only re
 bandit formulation, despite being very simple, is quite fitting for LLMs.
 [REINFORCE](/notes/policy-gradients/#full-algorithm) and RLOO adopt the bandit formulation, while
 algorithms like PPO use a per-token MDP formulation.[^bandit-mdp]
+
+## Reinforcement Learning from Human Feedback (RLHF)
+
+RLHF is the original alignment method. Its goal is to align LLMs with human preferences.
+
+<figure class="narrow">
+  <img src="/images/notes/shoggoth-rlhf-mask.png" alt="Line drawing of a huge many-eyed tentacled Shoggoth, labelled Unsupervised Learning. A small pink human-like face on one tentacle is labelled Supervised Fine-tuning, and the yellow smiley face it holds up in front of itself is labelled RLHF (cherry on top)." />
+  <figcaption>The Shoggoth meme drawn as the training pipeline: pretraining grows the creature, supervised fine-tuning gives it a human face, and RLHF is the smiley mask held up in front. Source: Dan Smith, <a href="https://www.lesswrong.com/posts/yjzW7gxk2h7bBs2qr/the-meaning-of-shoggoth-ai-memes">"The Meaning of Shoggoth AI Memes"</a>, LessWrong.</figcaption>
+</figure>
+
+There is no verifiable answer to check against for most of what we ask a model to do, so RLHF
+gets its signal from people instead. Thousands of human judgements are collected, each one a
+pairwise preference between two candidate answers to the same prompt: A over B, D over C, and so
+on. A neural network, the reward model, is then trained to imitate those preferences, so it can
+score responses the way the annotators would have.
+
+<figure class="narrow">
+  <img src="/images/notes/rlhf-reward-model.png" alt="Diagram: three boxes of pairwise human preferences, answer A over answer B, answer D over answer C, answer E over answer F, plus a note that there are thousands more, all feeding by arrows into a reward model described as a whole separate network" />
+  <figcaption>Thousands of pairwise human judgements are distilled into a reward model, a whole separate network. Source: <a href="https://www.youtube.com/watch?v=pW34NAiXmns">GRPO explained</a>.</figcaption>
+</figure>
+
+That reward model is what the policy is then optimized against, which is the proxy the RLVR
+section below contrasts with.
+
+It is worth being precise about what this buys. RLHF makes a model safer with respect to the
+behaviors and situations that its training and evaluation data represent. It does not guarantee
+safety under distribution shift. A prompt unlike anything the annotators considered can still
+pull out the behavior the training was meant to suppress, which is the point the painted-on face
+above is making.
+
+TODO: will update this section later.
 
 ## Policy Gradients for LLMs
 
@@ -1817,6 +1857,11 @@ distillation is different: supervised fine-tuning on trajectories from a stronge
 transfer patterns outside the student's original reasoning distribution and expand what it can
 solve.
 
+<figure class="narrow">
+  <img src="/images/notes/rlvr-reasoning-capacity.png" alt="Search trees for two problems compare a base model with an RLVR model. RLVR makes a correct path more likely for Problem A but suppresses the correct path for Problem B." loading="lazy" width="1270" height="584" />
+  <figcaption>How current RLVR changes reasoning, illustrated by repeatedly sampling each model. Black branches represent likely paths, grey branches represent unlikely paths, and green marks correct answers with positive rewards. In Problem A, RLVR concentrates probability on an existing correct path, making sampling more efficient. In Problem B, it suppresses a correct path available to the base model, narrowing the range of problems it can solve. The authors’ interpretation is that RLVR draws on reasoning paths already present in the base model. Caption adapted from Figure 1 (left), <a href="https://arxiv.org/pdf/2504.13837#page=2">Yue et al. (2025)</a>.</figcaption>
+</figure>
+
 Zhou et al. (2023) call this broader view the **Superficial Alignment Hypothesis** in
 *LIMA: Less Is More for Alignment*.[[4]](#ref-lima) The hypothesis says that knowledge and
 capabilities are learned primarily during pre-training, while alignment mostly teaches the model
@@ -1826,20 +1871,70 @@ and finds that this small dataset is sufficient to teach strong instruction foll
 response formatting. From this perspective, RLVR's pass@1 gain is an
 alignment effect: it makes an existing correct reasoning path more likely to appear.
 
-Taken together, the evidence suggests a distinction between exposing capacity and expanding it.
-Current RLVR reliably turns latent reasoning into reliable behavior, but does not necessarily
-expand the model's underlying reasoning boundary. In short, RL only shapes behavior; it does not
-teach new knowledge well. Distillation can expand that boundary by
+With a sparse reward (0 or 1 at the end of the answer), the base model must already be able to
+sample the correct behavior that RLVR amplifies. If a correct answer is never sampled, the
+task reward is always zero and provides no signal for learning a correct solution. However,
+models that fail to learn with sparse rewards can learn the same task with denser ones, such
+as a Process Reward Model (PRM) that gives partial credit for correct reasoning steps.
+In a controlled experiment on a single hard AIME problem, Clay et al. (2026) found that the
+same starting model, Qwen2.5-7B-Instruct, reached 10.2% accuracy after training with sparse
+rewards versus 92.2% with dense PRM rewards.[[5]](#ref-demystifying-rl) This shows that RL can
+teach new behaviors when intermediate feedback guides exploration toward solutions that were
+unlikely under the starting model.
+
+Distillation can also expand the model's reasoning boundary by
 directly supplying new chain-of-thought patterns, and pre-training on data that contains such
 patterns may do the same before post-training begins.
 
-## Issues That Come Up for RL for LLMs
+## Issues with RL for LLMs
 
-### 1. Policy entropy collapse
+### 1. Narrow capabilities
+
+Over many updates, RL creates a sharpening effect because the model would become more confident in the kinds of responses that get rewarded and less likely to produce nearby alternatives that are not explicitly rewarded. So, the model would start skewing towards rewarded behaviours, making a model better at a narrow capability while also making it less general.
+
+<div class="figure-row">
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rl-reward-sharpening.gif" alt="Animation of an output probability distribution sharpening toward rewarded responses, becoming a narrow yellow peak labelled Narrow Capability as Generality is crossed out." width="640" height="360" />
+      <figcaption>The sharpening effect: probability concentrates around rewarded behaviours. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=85s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+    </figure>
+  </div>
+  <div class="figure-col">
+    <figure>
+      <img src="/images/notes/rl-policy-distribution-reshaping.gif" alt="Animation of a broad probability distribution shifting and narrowing into a sharp peak around a dashed line labelled Specific Behavior." width="640" height="360" />
+      <figcaption>RL reshapes the probability distribution toward a specific behaviour. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=19s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+    </figure>
+  </div>
+</div>
+
+For example, a base model trained with RL on math might become very good at long reasoning,
+but it might also overuse that reasoning when a short answer would have been better. A version
+trained with RL on code might become more test-driven and execution-focused, but less effective
+at open-ended explanation or less flexible in its style. Because the reward is usually sparse,
+it may not precisely teach the model when these learned behaviours are appropriate, so they
+can be activated even when they are not useful.
+
+On top of that, when we want to train multiple capabilities into the model, we have to stack
+multiple RL specialists, all requiring different RL objectives. However, each different RL
+objective will move the model towards a different rewarded behaviour distribution.
+
+<figure class="narrow">
+  <img src="/images/notes/rl-multiple-specialist-objectives.jpg" alt="A base model topped by stacked RL objectives for math, code, literature, and chat, with matching coloured markers above a shared probability curve." width="640" height="360" />
+  <figcaption>Different specialist RL objectives steer the model toward different rewarded behaviours. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=136s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+</figure>
+
+So we are not only sharpening the distributions and making answers less diverse. The learned behaviours might get suppressed under another objective contesting the behaviours
+
+<figure class="narrow">
+  <img src="/images/notes/rl-competing-objectives.gif" alt="Animation of three coloured behaviour distributions changing as the central green peak grows and the neighbouring blue and yellow peaks shrink." width="640" height="360" />
+  <figcaption>Competing objectives can strengthen one behaviour while suppressing others. Source: bycloud, <a href="https://www.youtube.com/watch?v=w-VsGPEivyU&amp;t=141s">On-Policy Distillation: LLM's Post-Training Meta of 2026</a>.</figcaption>
+</figure>
+
+### 2. Policy entropy collapse
 
 Reinforcement learning improves a policy by exploring alternatives, but every reward also
 concentrates probability on what already worked. If that concentration goes too far, exploration
-dies. That failure is policy entropy collapse.
+dies, the distribution sharpens, and there is a loss of diversity. That failure is policy entropy collapse.
 
 Early in RL training the policy is still exploring: for a given prompt it can generate many
 different reasoning paths, spreading probability across a wide range of next tokens. As RL runs,
@@ -1872,7 +1967,7 @@ exploration is gone there is nothing left to discover.
 The reward curve rises for a while and then goes flat, not because the model solved the task but
 because it stopped trying anything new.
 
-### 2. Objective bias from the normalization terms
+### 3. Objective bias from the normalization terms
 
 The bias here is not in the data, it is sitting inside the objective itself. The clean objective
 built above is not quite neutral. Look again at its two normalization terms, the
