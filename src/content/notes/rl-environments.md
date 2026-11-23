@@ -1,8 +1,8 @@
 ---
-title: RL Environments
+title: RL Environments for LLMs
 description: A reading list on reinforcement learning environments.
 date: 2026-09-12
-updated: 2026-10-11
+updated: 2026-11-21
 ---
 
 TODO: this note is a placeholder while I work through the material below and write it up
@@ -19,3 +19,4 @@ properly.
 7. [MiMo RL Environment Explorer](https://huggingface.co/spaces/FineEnvs/MiMo-RL-Envs-Explorer), FineEnvs.
 8. [LinkedIn post on RL environments](https://lnkd.in/p/gAjiwZbZ).
 9. [FineEnvs on Hugging Face](https://huggingface.co/FineEnvs), open RL environments and end-to-end training and evaluation recipes.
+10. ["RL Environments at Scale"](https://www.youtube.com/watch?v=_IzZWeuTx7I), Will Brown, Prime Intellect.

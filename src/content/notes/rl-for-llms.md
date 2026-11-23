@@ -55,9 +55,8 @@ Following this, LLMs typically go through a three-step training pipeline:
 
 Reinforcement learning lets LLMs explore possible responses and use reward feedback to discover
 solutions that were not explicitly demonstrated in their training data. This is one way to
-develop useful behavior beyond simply reproducing training examples. Whether RL creates new
-capabilities or draws out capabilities already present in the base model is a separate question,
-discussed [later in this note](#emergent-abilities-from-rl).
+develop useful behavior beyond simply reproducing training examples. RL primarily shapes behavior, rather than teaching new knowledge.
+This is discussed [later in this note](#emergent-abilities-from-rl).
 
 <figure class="narrow">
   <img src="/images/notes/rl-exploration-beyond-training-data.jpg" alt="An LLM inside a dashed circle labelled Training Data explores several paths. One path extends beyond the circle as a yellow arrow toward a new capability." />

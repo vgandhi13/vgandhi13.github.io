@@ -1,8 +1,8 @@
 ---
-title: Scaling RL
+title: Scaling RL for LLMs
 description: "Why synchronous RL leaves GPUs idle, and how asynchronous Pipeline RL fixes it with in-flight weight updates and per-token importance ratios."
 date: 2026-07-29
-updated: 2026-09-13
+updated: 2026-11-21
 ---
 
 ## Synchronous RL
@@ -187,3 +187,7 @@ TODO: write this section using:
 
 - [Rishabh Agarwal: The Art of Scaling Reinforcement Learning Compute for LLMs](https://www.youtube.com/watch?v=RBZx-BKKdG8)
 - [The Hitchhiker's Guide to Frontier Reinforcement Learning](https://www.youtube.com/watch?v=GH4JCdAAUYg)
+
+## To read
+
+- [Anatomy of verl, the RL post-training framework I lived in](https://reinforcedknowledge.com/posts/verl-retrospective/), Reinforced Knowledge.
