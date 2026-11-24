@@ -132,7 +132,9 @@ changes; leave Gemma 4 work local and exclude it from those commits.
   hardcoded pixel width.
 - **Collection rendering**: Ideas shuffle after loading; other entries retain display order.
   `author` selects a quotation, while `subject` or `title` selects prose. First Principles and
-  Philosophy notes use native `<details>`; Philosophy supports subcategory filters. Body HTML,
+  Philosophy notes use native `<details>`; Philosophy supports subcategory filters, taken from
+  note `subcategory` values plus `collection_settings.content.philosophyCategories`, which shows
+  a category (e.g. People) before any note uses it. Body HTML,
   commentary, and SVG are trusted owner-authored content; metadata is escaped. Dynamic cards
   need global CSS namespaced under `.collections`, since Astro's scoped attributes do not
   reach JS-created DOM. Use neutral source credits such as “Source: Video”, with Video linked.

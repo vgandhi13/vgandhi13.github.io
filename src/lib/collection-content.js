@@ -68,7 +68,7 @@ export function validatePrivateContent(content) {
       throw new Error('Invalid private hourglass settings.');
     }
   }
-  for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories', 'conceptCategories']) {
+  for (const key of ['learningCategories', 'socialScienceCategories', 'thoughtCategories', 'conceptCategories', 'philosophyCategories']) {
     const categories = content[key];
     if (categories !== undefined && (!Array.isArray(categories) ||
       categories.some(tag => typeof tag !== 'string' || !tag.trim()) ||
@@ -259,10 +259,11 @@ export function renderPrinciples(notes) {
   return template.content;
 }
 
-export function renderPhilosophyNotes(notes) {
+// `categories` lists subcategories to show even before any note uses them.
+export function renderPhilosophyNotes(notes, categories = []) {
   validatePrinciples(notes);
   if (notes.some(note => note.presentation === 'aside')) {
-    const fragment = renderPhilosophyNotes(notes.filter(note => note.presentation !== 'aside'));
+    const fragment = renderPhilosophyNotes(notes.filter(note => note.presentation !== 'aside'), categories);
     for (const note of notes.filter(note => note.presentation === 'aside')) {
       if (document.getElementById(note.id)) throw new Error('A private note id collides with the public page.');
       const aside = document.createElement('aside');
@@ -280,8 +281,9 @@ export function renderPhilosophyNotes(notes) {
     if (!groups.has(name)) groups.set(name, []);
     groups.get(name).push(note);
   }
+  for (const name of categories) if (!groups.has(name)) groups.set(name, []);
   const fragment = document.createDocumentFragment();
-  if (!notes.length) return fragment;
+  if (!groups.size) return fragment;
   const wrapper = document.createElement('div');
   wrapper.className = 'philosophy-notes';
   const toolbar = document.createElement('div');

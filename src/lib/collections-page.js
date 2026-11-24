@@ -198,7 +198,7 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
     const anchorTop = anchor?.getBoundingClientRect().top;
     const scrollY = window.scrollY;
     const signatures = {
-      'philosophy-content': [content.philosophy, content.philosophyNotes],
+      'philosophy-content': [content.philosophy, content.philosophyNotes, content.philosophyCategories],
       'first-principles-content': content.firstPrinciples,
       ...Object.fromEntries(['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences', 'concepts'].map(key => [key + '-content', [
         key === 'stories' ? [content.history, content.inspiration] : content[key],
@@ -216,7 +216,7 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       const philosophy = content.philosophy.length || !content.philosophyNotes?.length ?
         renderEntries(content.philosophy) : document.createDocumentFragment();
       const principles = renderPrinciples(content.firstPrinciples);
-      philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? []));
+      philosophy.append(renderPhilosophyNotes(content.philosophyNotes ?? [], content.philosophyCategories ?? []));
       const stories = [
         ...(content.history ?? []).map(entry => ({
           ...entry,

@@ -45,7 +45,7 @@ There is no public browser editing interface in the current implementation. Do n
 
 ## Settings
 
-`collection_settings` has one row per `owner_id`, with a `content` JSONB object. Update only the requested key, preserving the others: `descriptions`, `learningCategories`, `thoughtCategories`, `socialScienceCategories`, or `hourglass`.
+`collection_settings` has one row per `owner_id`, with a `content` JSONB object. Update only the requested key, preserving the others: `descriptions`, `learningCategories`, `thoughtCategories`, `socialScienceCategories`, `conceptCategories`, `philosophyCategories`, or `hourglass`. A Philosophy note joins a category through its `subcategory` field; `philosophyCategories` only makes a category visible while it has no notes.
 
 Populated category filters usually come from entry `tags`; the category arrays also support empty categories. Preserve Stories' source-specific tagging and the existing single-select versus multi-select filter behavior.
 
