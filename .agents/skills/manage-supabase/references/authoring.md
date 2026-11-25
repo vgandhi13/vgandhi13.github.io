@@ -49,6 +49,8 @@ There is no public browser editing interface in the current implementation. Do n
 
 Populated category filters usually come from entry `tags`; the category arrays also support empty categories. Preserve Stories' source-specific tagging and the existing single-select versus multi-select filter behavior.
 
+Thoughts filter descriptions live in `collection_settings.content.thoughtCategoryDescriptions`, a map from the exact tag to plain text. The selected filter shows its description below the count; All and categories without a description hide it. Keep this copy in private settings. Changes participate in live panel refreshes.
+
 Hourglass settings support optional `closing` plain text, displayed beneath the prompt after a divider. Keep it in private settings; the component clears and hides it on relock.
 
 ## Images and HTML

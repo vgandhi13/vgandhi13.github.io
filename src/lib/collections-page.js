@@ -203,6 +203,7 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       ...Object.fromEntries(['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences', 'concepts'].map(key => [key + '-content', [
         key === 'stories' ? [content.history, content.inspiration] : content[key],
         content.descriptions?.[key],
+        key === 'thoughts' ? content.thoughtCategoryDescriptions : null,
         key === 'learnings' ? content.learningCategories :
           key === 'thoughts' ? content.thoughtCategories :
           key === 'social-sciences' ? content.socialScienceCategories :
@@ -231,7 +232,7 @@ import { renderEntries, renderPrinciples, renderPhilosophyNotes, renderLearnings
       const otherCollections = ['ideas', 'stories', 'psychology', 'neuroscience', 'learnings', 'thoughts', 'finance', 'social-sciences', 'concepts'].map(key => {
         const fragment = key === 'stories' ? renderTaggedEntries(renderContent[key], ['History', 'Inspiration', 'Entrepreneurship', 'AI'], 'stories', { multiple: false }) :
           key === 'learnings' ? renderLearnings(renderContent[key] ?? [], content.learningCategories ?? []) :
-          key === 'thoughts' ? renderTaggedEntries(renderContent[key] ?? [], content.thoughtCategories ?? [], 'thoughts', { multiple: false }) :
+          key === 'thoughts' ? renderTaggedEntries(renderContent[key] ?? [], content.thoughtCategories ?? [], 'thoughts', { multiple: false, descriptions: content.thoughtCategoryDescriptions ?? {} }) :
           key === 'social-sciences' ? renderTaggedEntries(renderContent[key] ?? [], content.socialScienceCategories ?? [], 'social sciences') :
           key === 'concepts' ? renderTaggedEntries(renderContent[key] ?? [], content.conceptCategories ?? [], 'concepts') :
           key === 'finance' ? renderTaggedEntries(renderContent[key] ?? [], [], 'finance') :

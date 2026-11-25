@@ -76,6 +76,13 @@ export function validatePrivateContent(content) {
       throw new Error('Invalid private collection categories.');
     }
   }
+  if (content.thoughtCategoryDescriptions !== undefined) {
+    const descriptions = content.thoughtCategoryDescriptions;
+    if (!descriptions || typeof descriptions !== 'object' || Array.isArray(descriptions) ||
+      Object.entries(descriptions).some(([tag, text]) => !tag.trim() || typeof text !== 'string' || !text.trim())) {
+      throw new Error('Invalid private thought category descriptions.');
+    }
+  }
   validateEntries(content.philosophy);
   validatePrinciples(content.firstPrinciples);
   validatePrinciples(content.philosophyNotes ?? []);
@@ -166,7 +173,7 @@ export function renderLearnings(entries, categories = []) {
   return renderTaggedEntries(entries, categories, 'learnings');
 }
 
-export function renderTaggedEntries(entries, categories = [], label = 'entries', { multiple = true } = {}) {
+export function renderTaggedEntries(entries, categories = [], label = 'entries', { multiple = true, descriptions = {} } = {}) {
   const cards = renderEntries(entries, { tags: true });
   const wrapper = document.createElement('div');
   wrapper.className = 'learning-list';
@@ -187,7 +194,11 @@ export function renderTaggedEntries(entries, categories = [], label = 'entries',
   const status = document.createElement('p');
   status.className = 'learning-status';
   status.setAttribute('role', 'status');
-  wrapper.append(toolbar, status, cards);
+  const description = document.createElement('p');
+  description.className = 'collection-description';
+  description.hidden = true;
+  description.setAttribute('aria-live', 'polite');
+  wrapper.append(toolbar, status, description, cards);
   const selected = new Set();
   const filter = tag => {
     if (!tag) selected.clear();
@@ -208,6 +219,8 @@ export function renderTaggedEntries(entries, categories = [], label = 'entries',
       button.setAttribute('aria-pressed', String(value ? selected.has(value) : !selected.size));
     }
     status.textContent = `${count} ${count === 1 ? 'entry' : 'entries'}${selected.size ? ' tagged ' + [...selected].join(' and ') : ''}`;
+    description.textContent = [...selected].map(tag => Object.hasOwn(descriptions, tag) ? descriptions[tag] : '').filter(Boolean).join(' ');
+    description.hidden = !description.textContent;
   };
   wrapper.addEventListener('click', event => {
     const button = event.target.closest('button[data-learning-tag]');
